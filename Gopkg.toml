@@ -73,3 +73,15 @@ required = [
   [[prune.project]]
     name = "k8s.io/gengo"
     non-go = false
+
+[[constraint]]
+  name = "github.com/PagerDuty/go-pagerduty"
+  version = "1.0.4"
+
+[[constraint]]
+  name = "github.com/hashicorp/vault"
+  version = "1.0.3"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/openshift/hive"
