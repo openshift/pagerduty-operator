@@ -321,12 +321,13 @@
   revision = "c226dcab667ea57774c81b73102f08bff5c2d518"
 
 [[projects]]
-  branch = "master"
-  digest = "1:57f646b259e9916d5b66d3d5248a607cab1d61b9c026915e176d9277115ad738"
+  branch = "check_in_generated"
+  digest = "1:45d89ae4f033c2fc173e6093a0a0130773b76f4cdfa2fcf80d1fcbdc8a480067"
   name = "github.com/openshift/hive"
   packages = ["pkg/apis/hive/v1alpha1"]
   pruneopts = "NT"
-  revision = "cc95376e36352ff407bc1d095333831dc920e968"
+  revision = "e8b0ed626e1273319af0eaf95b142ca83e324e12"
+  source = "github.com/csrwng/hive"
 
 [[projects]]
   digest = "1:df8e741cd0f86087367f3bcfeb1cf237e96fada71194b6d4cee9412d221ec763"
@@ -937,7 +938,6 @@
     "github.com/operator-framework/operator-sdk/pkg/metrics",
     "github.com/operator-framework/operator-sdk/version",
     "github.com/spf13/pflag",
-    "k8s.io/api/core/v1",
     "k8s.io/apimachinery/pkg/api/errors",
     "k8s.io/apimachinery/pkg/runtime",
     "k8s.io/client-go/plugin/pkg/client/auth/gcp",

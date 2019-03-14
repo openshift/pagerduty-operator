@@ -83,5 +83,6 @@ required = [
   version = "=1.0.3"
 
 [[constraint]]
-  branch = "master"
+  source = "github.com/csrwng/hive"
+  branch = "check_in_generated"
   name = "github.com/openshift/hive"
