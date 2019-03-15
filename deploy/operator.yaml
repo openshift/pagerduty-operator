@@ -15,8 +15,8 @@ spec:
       serviceAccountName: pagerduty-operator
       containers:
         - name: pagerduty-operator
-          # Replace this with the built image name
-          image: REPLACE_IMAGE
+          #TODO Move to official quay namespace
+          image: quay.io/whearn/pagerduty-operator
           command:
           - pagerduty-operator
           imagePullPolicy: Always
