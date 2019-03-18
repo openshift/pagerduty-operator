@@ -58,3 +58,4 @@ rules:
   - list
   - watch
   - create
+  - update

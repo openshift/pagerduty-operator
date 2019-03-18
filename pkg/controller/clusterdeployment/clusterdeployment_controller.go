@@ -2,10 +2,12 @@ package clusterdeployment
 
 import (
 	"context"
+	"fmt"
 
 	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+
+	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -91,26 +93,17 @@ func (r *ReconcileClusterDeployment) Reconcile(request reconcile.Request) (recon
 		}
 	}
 
-	ssSpec := &hivev1.SyncSetSpec{
-		ClusterDeploymentRefs: []corev1.LocalObjectReference{
-			{
-				Name: instance.Name,
-			},
-		},
-	}
-	ss := &hivev1.SyncSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: instance.Name + "-pd-sync",
-			// TODO: Find the corrent namespace to land this in
-			Namespace: request.Namespace,
-		},
-		Spec: *ssSpec,
-	}
+	ssName := fmt.Sprintf("%v-pd-sync", instance.Name)
+	ss := &hivev1.SyncSet{}
 
-	if err = r.client.Get(context.TODO(), request.NamespacedName, ss); err != nil {
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: ssName, Namespace: request.Namespace}, ss)
+	if err != nil {
 		if errors.IsNotFound(err) {
 			reqLogger.Info("Creating syncset")
-			if err := r.client.Create(context.TODO(), ss); err != nil {
+
+			newSS := pd.GenerateSyncSet(request.Namespace, instance.Name)
+
+			if err := r.client.Create(context.TODO(), newSS); err != nil {
 				return reconcile.Result{}, err
 			}
 		}
