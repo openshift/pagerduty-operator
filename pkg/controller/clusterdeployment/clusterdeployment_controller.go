@@ -4,6 +4,8 @@ import (
 	"context"
 
 	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -79,6 +81,39 @@ func (r *ReconcileClusterDeployment) Reconcile(request reconcile.Request) (recon
 		}
 		// Error reading the object - requeue the request.
 		return reconcile.Result{}, err
+	}
+
+	// Just return if this is not a managed cluster
+	if val, ok := instance.Labels["managed"]; ok {
+		if val != "true" {
+			reqLogger.Info("Is not a managed cluster")
+			return reconcile.Result{}, nil
+		}
+	}
+
+	ssSpec := &hivev1.SyncSetSpec{
+		ClusterDeploymentRefs: []corev1.LocalObjectReference{
+			{
+				Name: instance.Name,
+			},
+		},
+	}
+	ss := &hivev1.SyncSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: instance.Name + "-pd-sync",
+			// TODO: Find the corrent namespace to land this in
+			Namespace: request.Namespace,
+		},
+		Spec: *ssSpec,
+	}
+
+	if err = r.client.Get(context.TODO(), request.NamespacedName, ss); err != nil {
+		if errors.IsNotFound(err) {
+			reqLogger.Info("Creating syncset")
+			if err := r.client.Create(context.TODO(), ss); err != nil {
+				return reconcile.Result{}, err
+			}
+		}
 	}
 
 	return reconcile.Result{}, nil

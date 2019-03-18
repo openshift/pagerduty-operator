@@ -2,6 +2,7 @@ kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: pagerduty-operator
+  namespace: sre-pagerduty-operator
 rules:
 - apiGroups:
   - ""
@@ -40,6 +41,7 @@ rules:
 - apiGroups:
   - hive.openshift.io
   resources:
+  - syncsets
   - clusterdeployments
   - clusterdeployments/status
   - clusterdeployments/finalizers
@@ -47,3 +49,12 @@ rules:
   - get
   - list
   - watch
+- apiGroups:
+  - hive.openshift.io
+  resources:
+  - syncsets
+  verbs:
+  - get
+  - list
+  - watch
+  - create

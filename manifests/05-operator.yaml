@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: pagerduty-operator
+  namespace: sre-pagerduty-operator
 spec:
   replicas: 1
   selector:
@@ -16,7 +17,7 @@ spec:
       containers:
         - name: pagerduty-operator
           #TODO Move to official quay namespace
-          image: quay.io/whearn/pagerduty-operator:0.2
+          image: quay.io/whearn/pagerduty-operator:0.0.9
           command:
           - pagerduty-operator
           imagePullPolicy: Always

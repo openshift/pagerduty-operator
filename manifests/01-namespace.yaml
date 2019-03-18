@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sre-pagerduty-operator
+  annotations:
+    openshift.io/node-selector: ""
+  labels:
