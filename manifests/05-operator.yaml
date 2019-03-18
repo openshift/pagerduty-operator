@@ -17,7 +17,7 @@ spec:
       containers:
         - name: pagerduty-operator
           #TODO Move to official quay namespace
-          image: quay.io/whearn/pagerduty-operator:0.0.17
+          image: quay.io/whearn/pagerduty-operator:0.0.18
           command:
           - pagerduty-operator
           imagePullPolicy: Always
