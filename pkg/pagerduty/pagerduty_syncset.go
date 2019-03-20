@@ -3,6 +3,9 @@ package pagerduty
 import (
 	"fmt"
 
+	"github.com/openshift/pagerduty-operator/pkg/vault"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -10,8 +13,15 @@ import (
 )
 
 // GenerateSyncSet returns the sync set for creation with the k8s go client
-func GenerateSyncSet(namespace string, name string) *hivev1.SyncSet {
+func GenerateSyncSet(osc client.Client, namespace string, name string) (*hivev1.SyncSet, error) {
 	ssName := fmt.Sprintf("%v-pd-sync", name)
+
+	vaultSecret, err := vault.GetVaultSecret(osc, "sre-pagerduty-operator", "vaultconfig", "secrets/osd-sre/whearn", "test")
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println(vaultSecret)
 
 	newSS := &hivev1.SyncSet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -48,5 +58,5 @@ func GenerateSyncSet(namespace string, name string) *hivev1.SyncSet {
 		},
 	}
 
-	return newSS
+	return newSS, nil
 }

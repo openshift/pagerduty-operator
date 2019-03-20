@@ -91,6 +91,10 @@ func (r *ReconcileClusterDeployment) Reconcile(request reconcile.Request) (recon
 			reqLogger.Info("Is not a managed cluster")
 			return reconcile.Result{}, nil
 		}
+	} else {
+		// Managed tag is not present which implies it is not a managed cluster
+		reqLogger.Info("Is not a managed cluster")
+		return reconcile.Result{}, nil
 	}
 
 	ssName := fmt.Sprintf("%v-pd-sync", instance.Name)
@@ -101,7 +105,10 @@ func (r *ReconcileClusterDeployment) Reconcile(request reconcile.Request) (recon
 		if errors.IsNotFound(err) {
 			reqLogger.Info("Creating syncset")
 
-			newSS := pd.GenerateSyncSet(request.Namespace, instance.Name)
+			newSS, err := pd.GenerateSyncSet(r.client, request.Namespace, instance.Name)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
 
 			if err := r.client.Create(context.TODO(), newSS); err != nil {
 				return reconcile.Result{}, err
