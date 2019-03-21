@@ -10,6 +10,14 @@
   version = "v0.37.0"
 
 [[projects]]
+  digest = "1:8c7a6728ebc0ac19969cf778e76b91b548964e187d8e33327d39f5cda0272546"
+  name = "github.com/PagerDuty/go-pagerduty"
+  packages = ["."]
+  pruneopts = "NT"
+  revision = "b4a4067bdbde86de1d3fdf15c3c01e76bee9127c"
+  version = "1.0.4"
+
+[[projects]]
   digest = "1:0a111edd8693fd977f42a0c4f199a0efb13c20aec9da99ad8830c7bb6a87e8d6"
   name = "github.com/PuerkitoBio/purell"
   packages = ["."]
@@ -193,6 +201,14 @@
   packages = ["."]
   pruneopts = "NT"
   revision = "4030bb1f1f0c35b30ca7009e9ebd06849dd45306"
+
+[[projects]]
+  digest = "1:a63cff6b5d8b95638bfe300385d93b2a6d9d687734b863da8e09dc834510a690"
+  name = "github.com/google/go-querystring"
+  packages = ["query"]
+  pruneopts = "NT"
+  revision = "44c6ddd0a2342c386950e880b658017258da92fc"
+  version = "v1.0.0"
 
 [[projects]]
   branch = "master"
@@ -1055,6 +1071,7 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/PagerDuty/go-pagerduty",
     "github.com/hashicorp/vault/api",
     "github.com/openshift/hive/pkg/apis/hive/v1alpha1",
     "github.com/operator-framework/operator-sdk/pkg/k8sutil",

@@ -21,7 +21,10 @@ func GenerateSyncSet(osc client.Client, namespace string, name string) (*hivev1.
 		return nil, err
 	}
 
-	fmt.Println(vaultSecret)
+	pdService, err := CreateService(osc, vaultSecret, name, namespace, "pagerduty-config")
+	if err != nil {
+		return nil, err
+	}
 
 	newSS := &hivev1.SyncSet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -49,7 +52,7 @@ func GenerateSyncSet(osc client.Client, namespace string, name string) (*hivev1.
 								Namespace: "openshift-am-config",
 							},
 							Data: map[string][]byte{
-								"API_KEY": []byte(vaultSecret),
+								"API_KEY": []byte(pdService),
 							},
 						},
 					},
