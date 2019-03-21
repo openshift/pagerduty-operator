@@ -16,7 +16,7 @@ import (
 func GenerateSyncSet(osc client.Client, namespace string, name string) (*hivev1.SyncSet, error) {
 	ssName := fmt.Sprintf("%v-pd-sync", name)
 
-	vaultSecret, err := vault.GetVaultSecret(osc, "sre-pagerduty-operator", "vaultconfig", "secrets/osd-sre/whearn", "test")
+	vaultSecret, err := vault.GetVaultSecret(osc, "sre-pagerduty-operator", "vaultconfig", "whearn", "test")
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +49,7 @@ func GenerateSyncSet(osc client.Client, namespace string, name string) (*hivev1.
 								Namespace: "openshift-am-config",
 							},
 							Data: map[string][]byte{
-								"API_KEY": []byte("FIXME: Get PD from vault then generate on API"),
+								"API_KEY": []byte(vaultSecret),
 							},
 						},
 					},

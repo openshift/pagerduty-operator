@@ -9,13 +9,17 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
+var log = logf.Log.WithName("pagerduty_vault")
+
 // GetVaultSecret Gets a designed token from vault. Vault creds are stored in a k8s secret
-func GetVaultSecret(osc client.Client, namespace string, name string, path string, property string) (string, error) {
+func GetVaultSecret(osc client.Client, namespace string, secretname string, path string, property string) (string, error) {
 	vaultConfig := &corev1.Secret{}
 
-	err := osc.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, vaultConfig)
+	err := osc.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: secretname}, vaultConfig)
 	if err != nil {
 		return "", err
 	}
@@ -36,6 +40,15 @@ func GetVaultSecret(osc client.Client, namespace string, name string, path strin
 		return "", errors.New("VAULT_TOKEN is empty")
 	}
 
+	vaultMount, ok := vaultConfig.Data["VAULT_MOUNT"]
+	if !ok {
+		return "", errors.New("VAULT_MOUNT is not set")
+	}
+	if len(vaultMount) <= 0 {
+		return "", errors.New("VAULT_MOUNT is empty")
+	}
+	fmt.Println(string(vaultMount))
+
 	client, err := api.NewClient(&api.Config{
 		Address: string(vaultURL),
 	})
@@ -44,24 +57,35 @@ func GetVaultSecret(osc client.Client, namespace string, name string, path strin
 	}
 	client.SetToken(string(vaultToken))
 
-	vault, err := client.Logical().Read(path)
+	vaultPath := fmt.Sprintf("%v/data/%v", string(vaultMount), path)
+
+	vault, err := client.Logical().Read(vaultPath)
 	if err != nil {
 		return "", err
+	}
+
+	secret, ok := vault.Data["data"].(map[string]interface{})
+	if !ok {
+		return "", errors.New("Error parsing secret data")
+	}
+
+	if len(vault.Warnings) > 0 {
+		for i := len(vault.Warnings) - 1; i >= 0; i-- {
+			log.Info(vault.Warnings[i])
+		}
 	}
 
 	if len(vault.Data) == 0 {
 		return "", errors.New("Vault data is empty")
 	}
 
-	fmt.Printf("Error: %+v\n", vault)
-
-	for propName, propValue := range vault.Data {
+	for propName, propValue := range secret {
 		if propName == property {
-			secret := fmt.Sprintf("%v", propValue)
-			if len(secret) <= 0 {
+			value := fmt.Sprintf("%v", propValue)
+			if len(value) <= 0 {
 				return "", errors.New(property + " is empty")
 			}
-			return secret, nil
+			return value, nil
 		}
 	}
 
