@@ -16,7 +16,7 @@ import (
 func GenerateSyncSet(osc client.Client, namespace string, name string) (*hivev1.SyncSet, error) {
 	ssName := fmt.Sprintf("%v-pd-sync", name)
 
-	vaultSecret, err := vault.GetVaultSecret(osc, "sre-pagerduty-operator", "vaultconfig", "whearn", "test")
+	vaultSecret, err := vault.GetVaultSecret(osc, "sre-pagerduty-operator", "vaultconfig", "whearn", "pagerduty")
 	if err != nil {
 		return nil, err
 	}

@@ -111,7 +111,15 @@ func GetVaultSecret(osc client.Client, namespace string, secretname string, path
 		return "", errors.New("VAULT_MOUNT is empty")
 	}
 
-	tempFilePath := fmt.Sprintf("/tmp/%v-%v", string(vaultMount), path)
+	vaultKey, ok := vaultConfig.Data["VAULT_KEY"]
+	if !ok {
+		return "", errors.New("VAULT_KEY is not set")
+	}
+	if len(vaultKey) <= 0 {
+		return "", errors.New("VAULT_KEY is empty")
+	}
+
+	tempFilePath := fmt.Sprintf("/tmp/%v-%v", string(vaultMount), string(vaultKey))
 	tempFile, err := os.Stat(tempFilePath)
 	if os.IsNotExist(err) || tempFile.ModTime().Before(time.Now().Add(time.Hour*time.Duration(-6))) {
 		secret, err := queryVault(string(vaultURL), string(vaultToken), string(vaultMount), path, property)
