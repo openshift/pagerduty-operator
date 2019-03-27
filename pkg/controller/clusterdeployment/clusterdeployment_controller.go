@@ -4,10 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/go-logr/logr"
 	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
 	"k8s.io/apimachinery/pkg/types"
-
-	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -56,8 +55,9 @@ var _ reconcile.Reconciler = &ReconcileClusterDeployment{}
 type ReconcileClusterDeployment struct {
 	// This client, initialized using mgr.Client() above, is a split client
 	// that reads objects from the cache and writes to the apiserver
-	client client.Client
-	scheme *runtime.Scheme
+	client    client.Client
+	scheme    *runtime.Scheme
+	reqLogger logr.Logger
 }
 
 // Reconcile reads that state of the cluster for a ClusterDeployment object and makes changes based on the state read
@@ -68,8 +68,8 @@ type ReconcileClusterDeployment struct {
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcileClusterDeployment) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
-	reqLogger.Info("Reconciling ClusterDeployment")
+	r.reqLogger = log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
+	r.reqLogger.Info("Reconciling ClusterDeployment")
 
 	// Fetch the ClusterDeployment instance
 	instance := &hivev1.ClusterDeployment{}
@@ -85,15 +85,17 @@ func (r *ReconcileClusterDeployment) Reconcile(request reconcile.Request) (recon
 		return reconcile.Result{}, err
 	}
 
+	// TODO: Deleted CD's do not have tags, need to check status and see if syncset exists.
+
 	// Just return if this is not a managed cluster
 	if val, ok := instance.Labels["managed"]; ok {
 		if val != "true" {
-			reqLogger.Info("Is not a managed cluster")
+			r.reqLogger.Info("Is not a managed cluster")
 			return reconcile.Result{}, nil
 		}
 	} else {
 		// Managed tag is not present which implies it is not a managed cluster
-		reqLogger.Info("Is not a managed cluster")
+		r.reqLogger.Info("Is not a managed cluster")
 		return reconcile.Result{}, nil
 	}
 
@@ -103,18 +105,11 @@ func (r *ReconcileClusterDeployment) Reconcile(request reconcile.Request) (recon
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: ssName, Namespace: request.Namespace}, ss)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			reqLogger.Info("Creating syncset")
-
-			newSS, err := pd.GenerateSyncSet(r.client, request.Namespace, instance.Name)
-			if err != nil {
-				return reconcile.Result{}, err
-			}
-
-			if err := r.client.Create(context.TODO(), newSS); err != nil {
-				return reconcile.Result{}, err
-			}
+			return r.handleCreate(request, instance)
 		}
 	}
+
+	// TODO handle updating the syncset if one already exists
 
 	return reconcile.Result{}, nil
 }
