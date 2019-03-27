@@ -3,6 +3,7 @@ package pagerduty
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 
 	pdApi "github.com/PagerDuty/go-pagerduty"
@@ -10,6 +11,31 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+func getDataKey(data map[string]string, key string) (string, error) {
+	if _, ok := data[key]; !ok {
+		errorStr := fmt.Sprintf("%v does not exist", key)
+		return "", errors.New(errorStr)
+	}
+	retString := data[key]
+	if len(retString) <= 0 {
+		errorStr := fmt.Sprintf("%v is empty", key)
+		return "", errors.New(errorStr)
+	}
+	return retString, nil
+}
+
+func convertStrToUint(value string) (uint, error) {
+	var retVal uint
+
+	parsedU64, err := strconv.ParseUint(value, 10, 32)
+	if err != nil {
+		return retVal, err
+	}
+	retVal = uint(parsedU64)
+
+	return retVal, nil
+}
 
 // CreateService creates a service in pagerduty for the specified clusterid and returns the service key
 func CreateService(osc client.Client, apiKey string, clusterid string, namespace string, configName string) (string, error) {
@@ -19,39 +45,28 @@ func CreateService(osc client.Client, apiKey string, clusterid string, namespace
 		return "", err
 	}
 
-	escalationPolicyID, ok := pdConfigMap.Data["ESCALATION_POLICY"]
-	if !ok {
-		return "", errors.New("ESCALATION_POLICY is not set")
-	}
-	if len(escalationPolicyID) <= 0 {
-		return "", errors.New("ESCALATION_POLICY is empty")
+	escalationPolicyID, err := getDataKey(pdConfigMap.Data, "ESCALATION_POLICY")
+	if err != nil {
+		return "", err
 	}
 
-	autoResolveTimeoutStr, ok := pdConfigMap.Data["RESOLVE_TIMEOUT"]
-	if !ok {
-		return "", errors.New("RESOLVE_TIMEOUT is not set")
-	}
-	if len(autoResolveTimeoutStr) <= 0 {
-		return "", errors.New("RESOLVE_TIMEOUT is empty")
-	}
-	autoResolveTimeoutu64, err := strconv.ParseUint(string(autoResolveTimeoutStr), 10, 32)
+	autoResolveTimeoutStr, err := getDataKey(pdConfigMap.Data, "RESOLVE_TIMEOUT")
 	if err != nil {
-		return "", errors.New("Error parsing RESOLVE_TIMEOUT")
+		return "", err
 	}
-	autoResolveTimeout := uint(autoResolveTimeoutu64)
+	autoResolveTimeout, err := convertStrToUint(autoResolveTimeoutStr)
+	if err != nil {
+		return "", err
+	}
 
-	acknowledgeTimeStr, ok := pdConfigMap.Data["ACKNOWLEDGE_TIMEOUT"]
-	if !ok {
-		return "", errors.New("ACKNOWLEDGE_TIMEOUT is not set")
-	}
-	if len(acknowledgeTimeStr) <= 0 {
-		return "", errors.New("ACKNOWLEDGE_TIMEOUT is empty")
-	}
-	acknowledgeTimeOutu64, err := strconv.ParseUint(string(acknowledgeTimeStr), 10, 32)
+	acknowledgeTimeStr, err := getDataKey(pdConfigMap.Data, "ACKNOWLEDGE_TIMEOUT")
 	if err != nil {
-		return "", errors.New("Error parsing ACKNOWLEDGE_TIMEOUT")
+		return "", err
 	}
-	acknowledgeTimeOut := uint(acknowledgeTimeOutu64)
+	acknowledgeTimeOut, err := convertStrToUint(acknowledgeTimeStr)
+	if err != nil {
+		return "", err
+	}
 
 	client := pdApi.NewClient(apiKey)
 

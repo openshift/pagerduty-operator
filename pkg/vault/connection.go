@@ -121,6 +121,11 @@ func GetVaultSecret(osc client.Client, vaultData pdoTypes.VaultData) (string, er
 		return "", err
 	}
 
+	vaultData.Property, err = getDataKey(vaultConfig.Data, "VAULT_PROPERTY")
+	if err != nil {
+		return "", err
+	}
+
 	tempFilePath := fmt.Sprintf("/tmp/%v-%v", vaultData.Mount, vaultData.Property)
 	tempFile, err := os.Stat(tempFilePath)
 	if os.IsNotExist(err) || tempFile.ModTime().Before(time.Now().Add(time.Hour*time.Duration(-6))) {
