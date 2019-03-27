@@ -17,7 +17,6 @@ package pagerduty
 import (
 	"fmt"
 
-	pdoTypes "github.com/openshift/pagerduty-operator/pkg/types"
 	"github.com/openshift/pagerduty-operator/pkg/vault"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -30,14 +29,14 @@ import (
 // GenerateSyncSet returns the sync set for creation with the k8s go client
 func GenerateSyncSet(osc client.Client, namespace string, name string) (*hivev1.SyncSet, error) {
 	ssName := fmt.Sprintf("%v-pd-sync", name)
-	vaultData := pdoTypes.VaultData{
+	vaultData := vault.Data{
 		Namespace:  "sre-pagerduty-operator",
 		SecretName: "vaultconfig",
 		Path:       "whearn",
 		Property:   "pagerduty",
 	}
 
-	vaultSecret, err := vault.GetVaultSecret(osc, vaultData)
+	vaultSecret, err := vaultData.GetVaultSecret(osc)
 	if err != nil {
 		return nil, err
 	}

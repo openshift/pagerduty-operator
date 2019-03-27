@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/vault/api"
-	pdoTypes "github.com/openshift/pagerduty-operator/pkg/types"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -33,7 +32,48 @@ import (
 
 var log = logf.Log.WithName("pagerduty_vault")
 
-func queryVault(data pdoTypes.VaultData) (string, error) {
+func saveSecret(path string, value string) error {
+	os.Remove(path)
+	file, err := os.Create(path)
+	if err != nil {
+		log.Error(err, "Failed to create temp file")
+		return err
+	}
+	_, err = file.WriteString(value)
+	if err != nil {
+		log.Error(err, "Failed to write to temp file")
+		return err
+	}
+
+	return nil
+}
+
+func getDataKey(data map[string][]byte, key string) (string, error) {
+	if _, ok := data[key]; !ok {
+		errorStr := fmt.Sprintf("%v is not set.", key)
+		return "", errors.New(errorStr)
+	}
+	retString := string(data[key])
+	if len(retString) <= 0 {
+		errorStr := fmt.Sprintf("%v is empty", key)
+		return "", errors.New(errorStr)
+	}
+	return retString, nil
+}
+
+// Data describes a struct that we will use to pass data from vault to other functions
+type Data struct {
+	Namespace  string
+	SecretName string
+	Path       string
+	Property   string
+	URL        string
+	Token      string
+	Mount      string
+	Key        string
+}
+
+func (data *Data) queryVault() (string, error) {
 	vaultFullPath := fmt.Sprintf("%v/data/%v", data.Mount, data.Path)
 
 	client, err := api.NewClient(&api.Config{
@@ -77,73 +117,44 @@ func queryVault(data pdoTypes.VaultData) (string, error) {
 	return "", errors.New(data.Property + " not set in vault")
 }
 
-func saveSecret(path string, value string) error {
-	os.Remove(path)
-	file, err := os.Create(path)
-	if err != nil {
-		log.Error(err, "Failed to create temp file")
-		return err
-	}
-	_, err = file.WriteString(value)
-	if err != nil {
-		log.Error(err, "Failed to write to temp file")
-		return err
-	}
-
-	return nil
-}
-
-func getDataKey(data map[string][]byte, key string) (string, error) {
-	if _, ok := data[key]; !ok {
-		errorStr := fmt.Sprintf("%v is not set.", key)
-		return "", errors.New(errorStr)
-	}
-	retString := string(data[key])
-	if len(retString) <= 0 {
-		errorStr := fmt.Sprintf("%v is empty", key)
-		return "", errors.New(errorStr)
-	}
-	return retString, nil
-}
-
 // GetVaultSecret Gets a designed token from vault. Vault creds are stored in a k8s secret
-func GetVaultSecret(osc client.Client, vaultData pdoTypes.VaultData) (string, error) {
+func (data *Data) GetVaultSecret(osc client.Client) (string, error) {
 	vaultConfig := &corev1.Secret{}
 
-	err := osc.Get(context.TODO(), types.NamespacedName{Namespace: vaultData.Namespace, Name: vaultData.SecretName}, vaultConfig)
+	err := osc.Get(context.TODO(), types.NamespacedName{Namespace: data.Namespace, Name: data.SecretName}, vaultConfig)
 	if err != nil {
 		return "", err
 	}
 
-	vaultData.URL, err = getDataKey(vaultConfig.Data, "VAULT_URL")
+	data.URL, err = getDataKey(vaultConfig.Data, "VAULT_URL")
 	if err != nil {
 		return "", err
 	}
 
-	vaultData.Token, err = getDataKey(vaultConfig.Data, "VAULT_TOKEN")
+	data.Token, err = getDataKey(vaultConfig.Data, "VAULT_TOKEN")
 	if err != nil {
 		return "", err
 	}
 
-	vaultData.Mount, err = getDataKey(vaultConfig.Data, "VAULT_MOUNT")
+	data.Mount, err = getDataKey(vaultConfig.Data, "VAULT_MOUNT")
 	if err != nil {
 		return "", err
 	}
 
-	vaultData.Key, err = getDataKey(vaultConfig.Data, "VAULT_KEY")
+	data.Key, err = getDataKey(vaultConfig.Data, "VAULT_KEY")
 	if err != nil {
 		return "", err
 	}
 
-	vaultData.Property, err = getDataKey(vaultConfig.Data, "VAULT_PROPERTY")
+	data.Property, err = getDataKey(vaultConfig.Data, "VAULT_PROPERTY")
 	if err != nil {
 		return "", err
 	}
 
-	tempFilePath := fmt.Sprintf("/tmp/%v-%v", vaultData.Mount, vaultData.Property)
+	tempFilePath := fmt.Sprintf("/tmp/%v-%v", data.Mount, data.Property)
 	tempFile, err := os.Stat(tempFilePath)
 	if os.IsNotExist(err) || tempFile.ModTime().Before(time.Now().Add(time.Hour*time.Duration(-6))) {
-		secret, err := queryVault(vaultData)
+		secret, err := data.queryVault()
 		if err != nil {
 			return "", err
 		}
@@ -158,7 +169,7 @@ func GetVaultSecret(osc client.Client, vaultData pdoTypes.VaultData) (string, er
 	if err != nil {
 		log.Error(err, "Failed to read file - removing")
 		os.Remove(tempFilePath)
-		return queryVault(vaultData)
+		return data.queryVault()
 	}
 
 	return string(fileDat), nil
