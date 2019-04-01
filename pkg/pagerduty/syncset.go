@@ -41,7 +41,7 @@ func GenerateSyncSet(osc client.Client, namespace string, name string) (*hivev1.
 		return nil, err
 	}
 
-	pdService, err := CreateService(osc, vaultSecret, name, namespace, "pagerduty-config")
+	pdService, err := CreateService(osc, vaultSecret, name, "pagerduty-config")
 	if err != nil {
 		return nil, err
 	}

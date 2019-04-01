@@ -52,9 +52,9 @@ func convertStrToUint(value string) (uint, error) {
 }
 
 // CreateService creates a service in pagerduty for the specified clusterid and returns the service key
-func CreateService(osc client.Client, apiKey string, clusterid string, namespace string, configName string) (string, error) {
+func CreateService(osc client.Client, apiKey string, clusterid string, configName string) (string, error) {
 	pdConfigMap := &corev1.ConfigMap{}
-	err := osc.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: configName}, pdConfigMap)
+	err := osc.Get(context.TODO(), types.NamespacedName{Namespace: "sre-pagerduty-operator", Name: configName}, pdConfigMap)
 	if err != nil {
 		return "", err
 	}
