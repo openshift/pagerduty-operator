@@ -82,6 +82,13 @@ func CreateService(osc client.Client, apiKey string, clusterid string, configNam
 		return "", err
 	}
 
+	var servicePrefix string
+
+	servicePrefix, err = getDataKey(pdConfigMap.Data, "SERVICE_PREFIX")
+	if err != nil {
+		servicePrefix = "osd"
+	}
+
 	client := pdApi.NewClient(apiKey)
 
 	escalationPolicy, err := client.GetEscalationPolicy(string(escalationPolicyID), nil)
@@ -90,7 +97,7 @@ func CreateService(osc client.Client, apiKey string, clusterid string, configNam
 	}
 
 	clusterService := pdApi.Service{
-		Name:                   clusterid + "-hive-cluster",
+		Name:                   servicePrefix + "-" + clusterid + "-hive-cluster",
 		Description:            clusterid + " - A managed hive created cluster",
 		EscalationPolicy:       *escalationPolicy,
 		AutoResolveTimeout:     &autoResolveTimeout,
