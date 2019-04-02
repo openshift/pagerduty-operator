@@ -1,5 +1,7 @@
 FROM alpine:3.8
 
+RUN apk --no-cache add ca-certificates
+
 ENV OPERATOR=/usr/local/bin/pagerduty-operator \
     USER_UID=1001 \
     USER_NAME=pagerduty-operator

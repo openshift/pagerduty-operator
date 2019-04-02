@@ -8,7 +8,7 @@ function join_by { local IFS="$1"; shift; echo "$*"; }
 NEW_VERSION=$(join_by . "${array[@]}")
 
 sed -i "s/${OLD_VERSION}/${NEW_VERSION}/" version/version.go
-sed -i "s/${OLD_VERSION}/${NEW_VERSION}/" manifests/05-operator.yaml
+sed -i "s/${OLD_VERSION}/${NEW_VERSION}/" manifests/06-operator.yaml
 
 operator-sdk build ${IMAGE}${NEW_VERSION}
 docker push ${IMAGE}${NEW_VERSION}

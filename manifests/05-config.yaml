@@ -1,0 +1,19 @@
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: pagerduty-config
+    namespace: sre-pagerduty-operator
+  data:
+    RESOLVE_TIMEOUT: "4"
+    ACKNOWLEDGE_TIMEOUT: "4"
+    ESCALATION_POLICY: "FILL ME IN"
+- apiVersion: v1
+  kind: Secret
+  metadata:
+    name: vaultconfig
+    namespace: sre-pagerduty-operator
+  type: Opaque
+  data:
+    VAULT_MOUNT: RmlsbCBtZSBpbg==
+    VAULT_TOKEN: RmlsbCBtZSBpbg==
+    VAULT_URL: RmlsbCBtZSBpbg==
