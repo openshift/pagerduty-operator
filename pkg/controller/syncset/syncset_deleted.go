@@ -17,13 +17,12 @@ package syncset
 import (
 	"context"
 
-	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
 	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
 	"github.com/openshift/pagerduty-operator/pkg/vault"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-func (r *ReconcileSyncSet) handleDelete(request reconcile.Request, instance *hivev1.ClusterDeployment) (reconcile.Result, error) {
+func (r *ReconcileSyncSet) handleDelete(request reconcile.Request) (reconcile.Result, error) {
 	r.reqLogger.Info("Syncset deleted, regenerating")
 
 	vaultData := vault.Data{

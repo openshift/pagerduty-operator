@@ -16,6 +16,7 @@ package syncset
 
 import (
 	"context"
+	"strings"
 
 	"github.com/go-logr/logr"
 	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
@@ -23,6 +24,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -88,6 +90,27 @@ type ReconcileSyncSet struct {
 	reqLogger logr.Logger
 }
 
+func (r *ReconcileSyncSet) checkClusterDeployment(request reconcile.Request) (bool, error) {
+	clusterdeployment := &hivev1.SyncSet{}
+	cdName := strings.Split(request.Name, "-")[0]
+
+	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: request.Namespace, Name: cdName}, clusterdeployment)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			r.reqLogger.Info("Cluster was deleted, not recreating")
+			return false, nil
+		}
+		// Error finding the cluster deployment, requeue
+		return false, err
+	}
+
+	if clusterdeployment.DeletionTimestamp == nil {
+		return false, nil
+	}
+
+	return true, nil
+}
+
 // Reconcile reads that state of the cluster for a SyncSet object and makes changes based on the state read
 // and what is in the SyncSet.Spec
 // TODO(user): Modify this Reconcile function to implement your Controller logic.  This example creates
@@ -104,12 +127,18 @@ func (r *ReconcileSyncSet) Reconcile(request reconcile.Request) (reconcile.Resul
 	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			// Request object not found, could have been deleted after reconcile request.
-			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
-			// Return and don't requeue
+			isCDCreated, checkerr := r.checkClusterDeployment(request)
+			if checkerr != nil {
+				return reconcile.Result{}, checkerr
+			}
+
+			if isCDCreated {
+				return r.handleDelete(request)
+			}
+			// ClusterDeployment was deleted, do nothing
 			return reconcile.Result{}, nil
+
 		}
-		// Error reading the object - requeue the request.
 		return reconcile.Result{}, err
 	}
 
