@@ -97,7 +97,7 @@ func (r *ReconcileSyncSet) checkClusterDeployment(request reconcile.Request) (bo
 	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: request.Namespace, Name: cdName}, clusterdeployment)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			r.reqLogger.Info("Cluster was deleted, not recreating")
+			r.reqLogger.Info("No matching cluster deployment found, ignoring")
 			return false, nil
 		}
 		// Error finding the cluster deployment, requeue
@@ -121,6 +121,11 @@ func (r *ReconcileSyncSet) checkClusterDeployment(request reconcile.Request) (bo
 func (r *ReconcileSyncSet) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	r.reqLogger = log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	r.reqLogger.Info("Reconciling SyncSet")
+
+	// Wasn't a pagerduty syncset, ignore
+	if request.Name[len(request.Name)-8:len(request.Name)] != "-pd-sync" {
+		return reconcile.Result{}, nil
+	}
 
 	// Fetch the SyncSet instance
 	instance := &hivev1.SyncSet{}
