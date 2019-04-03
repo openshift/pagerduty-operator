@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package clusterdeployment
+package syncset
 
 import (
 	"context"
@@ -23,8 +23,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-func (r *ReconcileClusterDeployment) handleCreate(request reconcile.Request, instance *hivev1.ClusterDeployment) (reconcile.Result, error) {
-	r.reqLogger.Info("Creating syncset")
+func (r *ReconcileSyncSet) handleDelete(request reconcile.Request, instance *hivev1.ClusterDeployment) (reconcile.Result, error) {
+	r.reqLogger.Info("Syncset deleted, regenerating")
 
 	vaultData := vault.Data{
 		Namespace:  "sre-pagerduty-operator",
@@ -42,7 +42,7 @@ func (r *ReconcileClusterDeployment) handleCreate(request reconcile.Request, ins
 		APIKey: vaultSecret,
 	}
 	pdData.ParsePDConfig(r.client)
-	pdServiceID, err := pdData.CreateService()
+	pdServiceID, err := pdData.GetService()
 	if err != nil {
 		return reconcile.Result{}, err
 	}

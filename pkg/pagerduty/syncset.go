@@ -17,36 +17,16 @@ package pagerduty
 import (
 	"fmt"
 
-	"github.com/openshift/pagerduty-operator/pkg/vault"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-// GenerateSyncSet returns the sync set for creation with the k8s go client
-func GenerateSyncSet(osc client.Client, namespace string, name string) (*hivev1.SyncSet, error) {
+// GenerateSyncSet returns a syncset that can be created with the oc client
+func (data *Data) GenerateSyncSet(namespace string, name string, pdServiceID string) *hivev1.SyncSet {
 	ssName := fmt.Sprintf("%v-pd-sync", name)
-	vaultData := vault.Data{
-		Namespace:  "sre-pagerduty-operator",
-		SecretName: "vaultconfig",
-		Path:       "whearn",
-		Property:   "pagerduty",
-	}
-
-	vaultSecret, err := vaultData.GetVaultSecret(osc)
-	if err != nil {
-		return nil, err
-	}
-
-	pdService, err := CreateService(osc, vaultSecret, name, "pagerduty-config")
-	if err != nil {
-		return nil, err
-	}
-
-	newSS := &hivev1.SyncSet{
+	return &hivev1.SyncSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ssName,
 			Namespace: namespace,
@@ -72,7 +52,7 @@ func GenerateSyncSet(osc client.Client, namespace string, name string) (*hivev1.
 								Namespace: "openshift-am-config",
 							},
 							Data: map[string][]byte{
-								"PAGERDUTY_KEY": []byte(pdService),
+								"PAGERDUTY_KEY": []byte(pdServiceID),
 							},
 						},
 					},
@@ -80,6 +60,4 @@ func GenerateSyncSet(osc client.Client, namespace string, name string) (*hivev1.
 			},
 		},
 	}
-
-	return newSS, nil
 }

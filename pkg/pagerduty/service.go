@@ -51,57 +51,89 @@ func convertStrToUint(value string) (uint, error) {
 	return retVal, nil
 }
 
-// CreateService creates a service in pagerduty for the specified clusterid and returns the service key
-func CreateService(osc client.Client, apiKey string, clusterid string, configName string) (string, error) {
+// Data describes the data that is needed for PagerDuty api calls
+type Data struct {
+	escalationPolicyID string
+	autoResolveTimeout uint
+	acknowledgeTimeOut uint
+	servicePrefix      string
+	APIKey             string
+	clusterID          string
+}
+
+// ParsePDConfig parses the PD Config map and stores it in the struct
+func (data *Data) ParsePDConfig(osc client.Client) error {
 	pdConfigMap := &corev1.ConfigMap{}
-	err := osc.Get(context.TODO(), types.NamespacedName{Namespace: "sre-pagerduty-operator", Name: configName}, pdConfigMap)
+	err := osc.Get(context.TODO(), types.NamespacedName{Namespace: "sre-pagerduty-operator", Name: "pagerduty-config"}, pdConfigMap)
 	if err != nil {
-		return "", err
+		return err
 	}
 
-	escalationPolicyID, err := getDataKey(pdConfigMap.Data, "ESCALATION_POLICY")
+	data.escalationPolicyID, err = getDataKey(pdConfigMap.Data, "ESCALATION_POLICY")
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	autoResolveTimeoutStr, err := getDataKey(pdConfigMap.Data, "RESOLVE_TIMEOUT")
 	if err != nil {
-		return "", err
+		return err
 	}
-	autoResolveTimeout, err := convertStrToUint(autoResolveTimeoutStr)
+	data.autoResolveTimeout, err = convertStrToUint(autoResolveTimeoutStr)
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	acknowledgeTimeStr, err := getDataKey(pdConfigMap.Data, "ACKNOWLEDGE_TIMEOUT")
 	if err != nil {
-		return "", err
+		return err
 	}
-	acknowledgeTimeOut, err := convertStrToUint(acknowledgeTimeStr)
+	data.acknowledgeTimeOut, err = convertStrToUint(acknowledgeTimeStr)
+	if err != nil {
+		return err
+	}
+
+	data.servicePrefix, err = getDataKey(pdConfigMap.Data, "SERVICE_PREFIX")
+	if err != nil {
+		data.servicePrefix = "osd"
+	}
+
+	return nil
+}
+
+// GetService searches the PD API for an already existing service
+func (data *Data) GetService() (string, error) {
+	client := pdApi.NewClient(data.APIKey)
+	var opts pdApi.ListServiceOptions
+	opts.Query = data.servicePrefix + "-" + data.clusterID + "-hive-cluster"
+	services, err := client.ListServices(opts)
 	if err != nil {
 		return "", err
 	}
 
-	var servicePrefix string
-
-	servicePrefix, err = getDataKey(pdConfigMap.Data, "SERVICE_PREFIX")
-	if err != nil {
-		servicePrefix = "osd"
+	if services.Total <= 0 {
+		return "", errors.New("No services returned from PagerDuty")
+	} else if services.Total > 1 {
+		return "", errors.New("Multiple services returned from PagerDuty")
 	}
 
-	client := pdApi.NewClient(apiKey)
+	return services.Services[0].ID, nil
+}
 
-	escalationPolicy, err := client.GetEscalationPolicy(string(escalationPolicyID), nil)
+// CreateService creates a service in pagerduty for the specified clusterid and returns the service key
+func (data *Data) CreateService() (string, error) {
+	client := pdApi.NewClient(data.APIKey)
+
+	escalationPolicy, err := client.GetEscalationPolicy(string(data.escalationPolicyID), nil)
 	if err != nil {
 		return "", errors.New("Escalation policy not found in PagerDuty")
 	}
 
 	clusterService := pdApi.Service{
-		Name:                   servicePrefix + "-" + clusterid + "-hive-cluster",
-		Description:            clusterid + " - A managed hive created cluster",
+		Name:                   data.servicePrefix + "-" + data.clusterID + "-hive-cluster",
+		Description:            data.clusterID + " - A managed hive created cluster",
 		EscalationPolicy:       *escalationPolicy,
-		AutoResolveTimeout:     &autoResolveTimeout,
-		AcknowledgementTimeout: &acknowledgeTimeOut,
+		AutoResolveTimeout:     &data.autoResolveTimeout,
+		AcknowledgementTimeout: &data.acknowledgeTimeOut,
 	}
 
 	newSvc, err := client.CreateService(clusterService)
