@@ -151,6 +151,11 @@ func (data *Data) GetVaultSecret(osc client.Client) (string, error) {
 		return "", err
 	}
 
+	data.Path, err = getDataKey(vaultConfig.Data, "VAULT_PATH")
+	if err != nil {
+		return "", err
+	}
+
 	tempFilePath := fmt.Sprintf("/tmp/%v-%v", data.Mount, data.Property)
 	tempFile, err := os.Stat(tempFilePath)
 	if os.IsNotExist(err) || tempFile.ModTime().Before(time.Now().Add(time.Hour*time.Duration(-6))) {
