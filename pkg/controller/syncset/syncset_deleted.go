@@ -28,8 +28,6 @@ func (r *ReconcileSyncSet) handleDelete(request reconcile.Request) (reconcile.Re
 	vaultData := vault.Data{
 		Namespace:  "sre-pagerduty-operator",
 		SecretName: "vaultconfig",
-		Path:       "whearn",
-		Property:   "pagerduty",
 	}
 
 	vaultSecret, err := vaultData.GetVaultSecret(r.client)

@@ -29,8 +29,6 @@ func (r *ReconcileClusterDeployment) handleCreate(request reconcile.Request, ins
 	vaultData := vault.Data{
 		Namespace:  "sre-pagerduty-operator",
 		SecretName: "vaultconfig",
-		Path:       "whearn",
-		Property:   "pagerduty",
 	}
 
 	vaultSecret, err := vaultData.GetVaultSecret(r.client)
