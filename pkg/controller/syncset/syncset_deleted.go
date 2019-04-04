@@ -22,7 +22,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-func (r *ReconcileSyncSet) handleDelete(request reconcile.Request) (reconcile.Result, error) {
+func (r *ReconcileSyncSet) recreateSyncSet(request reconcile.Request) (reconcile.Result, error) {
 	r.reqLogger.Info("Syncset deleted, regenerating")
 
 	vaultData := vault.Data{

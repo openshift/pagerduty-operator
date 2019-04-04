@@ -127,7 +127,7 @@ func (r *ReconcileSyncSet) Reconcile(request reconcile.Request) (reconcile.Resul
 			}
 
 			if isCDCreated {
-				return r.handleDelete(request)
+				return r.recreateSyncSet(request)
 			}
 			// ClusterDeployment was deleted, do nothing
 			return reconcile.Result{}, nil
