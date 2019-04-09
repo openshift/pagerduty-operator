@@ -20,6 +20,7 @@ import (
 
 	"github.com/go-logr/logr"
 	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
+	hivecontrollerutils "github.com/openshift/hive/pkg/controller/utils"
 	"k8s.io/apimachinery/pkg/types"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -99,7 +100,12 @@ func (r *ReconcileClusterDeployment) Reconcile(request reconcile.Request) (recon
 		return reconcile.Result{}, err
 	}
 
-	// TODO: Deleted CD's do not have tags, need to check status and see if syncset exists.
+	if instance.DeletionTimestamp != nil {
+		if hivecontrollerutils.HasFinalizer(instance, "pd.manage.openshift.io/pagerduty") {
+			return r.handleDelete(request, instance)
+		}
+		return reconcile.Result{}, nil
+	}
 
 	// Just return if this is not a managed cluster
 	if val, ok := instance.Labels["managed"]; ok {
@@ -115,15 +121,13 @@ func (r *ReconcileClusterDeployment) Reconcile(request reconcile.Request) (recon
 
 	ssName := fmt.Sprintf("%v-pd-sync", instance.Name)
 	ss := &hivev1.SyncSet{}
-
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: ssName, Namespace: request.Namespace}, ss)
+
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return r.handleCreate(request, instance)
 		}
 	}
-
-	// TODO handle updating the syncset if one already exists
 
 	return reconcile.Result{}, nil
 }

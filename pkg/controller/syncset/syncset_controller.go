@@ -80,7 +80,7 @@ type ReconcileSyncSet struct {
 }
 
 func (r *ReconcileSyncSet) checkClusterDeployment(request reconcile.Request) (bool, error) {
-	clusterdeployment := &hivev1.SyncSet{}
+	clusterdeployment := &hivev1.ClusterDeployment{}
 	cdName := strings.Split(request.Name, "-")[0]
 
 	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: request.Namespace, Name: cdName}, clusterdeployment)
@@ -93,7 +93,7 @@ func (r *ReconcileSyncSet) checkClusterDeployment(request reconcile.Request) (bo
 		return false, err
 	}
 
-	if clusterdeployment.DeletionTimestamp == nil {
+	if clusterdeployment.DeletionTimestamp != nil {
 		return false, nil
 	}
 
