@@ -18,6 +18,7 @@ import (
 	"context"
 
 	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
+	hivecontrollerutils "github.com/openshift/hive/pkg/controller/utils"
 	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
 	"github.com/openshift/pagerduty-operator/pkg/vault"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -25,6 +26,16 @@ import (
 
 func (r *ReconcileClusterDeployment) handleCreate(request reconcile.Request, instance *hivev1.ClusterDeployment) (reconcile.Result, error) {
 	r.reqLogger.Info("Creating syncset")
+
+	if hivecontrollerutils.HasFinalizer(instance, "pd.manage.openshift.io/pagerduty") {
+		return reconcile.Result{}, nil
+	}
+
+	hivecontrollerutils.AddFinalizer(instance, "pd.manage.openshift.io/pagerduty")
+	err := r.client.Update(context.TODO(), instance)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
 
 	vaultData := vault.Data{
 		Namespace:  "sre-pagerduty-operator",
@@ -37,7 +48,8 @@ func (r *ReconcileClusterDeployment) handleCreate(request reconcile.Request, ins
 	}
 
 	pdData := &pd.Data{
-		APIKey: vaultSecret,
+		APIKey:    vaultSecret,
+		ClusterID: instance.Name,
 	}
 	pdData.ParsePDConfig(r.client)
 	pdServiceID, err := pdData.CreateService()
@@ -45,7 +57,7 @@ func (r *ReconcileClusterDeployment) handleCreate(request reconcile.Request, ins
 		return reconcile.Result{}, err
 	}
 
-	newSS := pdData.GenerateSyncSet(request.Name, request.Namespace, pdServiceID)
+	newSS := pdData.GenerateSyncSet(request.Namespace, request.Name, pdServiceID)
 
 	if err := r.client.Create(context.TODO(), newSS); err != nil {
 		return reconcile.Result{}, err

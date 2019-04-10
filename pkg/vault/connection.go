@@ -70,7 +70,6 @@ type Data struct {
 	URL        string
 	Token      string
 	Mount      string
-	Key        string
 }
 
 func (data *Data) queryVault() (string, error) {
@@ -137,11 +136,6 @@ func (data *Data) GetVaultSecret(osc client.Client) (string, error) {
 	}
 
 	data.Mount, err = getDataKey(vaultConfig.Data, "VAULT_MOUNT")
-	if err != nil {
-		return "", err
-	}
-
-	data.Key, err = getDataKey(vaultConfig.Data, "VAULT_KEY")
 	if err != nil {
 		return "", err
 	}

@@ -430,9 +430,23 @@
   branch = "master"
   digest = "1:25696c46cd346b44ac96f01d4ef5c0888db78122836c1d2a894f23455ecbe9a3"
   name = "github.com/openshift/api"
-  packages = ["config/v1"]
+  packages = [
+    "config/v1",
+    "route/v1",
+  ]
   pruneopts = "NT"
   revision = "7fa446eb33f1df4d5e4175a31591191368137f10"
+
+[[projects]]
+  branch = "master"
+  digest = "1:2e99797200c035b703aa91f58305e329cf9f498661fc246e7edb366b4ca894c6"
+  name = "github.com/openshift/cluster-api"
+  packages = [
+    "pkg/apis/machine/common",
+    "pkg/apis/machine/v1beta1",
+  ]
+  pruneopts = "NT"
+  revision = "3f8a02c5cc17c4bc15ad1ec8766769e3d65917d1"
 
 [[projects]]
   branch = "ovn-dev"
@@ -446,7 +460,10 @@
   branch = "master"
   digest = "1:77171e171304baf303df35d4480e3757dde3202bcace73bc4740ba8d950b377c"
   name = "github.com/openshift/hive"
-  packages = ["pkg/apis/hive/v1alpha1"]
+  packages = [
+    "pkg/apis/hive/v1alpha1",
+    "pkg/controller/utils",
+  ]
   pruneopts = "NT"
   revision = "ba6ee5efd982a559a8a32a59f16375d5ccfb177d"
 
@@ -820,6 +837,7 @@
     "pkg/apis/meta/internalversion",
     "pkg/apis/meta/v1",
     "pkg/apis/meta/v1/unstructured",
+    "pkg/apis/meta/v1/validation",
     "pkg/apis/meta/v1beta1",
     "pkg/conversion",
     "pkg/conversion/queryparams",
@@ -1072,8 +1090,10 @@
   analyzer-version = 1
   input-imports = [
     "github.com/PagerDuty/go-pagerduty",
+    "github.com/go-logr/logr",
     "github.com/hashicorp/vault/api",
     "github.com/openshift/hive/pkg/apis/hive/v1alpha1",
+    "github.com/openshift/hive/pkg/controller/utils",
     "github.com/operator-framework/operator-sdk/pkg/k8sutil",
     "github.com/operator-framework/operator-sdk/pkg/leader",
     "github.com/operator-framework/operator-sdk/pkg/log/zap",

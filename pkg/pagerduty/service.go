@@ -58,7 +58,7 @@ type Data struct {
 	acknowledgeTimeOut uint
 	servicePrefix      string
 	APIKey             string
-	clusterID          string
+	ClusterID          string
 }
 
 // ParsePDConfig parses the PD Config map and stores it in the struct
@@ -104,15 +104,15 @@ func (data *Data) ParsePDConfig(osc client.Client) error {
 func (data *Data) GetService() (string, error) {
 	client := pdApi.NewClient(data.APIKey)
 	var opts pdApi.ListServiceOptions
-	opts.Query = data.servicePrefix + "-" + data.clusterID + "-hive-cluster"
+	opts.Query = data.servicePrefix + "-" + data.ClusterID + "-hive-cluster"
 	services, err := client.ListServices(opts)
 	if err != nil {
 		return "", err
 	}
 
-	if services.Total <= 0 {
+	if len(services.Services) <= 0 {
 		return "", errors.New("No services returned from PagerDuty")
-	} else if services.Total > 1 {
+	} else if len(services.Services) > 1 {
 		return "", errors.New("Multiple services returned from PagerDuty")
 	}
 
@@ -129,8 +129,8 @@ func (data *Data) CreateService() (string, error) {
 	}
 
 	clusterService := pdApi.Service{
-		Name:                   data.servicePrefix + "-" + data.clusterID + "-hive-cluster",
-		Description:            data.clusterID + " - A managed hive created cluster",
+		Name:                   data.servicePrefix + "-" + data.ClusterID + "-hive-cluster",
+		Description:            data.ClusterID + " - A managed hive created cluster",
 		EscalationPolicy:       *escalationPolicy,
 		AutoResolveTimeout:     &data.autoResolveTimeout,
 		AcknowledgementTimeout: &data.acknowledgeTimeOut,
@@ -142,4 +142,17 @@ func (data *Data) CreateService() (string, error) {
 	}
 
 	return newSvc.ID, nil
+}
+
+// DeleteService will get a service from the PD api and delete it
+func (data *Data) DeleteService() error {
+	id, err := data.GetService()
+	if err != nil {
+		// TODO Figure out how to handle if the PD Service is already deleted
+		return nil
+	}
+
+	client := pdApi.NewClient(data.APIKey)
+	err = client.DeleteService(id)
+	return err
 }

@@ -16,6 +16,7 @@ package syncset
 
 import (
 	"context"
+	"strings"
 
 	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
 	"github.com/openshift/pagerduty-operator/pkg/vault"
@@ -36,7 +37,8 @@ func (r *ReconcileSyncSet) recreateSyncSet(request reconcile.Request) (reconcile
 	}
 
 	pdData := &pd.Data{
-		APIKey: vaultSecret,
+		APIKey:    vaultSecret,
+		ClusterID: strings.Split(request.Name, "-")[0],
 	}
 	pdData.ParsePDConfig(r.client)
 	pdServiceID, err := pdData.GetService()
@@ -44,7 +46,7 @@ func (r *ReconcileSyncSet) recreateSyncSet(request reconcile.Request) (reconcile
 		return reconcile.Result{}, err
 	}
 
-	newSS := pdData.GenerateSyncSet(request.Name, request.Namespace, pdServiceID)
+	newSS := pdData.GenerateSyncSet(request.Namespace, strings.Split(request.Name, "-")[0], pdServiceID)
 
 	if err := r.client.Create(context.TODO(), newSS); err != nil {
 		return reconcile.Result{}, err
