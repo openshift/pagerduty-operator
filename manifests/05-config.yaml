@@ -1,25 +1,10 @@
 apiVersion: v1
-kind: List
-items:
-- apiVersion: v1
-  kind: ConfigMap
-  metadata:
-    name: pagerduty-config
-    namespace: sre-pagerduty-operator
-  data:
-    RESOLVE_TIMEOUT: "4"
-    ACKNOWLEDGE_TIMEOUT: "4"
-    ESCALATION_POLICY: "FILL ME IN"
-    SERVICE_PREFIX: "osd"
-- apiVersion: v1
-  kind: Secret
-  metadata:
-    name: vaultconfig
-    namespace: sre-pagerduty-operator
-  type: Opaque
-  data:
-    VAULT_MOUNT: RmlsbCBtZSBpbg==
-    VAULT_TOKEN: RmlsbCBtZSBpbg==
-    VAULT_URL: RmlsbCBtZSBpbg==
-    VAULT_PROPERTY: RmlsbCBtZSBpbg==
-    VAULT_PATH: RmlsbCBtZSBpbg==
+kind: ConfigMap
+metadata:
+  name: pagerduty-config
+  namespace: sre-pagerduty-operator
+data:
+  RESOLVE_TIMEOUT: "4"
+  ACKNOWLEDGE_TIMEOUT: "4"
+  ESCALATION_POLICY: "FILL ME IN"
+  SERVICE_PREFIX: "osd"

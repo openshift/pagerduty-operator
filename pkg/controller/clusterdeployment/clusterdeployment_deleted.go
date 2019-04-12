@@ -21,7 +21,6 @@ import (
 	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
 	hivecontrollerutils "github.com/openshift/hive/pkg/controller/utils"
 	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
-	"github.com/openshift/pagerduty-operator/pkg/vault"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -30,19 +29,9 @@ import (
 func (r *ReconcileClusterDeployment) handleDelete(request reconcile.Request, instance *hivev1.ClusterDeployment) (reconcile.Result, error) {
 	r.reqLogger.Info("Deleting syncset")
 
-	vaultData := vault.Data{
-		Namespace:  "sre-pagerduty-operator",
-		SecretName: "vaultconfig",
-	}
-
-	vaultSecret, err := vaultData.GetVaultSecret(r.client)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
-
 	ssName := fmt.Sprintf("%v-pd-sync", instance.Name)
 	ss := &hivev1.SyncSet{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: ssName, Namespace: request.Namespace}, ss)
+	err := r.client.Get(context.TODO(), types.NamespacedName{Name: ssName, Namespace: request.Namespace}, ss)
 	if err != nil {
 		if errors.IsNotFound(err) == false {
 			return reconcile.Result{}, err
@@ -50,7 +39,6 @@ func (r *ReconcileClusterDeployment) handleDelete(request reconcile.Request, ins
 	}
 
 	pdData := &pd.Data{
-		APIKey:    vaultSecret,
 		ClusterID: instance.Name,
 	}
 	err = pdData.ParsePDConfig(r.client)

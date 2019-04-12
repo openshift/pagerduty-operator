@@ -26,12 +26,25 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func getDataKey(data map[string]string, key string) (string, error) {
+func getConfigMapKey(data map[string]string, key string) (string, error) {
 	if _, ok := data[key]; !ok {
 		errorStr := fmt.Sprintf("%v does not exist", key)
 		return "", errors.New(errorStr)
 	}
 	retString := data[key]
+	if len(retString) <= 0 {
+		errorStr := fmt.Sprintf("%v is empty", key)
+		return "", errors.New(errorStr)
+	}
+	return retString, nil
+}
+
+func getSecretKey(data map[string][]byte, key string) (string, error) {
+	if _, ok := data[key]; !ok {
+		errorStr := fmt.Sprintf("%v does not exist", key)
+		return "", errors.New(errorStr)
+	}
+	retString := string(data[key])
 	if len(retString) <= 0 {
 		errorStr := fmt.Sprintf("%v is empty", key)
 		return "", errors.New(errorStr)
@@ -69,12 +82,12 @@ func (data *Data) ParsePDConfig(osc client.Client) error {
 		return err
 	}
 
-	data.escalationPolicyID, err = getDataKey(pdConfigMap.Data, "ESCALATION_POLICY")
+	data.escalationPolicyID, err = getConfigMapKey(pdConfigMap.Data, "ESCALATION_POLICY")
 	if err != nil {
 		return err
 	}
 
-	autoResolveTimeoutStr, err := getDataKey(pdConfigMap.Data, "RESOLVE_TIMEOUT")
+	autoResolveTimeoutStr, err := getConfigMapKey(pdConfigMap.Data, "RESOLVE_TIMEOUT")
 	if err != nil {
 		return err
 	}
@@ -83,7 +96,7 @@ func (data *Data) ParsePDConfig(osc client.Client) error {
 		return err
 	}
 
-	acknowledgeTimeStr, err := getDataKey(pdConfigMap.Data, "ACKNOWLEDGE_TIMEOUT")
+	acknowledgeTimeStr, err := getConfigMapKey(pdConfigMap.Data, "ACKNOWLEDGE_TIMEOUT")
 	if err != nil {
 		return err
 	}
@@ -92,9 +105,19 @@ func (data *Data) ParsePDConfig(osc client.Client) error {
 		return err
 	}
 
-	data.servicePrefix, err = getDataKey(pdConfigMap.Data, "SERVICE_PREFIX")
+	data.servicePrefix, err = getConfigMapKey(pdConfigMap.Data, "SERVICE_PREFIX")
 	if err != nil {
 		data.servicePrefix = "osd"
+	}
+
+	pdAPISecret := &corev1.Secret{}
+	err = osc.Get(context.TODO(), types.NamespacedName{Namespace: "sre-pagerduty-operator", Name: "pagerduty-api-key"}, pdAPISecret)
+	if err != nil {
+		return err
+	}
+	data.APIKey, err = getSecretKey(pdAPISecret.Data, "PAGERDUTY_API_KEY")
+	if err != nil {
+		return err
 	}
 
 	return nil

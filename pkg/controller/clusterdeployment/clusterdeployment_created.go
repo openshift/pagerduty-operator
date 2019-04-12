@@ -20,7 +20,6 @@ import (
 	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
 	hivecontrollerutils "github.com/openshift/hive/pkg/controller/utils"
 	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
-	"github.com/openshift/pagerduty-operator/pkg/vault"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -37,18 +36,7 @@ func (r *ReconcileClusterDeployment) handleCreate(request reconcile.Request, ins
 		return reconcile.Result{}, err
 	}
 
-	vaultData := vault.Data{
-		Namespace:  "sre-pagerduty-operator",
-		SecretName: "vaultconfig",
-	}
-
-	vaultSecret, err := vaultData.GetVaultSecret(r.client)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
-
 	pdData := &pd.Data{
-		APIKey:    vaultSecret,
 		ClusterID: instance.Name,
 	}
 	pdData.ParsePDConfig(r.client)
