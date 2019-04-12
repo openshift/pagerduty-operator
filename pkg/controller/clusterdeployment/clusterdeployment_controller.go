@@ -108,7 +108,7 @@ func (r *ReconcileClusterDeployment) Reconcile(request reconcile.Request) (recon
 	}
 
 	// Just return if this is not a managed cluster
-	if val, ok := instance.Labels["managed"]; ok {
+	if val, ok := instance.Labels["api.openshift.com/managed"]; ok {
 		if val != "true" {
 			r.reqLogger.Info("Is not a managed cluster")
 			return reconcile.Result{}, nil
