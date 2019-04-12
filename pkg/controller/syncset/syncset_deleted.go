@@ -19,25 +19,13 @@ import (
 	"strings"
 
 	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
-	"github.com/openshift/pagerduty-operator/pkg/vault"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 func (r *ReconcileSyncSet) recreateSyncSet(request reconcile.Request) (reconcile.Result, error) {
 	r.reqLogger.Info("Syncset deleted, regenerating")
 
-	vaultData := vault.Data{
-		Namespace:  "sre-pagerduty-operator",
-		SecretName: "vaultconfig",
-	}
-
-	vaultSecret, err := vaultData.GetVaultSecret(r.client)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
-
 	pdData := &pd.Data{
-		APIKey:    vaultSecret,
 		ClusterID: strings.Split(request.Name, "-")[0],
 	}
 	pdData.ParsePDConfig(r.client)
