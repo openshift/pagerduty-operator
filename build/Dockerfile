@@ -1,17 +1,16 @@
-FROM alpine:3.8
+FROM registry.svc.ci.openshift.org/openshift/release:golang-1.10 AS builder
+ENV OPERATOR_PATH=/go/src/github.com/openshift/pagerduty-operator
+COPY . ${OPERATOR_PATH}
+WORKDIR ${OPERATOR_PATH}
+RUN make gobuild
 
-RUN apk --no-cache add ca-certificates
+FROM registry.svc.ci.openshift.org/openshift/origin-v4.0:base
 
-ENV OPERATOR=/usr/local/bin/pagerduty-operator \
-    USER_UID=1001 \
-    USER_NAME=pagerduty-operator
+ENV OPERATOR_PATH=/go/src/github.com/openshift/pagerduty-operator \
+    OPERATOR_BIN=pagerduty-operator
 
-# install operator binary
-COPY build/_output/bin/pagerduty-operator ${OPERATOR}
+WORKDIR /root/
 
-COPY build/bin /usr/local/bin
-RUN  /usr/local/bin/user_setup
-
-ENTRYPOINT ["/usr/local/bin/entrypoint"]
-
-USER ${USER_UID}
+COPY --from=builder ${OPERATOR_PATH}/build/_output/bin/${OPERATOR_BIN} /usr/local/bin/${OPERATOR_BIN}
+LABEL io.openshift.managed.name="pagerduty-operator" \
+      io.openshift.managed.description="Operator PagerDuty Services and Alertmanager integration keys"
