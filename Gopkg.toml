@@ -79,9 +79,5 @@ required = [
   version = "=1.0.4"
 
 [[constraint]]
-  name = "github.com/hashicorp/vault"
-  version = "=1.0.3"
-
-[[constraint]]
   branch = "master"
   name = "github.com/openshift/hive"
