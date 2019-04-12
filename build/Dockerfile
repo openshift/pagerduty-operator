@@ -6,6 +6,7 @@ RUN make gobuild
 
 FROM registry.svc.ci.openshift.org/openshift/origin-v4.0:base
 
+RUN yum install -y ca-certificates && yum clean all
 ENV OPERATOR_PATH=/go/src/github.com/openshift/pagerduty-operator \
     OPERATOR_BIN=pagerduty-operator
 
