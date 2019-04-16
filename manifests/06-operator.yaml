@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: pagerduty-operator
-  namespace: sre-pagerduty-operator
+  namespace: pagerduty-operator
 spec:
   replicas: 1
   selector:

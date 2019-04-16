@@ -42,21 +42,13 @@ version_dir = os.path.join(outdir, full_version)
 if not os.path.exists(version_dir):
     os.mkdir(version_dir)
 
-# Copy all CSV files over to the bundle output dir:
-# Copy all CRD files over to the bundle output dir:
-crd_files = [ f for f in os.listdir('deploy/crds') if f.endswith('_crd.yaml') ]
-for file_name in crd_files:
-    full_path = os.path.join('deploy/crds', file_name)
-    if (os.path.isfile(os.path.join('deploy/crds', file_name))):
-        shutil.copy(full_path, os.path.join(version_dir, file_name))
-
 with open('config/templates/{}-csv-template.yaml'.format(OPERATOR_NAME), 'r') as stream:
     csv = yaml.load(stream)
 
 csv['spec']['install']['spec']['clusterPermissions'] = []
 
 # Add operator role to the CSV:
-with open('deploy/role.yaml', 'r') as stream:
+with open('manifests/02-role.yaml', 'r') as stream:
     operator_role = yaml.load(stream)
     csv['spec']['install']['spec']['clusterPermissions'].append(
         {
@@ -65,7 +57,7 @@ with open('deploy/role.yaml', 'r') as stream:
         })
 
 # Add our deployment spec for the hive operator:
-with open('deploy/operator.yaml', 'r') as stream:
+with open('manifests/06-operator.yaml', 'r') as stream:
     operator_components = []
     operator = yaml.load_all(stream)
     for doc in operator:
