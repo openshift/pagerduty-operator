@@ -58,6 +58,9 @@ isclean:
 build: isclean envtest
 	docker build . -f build/Dockerfile -t $(OPERATOR_IMAGE_URI)
 
+.PHONY: docker-build
+docker-build: build
+
 .PHONY: push
 push: build
 	docker push $(OPERATOR_IMAGE_URI)
