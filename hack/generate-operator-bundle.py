@@ -57,7 +57,7 @@ with open('manifests/02-role.yaml', 'r') as stream:
         })
 
 # Add our deployment spec for the hive operator:
-with open('manifests/06-operator.yaml', 'r') as stream:
+with open('manifests/05-operator.yaml', 'r') as stream:
     operator_components = []
     operator = yaml.load_all(stream)
     for doc in operator:
