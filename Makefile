@@ -31,7 +31,10 @@ COMMIT_NUMBER=$(shell git rev-list `git rev-list --parents HEAD | egrep "^[a-f0-
 CURRENT_COMMIT=$(shell git rev-parse --short=8 HEAD)
 VERSION_FULL=$(VERSION_MAJOR).$(VERSION_MINOR).$(COMMIT_NUMBER)-$(CURRENT_COMMIT)
 
-OPERATOR_IMAGE_URI=$(IMAGE_REGISTRY)/$(IMAGE_REPOSITORY)/$(IMAGE_NAME):v$(VERSION_FULL)
+IMG?=$(IMAGE_REGISTRY)/$(IMAGE_REPOSITORY)/$(IMAGE_NAME):v$(VERSION_FULL)
+
+# Image URL to use all building/pushing image targets
+OPERATOR_IMAGE_URI=${IMG}
 
 BINFILE=build/_output/bin/$(OPERATOR_NAME)
 MAINPACKAGE=./cmd/manager
@@ -56,14 +59,14 @@ isclean:
 
 .PHONY: build
 build: isclean envtest
-	docker build . -f build/Dockerfile -t $(OPERATOR_IMAGE_URI)
+	docker build . -f build/Dockerfile -t ${OPERATOR_IMAGE_URI}
 
 .PHONY: docker-build
 docker-build: build
 
 .PHONY: push
 push: build
-	docker push $(OPERATOR_IMAGE_URI)
+       docker push ${OPERATOR_IMAGE_URI}
 
 .PHONY: gocheck
 gocheck: ## Lint code
