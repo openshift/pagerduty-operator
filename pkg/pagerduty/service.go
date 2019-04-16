@@ -26,19 +26,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func getConfigMapKey(data map[string]string, key string) (string, error) {
-	if _, ok := data[key]; !ok {
-		errorStr := fmt.Sprintf("%v does not exist", key)
-		return "", errors.New(errorStr)
-	}
-	retString := data[key]
-	if len(retString) <= 0 {
-		errorStr := fmt.Sprintf("%v is empty", key)
-		return "", errors.New(errorStr)
-	}
-	return retString, nil
-}
-
 func getSecretKey(data map[string][]byte, key string) (string, error) {
 	if _, ok := data[key]; !ok {
 		errorStr := fmt.Sprintf("%v does not exist", key)
@@ -76,18 +63,24 @@ type Data struct {
 
 // ParsePDConfig parses the PD Config map and stores it in the struct
 func (data *Data) ParsePDConfig(osc client.Client) error {
-	pdConfigMap := &corev1.ConfigMap{}
-	err := osc.Get(context.TODO(), types.NamespacedName{Namespace: "pagerduty-operator", Name: "pagerduty-config"}, pdConfigMap)
+
+	pdAPISecret := &corev1.Secret{}
+	err := osc.Get(context.TODO(), types.NamespacedName{Namespace: "pagerduty-operator", Name: "pagerduty-api-key"}, pdAPISecret)
 	if err != nil {
 		return err
 	}
 
-	data.escalationPolicyID, err = getConfigMapKey(pdConfigMap.Data, "ESCALATION_POLICY")
+	data.APIKey, err = getSecretKey(pdAPISecret.Data, "PAGERDUTY_API_KEY")
 	if err != nil {
 		return err
 	}
 
-	autoResolveTimeoutStr, err := getConfigMapKey(pdConfigMap.Data, "RESOLVE_TIMEOUT")
+	data.escalationPolicyID, err = getSecretKey(pdAPISecret.Data, "ESCALATION_POLICY")
+	if err != nil {
+		return err
+	}
+
+	autoResolveTimeoutStr, err := getSecretKey(pdAPISecret.Data, "RESOLVE_TIMEOUT")
 	if err != nil {
 		return err
 	}
@@ -96,7 +89,7 @@ func (data *Data) ParsePDConfig(osc client.Client) error {
 		return err
 	}
 
-	acknowledgeTimeStr, err := getConfigMapKey(pdConfigMap.Data, "ACKNOWLEDGE_TIMEOUT")
+	acknowledgeTimeStr, err := getSecretKey(pdAPISecret.Data, "ACKNOWLEDGE_TIMEOUT")
 	if err != nil {
 		return err
 	}
@@ -105,19 +98,9 @@ func (data *Data) ParsePDConfig(osc client.Client) error {
 		return err
 	}
 
-	data.servicePrefix, err = getConfigMapKey(pdConfigMap.Data, "SERVICE_PREFIX")
+	data.servicePrefix, err = getSecretKey(pdAPISecret.Data, "SERVICE_PREFIX")
 	if err != nil {
 		data.servicePrefix = "osd"
-	}
-
-	pdAPISecret := &corev1.Secret{}
-	err = osc.Get(context.TODO(), types.NamespacedName{Namespace: "pagerduty-operator", Name: "pagerduty-api-key"}, pdAPISecret)
-	if err != nil {
-		return err
-	}
-	data.APIKey, err = getSecretKey(pdAPISecret.Data, "PAGERDUTY_API_KEY")
-	if err != nil {
-		return err
 	}
 
 	return nil
