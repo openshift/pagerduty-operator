@@ -16,7 +16,7 @@ spec:
       serviceAccountName: pagerduty-operator
       containers:
         - name: pagerduty-operator
-          image: quay.io/openshift-sre/pagerduty-operator:0.0.29
+          image: quay.io/app-sre/pagerduty-operator
           command:
           - pagerduty-operator
           imagePullPolicy: Always
