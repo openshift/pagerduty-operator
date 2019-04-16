@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: pagerduty-config
-  namespace: sre-pagerduty-operator
+  namespace: pagerduty-operator
 data:
   RESOLVE_TIMEOUT: "4"
   ACKNOWLEDGE_TIMEOUT: "4"

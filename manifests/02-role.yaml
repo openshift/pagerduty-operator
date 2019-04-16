@@ -2,7 +2,7 @@ kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: pagerduty-operator
-  namespace: sre-pagerduty-operator
+  namespace: pagerduty-operator
 rules:
 - apiGroups:
   - ""

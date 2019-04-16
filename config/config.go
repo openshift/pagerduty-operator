@@ -17,5 +17,5 @@ package config
 const (
 	OperatorConfigMapName string = "pagerduty-config"
 	OperatorName          string = "pagerduty-operator"
-	OperatorNamespace     string = "sre-pagerduty-operator"
+	OperatorNamespace     string = "pagerduty-operator"
 )

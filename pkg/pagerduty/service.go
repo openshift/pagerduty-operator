@@ -77,7 +77,7 @@ type Data struct {
 // ParsePDConfig parses the PD Config map and stores it in the struct
 func (data *Data) ParsePDConfig(osc client.Client) error {
 	pdConfigMap := &corev1.ConfigMap{}
-	err := osc.Get(context.TODO(), types.NamespacedName{Namespace: "sre-pagerduty-operator", Name: "pagerduty-config"}, pdConfigMap)
+	err := osc.Get(context.TODO(), types.NamespacedName{Namespace: "pagerduty-operator", Name: "pagerduty-config"}, pdConfigMap)
 	if err != nil {
 		return err
 	}
@@ -111,7 +111,7 @@ func (data *Data) ParsePDConfig(osc client.Client) error {
 	}
 
 	pdAPISecret := &corev1.Secret{}
-	err = osc.Get(context.TODO(), types.NamespacedName{Namespace: "sre-pagerduty-operator", Name: "pagerduty-api-key"}, pdAPISecret)
+	err = osc.Get(context.TODO(), types.NamespacedName{Namespace: "pagerduty-operator", Name: "pagerduty-api-key"}, pdAPISecret)
 	if err != nil {
 		return err
 	}
