@@ -1,5 +1,5 @@
 #!/usr/bin/bash
-IMAGE="quay.io/whearn/pagerduty-operator:"
+IMAGE="quay.io/openshift-sre/pagerduty-operator:"
 OLD_VERSION=$(grep "Version" version/version.go | awk '{ print $3 }' | sed 's/"//g')
 
 IFS="." read -r -a array <<< "${OLD_VERSION}"

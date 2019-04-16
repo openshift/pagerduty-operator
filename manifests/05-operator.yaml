@@ -16,8 +16,7 @@ spec:
       serviceAccountName: pagerduty-operator
       containers:
         - name: pagerduty-operator
-          #TODO Move to official quay namespace
-          image: quay.io/whearn/pagerduty-operator:0.0.29
+          image: quay.io/openshift-sre/pagerduty-operator:0.0.29
           command:
           - pagerduty-operator
           imagePullPolicy: Always
