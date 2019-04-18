@@ -1,12 +1,12 @@
-kind: RoleBinding
+kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: pagerduty-operator
-  namespace: pagerduty-operator
 subjects:
 - kind: ServiceAccount
   name: pagerduty-operator
+  namespace: pagerduty-operator
 roleRef:
-  kind: Role
+  kind: ClusterRole
   name: pagerduty-operator
   apiGroup: rbac.authorization.k8s.io
