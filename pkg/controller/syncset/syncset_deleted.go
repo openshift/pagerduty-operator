@@ -18,20 +18,41 @@ import (
 	"context"
 	"strings"
 
+	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
 	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 func (r *ReconcileSyncSet) recreateSyncSet(request reconcile.Request) (reconcile.Result, error) {
 	r.reqLogger.Info("Syncset deleted, regenerating")
 
+	clusterdeployment := &hivev1.ClusterDeployment{}
+	cdName := strings.Split(request.Name, "-")[0]
+
+	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: request.Namespace, Name: cdName}, clusterdeployment)
+	if err != nil {
+		// Error finding the cluster deployment, requeue
+		return reconcile.Result{}, err
+	}
+
 	pdData := &pd.Data{
-		ClusterID: strings.Split(request.Name, "-")[0],
+		ClusterID:  clusterdeployment.Spec.ClusterName,
+		BaseDomain: clusterdeployment.Spec.BaseDomain,
 	}
 	pdData.ParsePDConfig(r.client)
-	pdServiceID, err := pdData.GetService()
+
+	// To prevent scoping issues in the err check below.
+	var pdServiceID string
+
+	pdServiceID, err = pdData.GetService()
 	if err != nil {
-		return reconcile.Result{}, err
+		var createErr error
+		pdServiceID, createErr = pdData.CreateService()
+		if createErr != nil {
+			return reconcile.Result{}, err
+		}
+
 	}
 
 	newSS := pdData.GenerateSyncSet(request.Namespace, strings.Split(request.Name, "-")[0], pdServiceID)
