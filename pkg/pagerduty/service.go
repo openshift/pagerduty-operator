@@ -59,6 +59,7 @@ type Data struct {
 	servicePrefix      string
 	APIKey             string
 	ClusterID          string
+	BaseDomain         string
 }
 
 // ParsePDConfig parses the PD Config map and stores it in the struct
@@ -110,7 +111,7 @@ func (data *Data) ParsePDConfig(osc client.Client) error {
 func (data *Data) GetService() (string, error) {
 	client := pdApi.NewClient(data.APIKey)
 	var opts pdApi.ListServiceOptions
-	opts.Query = data.servicePrefix + "-" + data.ClusterID + "-hive-cluster"
+	opts.Query = data.servicePrefix + "-" + data.ClusterID + "-" + data.BaseDomain + "-hive-cluster"
 	services, err := client.ListServices(opts)
 	if err != nil {
 		return "", err
@@ -135,7 +136,7 @@ func (data *Data) CreateService() (string, error) {
 	}
 
 	clusterService := pdApi.Service{
-		Name:                   data.servicePrefix + "-" + data.ClusterID + "-hive-cluster",
+		Name:                   data.servicePrefix + "-" + data.ClusterID + "-" + data.BaseDomain + "-hive-cluster",
 		Description:            data.ClusterID + " - A managed hive created cluster",
 		EscalationPolicy:       *escalationPolicy,
 		AutoResolveTimeout:     &data.autoResolveTimeout,

@@ -37,7 +37,8 @@ func (r *ReconcileClusterDeployment) handleCreate(request reconcile.Request, ins
 	}
 
 	pdData := &pd.Data{
-		ClusterID: instance.Name,
+		ClusterID:  instance.Name,
+		BaseDomain: instance.Spec.BaseDomain,
 	}
 	pdData.ParsePDConfig(r.client)
 	pdServiceID, err := pdData.CreateService()

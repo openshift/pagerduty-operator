@@ -39,7 +39,8 @@ func (r *ReconcileClusterDeployment) handleDelete(request reconcile.Request, ins
 	}
 
 	pdData := &pd.Data{
-		ClusterID: instance.Name,
+		ClusterID:  instance.Name,
+		BaseDomain: instance.Spec.BaseDomain,
 	}
 	err = pdData.ParsePDConfig(r.client)
 	if err != nil {
