@@ -57,3 +57,4 @@ rules:
   - syncsets
   verbs:
   - create
+  - delete
