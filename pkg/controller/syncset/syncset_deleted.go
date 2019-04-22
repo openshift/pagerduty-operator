@@ -50,12 +50,11 @@ func (r *ReconcileSyncSet) recreateSyncSet(request reconcile.Request) (reconcile
 		var createErr error
 		pdServiceID, createErr = pdData.CreateService()
 		if createErr != nil {
-			return reconcile.Result{}, err
+			return reconcile.Result{}, createErr
 		}
-
 	}
 
-	newSS := pdData.GenerateSyncSet(request.Namespace, strings.Split(request.Name, "-")[0], pdServiceID)
+	newSS := pdData.GenerateSyncSet(request.Namespace, clusterdeployment.Name, pdServiceID)
 
 	if err := r.client.Create(context.TODO(), newSS); err != nil {
 		return reconcile.Result{}, err

@@ -20,20 +20,19 @@ import (
 	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
 	hivecontrollerutils "github.com/openshift/hive/pkg/controller/utils"
 	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 func (r *ReconcileClusterDeployment) handleCreate(request reconcile.Request, instance *hivev1.ClusterDeployment) (reconcile.Result, error) {
 	r.reqLogger.Info("Creating syncset")
 
-	if hivecontrollerutils.HasFinalizer(instance, "pd.manage.openshift.io/pagerduty") {
-		return reconcile.Result{}, nil
-	}
-
-	hivecontrollerutils.AddFinalizer(instance, "pd.manage.openshift.io/pagerduty")
-	err := r.client.Update(context.TODO(), instance)
-	if err != nil {
-		return reconcile.Result{}, err
+	if hivecontrollerutils.HasFinalizer(instance, "pd.manage.openshift.io/pagerduty") == false {
+		hivecontrollerutils.AddFinalizer(instance, "pd.manage.openshift.io/pagerduty")
+		err := r.client.Update(context.TODO(), instance)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
 	}
 
 	pdData := &pd.Data{
@@ -41,15 +40,30 @@ func (r *ReconcileClusterDeployment) handleCreate(request reconcile.Request, ins
 		BaseDomain: instance.Spec.BaseDomain,
 	}
 	pdData.ParsePDConfig(r.client)
-	pdServiceID, err := pdData.CreateService()
+	// To prevent scoping issues in the err check below.
+	var pdServiceID string
+
+	pdServiceID, err := pdData.GetService()
 	if err != nil {
-		return reconcile.Result{}, err
+		var createErr error
+		pdServiceID, createErr = pdData.CreateService()
+		if createErr != nil {
+			return reconcile.Result{}, createErr
+		}
 	}
 
 	newSS := pdData.GenerateSyncSet(request.Namespace, request.Name, pdServiceID)
 
 	if err := r.client.Create(context.TODO(), newSS); err != nil {
+		if errors.IsAlreadyExists(err) {
+			// SyncSet already exists, we should just update it
+			if updateErr := r.client.Update(context.TODO(), newSS); updateErr != nil {
+				return reconcile.Result{}, err
+			}
+			return reconcile.Result{}, nil
+		}
 		return reconcile.Result{}, err
+
 	}
 
 	return reconcile.Result{}, nil
