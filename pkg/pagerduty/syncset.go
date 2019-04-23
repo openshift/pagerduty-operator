@@ -49,7 +49,7 @@ func (data *Data) GenerateSyncSet(namespace string, name string, pdServiceID str
 							},
 							ObjectMeta: metav1.ObjectMeta{
 								Name:      "pd-secret",
-								Namespace: "openshift-am-config",
+								Namespace: "openshift-monitoring",
 							},
 							Data: map[string][]byte{
 								"PAGERDUTY_KEY": []byte(pdServiceID),
