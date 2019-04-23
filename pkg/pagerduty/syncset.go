@@ -38,7 +38,7 @@ func (data *Data) GenerateSyncSet(namespace string, name string, pdServiceID str
 				},
 			},
 			SyncSetCommonSpec: hivev1.SyncSetCommonSpec{
-				ResourceApplyMode: "upsert",
+				ResourceApplyMode: "sync",
 				Resources: []runtime.RawExtension{
 					{
 						Object: &corev1.Secret{
