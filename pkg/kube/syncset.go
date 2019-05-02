@@ -12,11 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package pagerduty
+package kube
 
 import (
-	"fmt"
-
 	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,8 +22,9 @@ import (
 )
 
 // GenerateSyncSet returns a syncset that can be created with the oc client
-func (data *Data) GenerateSyncSet(namespace string, name string, pdServiceID string) *hivev1.SyncSet {
-	ssName := fmt.Sprintf("%v-pd-sync", name)
+func GenerateSyncSet(namespace string, name string, pdIntegrationID string) *hivev1.SyncSet {
+	ssName := name + "-pd-sync"
+
 	return &hivev1.SyncSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ssName,
@@ -52,7 +51,7 @@ func (data *Data) GenerateSyncSet(namespace string, name string, pdServiceID str
 								Namespace: "openshift-monitoring",
 							},
 							Data: map[string][]byte{
-								"PAGERDUTY_KEY": []byte(pdServiceID),
+								"PAGERDUTY_KEY": []byte(pdIntegrationID),
 							},
 						},
 					},

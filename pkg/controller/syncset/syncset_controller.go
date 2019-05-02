@@ -16,7 +16,6 @@ package syncset
 
 import (
 	"context"
-	"strings"
 
 	"github.com/go-logr/logr"
 	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
@@ -81,7 +80,7 @@ type ReconcileSyncSet struct {
 
 func (r *ReconcileSyncSet) checkClusterDeployment(request reconcile.Request) (bool, error) {
 	clusterdeployment := &hivev1.ClusterDeployment{}
-	cdName := strings.Split(request.Name, "-")[0]
+	cdName := request.Name[0 : len(request.Name)-8]
 
 	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: request.Namespace, Name: cdName}, clusterdeployment)
 	if err != nil {

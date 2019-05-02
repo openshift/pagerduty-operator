@@ -16,10 +16,12 @@ package syncset
 
 import (
 	"context"
-	"strings"
 
 	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
+	"github.com/openshift/pagerduty-operator/pkg/kube"
 	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -28,8 +30,7 @@ func (r *ReconcileSyncSet) recreateSyncSet(request reconcile.Request) (reconcile
 	r.reqLogger.Info("Syncset deleted, regenerating")
 
 	clusterdeployment := &hivev1.ClusterDeployment{}
-	cdName := strings.Split(request.Name, "-")[0]
-
+	cdName := request.Name[0 : len(request.Name)-8]
 	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: request.Namespace, Name: cdName}, clusterdeployment)
 	if err != nil {
 		// Error finding the cluster deployment, requeue
@@ -41,23 +42,46 @@ func (r *ReconcileSyncSet) recreateSyncSet(request reconcile.Request) (reconcile
 		BaseDomain: clusterdeployment.Spec.BaseDomain,
 	}
 	pdData.ParsePDConfig(r.client)
+	pdData.ParseClusterConfig(r.client, request.Namespace, cdName)
 
 	// To prevent scoping issues in the err check below.
-	var pdServiceID string
+	var pdIntegrationKey string
+	recreateCM := false
 
-	pdServiceID, err = pdData.GetService()
+	pdIntegrationKey, err = pdData.GetIntegrationKey()
 	if err != nil {
 		var createErr error
-		pdServiceID, createErr = pdData.CreateService()
+		pdIntegrationKey, createErr = pdData.CreateService()
 		if createErr != nil {
 			return reconcile.Result{}, createErr
 		}
+		recreateCM = true
 	}
 
-	newSS := pdData.GenerateSyncSet(request.Namespace, clusterdeployment.Name, pdServiceID)
-
+	newSS := kube.GenerateSyncSet(request.Namespace, clusterdeployment.Name, pdIntegrationKey)
 	if err := r.client.Create(context.TODO(), newSS); err != nil {
 		return reconcile.Result{}, err
+	}
+
+	if recreateCM {
+		pdAPIConfigMap := &corev1.ConfigMap{}
+		err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: request.Namespace, Name: cdName + "-pd-config"}, pdAPIConfigMap)
+		if err != nil {
+			if !errors.IsNotFound(err) {
+				return reconcile.Result{}, err
+			}
+		}
+		r.client.Delete(context.TODO(), pdAPIConfigMap)
+		newCM := kube.GenerateConfigMap(request.Namespace, cdName, pdData.ServiceID, pdData.IntegrationID)
+		if err := r.client.Create(context.TODO(), newCM); err != nil {
+			if errors.IsAlreadyExists(err) {
+				if updateErr := r.client.Update(context.TODO(), newCM); updateErr != nil {
+					return reconcile.Result{}, err
+				}
+				return reconcile.Result{}, nil
+			}
+			return reconcile.Result{}, err
+		}
 	}
 
 	return reconcile.Result{}, nil
