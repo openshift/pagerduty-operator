@@ -24,6 +24,8 @@ import (
 
 	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
 	awsclient "github.com/openshift/hive/pkg/awsclient"
+	controllerutils "github.com/openshift/hive/pkg/controller/utils"
+	corev1 "k8s.io/api/core/v1"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -59,7 +61,7 @@ func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Create a new controller
-	c, err := controller.New(controllerName, mgr, controller.Options{Reconciler: r})
+	c, err := controller.New(controllerName, mgr, controller.Options{Reconciler: r, MaxConcurrentReconciles: controllerutils.GetConcurrentReconciles()})
 	if err != nil {
 		return err
 	}
@@ -104,8 +106,22 @@ func (r *ReconcileDNSZone) SetAWSClientBuilder(awsClientBuilder func(kClient cli
 // Reconcile reads that state of the cluster for a DNSZone object and makes changes based on the state read
 // and what is in the DNSZone.Spec
 // Automatically generate RBAC rules to allow the Controller to read and write DNSZones
-// +kubebuilder:rbac:groups=hive.openshift.io,resources=dnszones,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=hive.openshift.io,resources=dnszones;dnszones/status;dnszones/finalizers;dnsendpoints,verbs=get;list;watch;create;update;patch;delete
 func (r *ReconcileDNSZone) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+	start := time.Now()
+	dnsLog := r.logger.WithFields(log.Fields{
+		"controller": controllerName,
+		"dnszone":    request.Name,
+		"namespace":  request.Namespace,
+	})
+
+	// For logging, we need to see when the reconciliation loop starts and ends.
+	dnsLog.Info("reconciling dns zone")
+	defer func() {
+		dur := time.Since(start)
+		dnsLog.WithField("elapsed", dur).Info("reconcile complete")
+	}()
+
 	// Fetch the DNSZone object
 	desiredState := &hivev1.DNSZone{}
 	err := r.Get(context.TODO(), request.NamespacedName, desiredState)
@@ -116,20 +132,7 @@ func (r *ReconcileDNSZone) Reconcile(request reconcile.Request) (reconcile.Resul
 			return reconcile.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
-		r.logger.Debugf("error fetching dnszone object %v: %v", request.NamespacedName, err)
-		return reconcile.Result{}, err
-	}
-	dnsLog := r.logger.WithFields(log.Fields{
-		"controller": controllerName,
-		"name":       desiredState.Name,
-		"namespace":  desiredState.Namespace,
-	})
-
-	dnsLog.Debugf("reconciling dnszone")
-
-	awsClient, err := r.getAWSClient(desiredState)
-	if err != nil {
-		dnsLog.Errorf("error creating aws client: %v", err)
+		dnsLog.WithError(err).Error("Error fetching dnszone object")
 		return reconcile.Result{}, err
 	}
 
@@ -137,8 +140,7 @@ func (r *ReconcileDNSZone) Reconcile(request reconcile.Request) (reconcile.Resul
 	// on spec changes and deletes.
 	shouldSync, delta := shouldSync(desiredState)
 	if !shouldSync {
-		r.logger.WithFields(log.Fields{
-			"object":               desiredState.Name,
+		dnsLog.WithFields(log.Fields{
 			"delta":                delta,
 			"currentGeneration":    desiredState.Generation,
 			"lastSyncedGeneration": desiredState.Status.LastSyncGeneration,
@@ -147,30 +149,35 @@ func (r *ReconcileDNSZone) Reconcile(request reconcile.Request) (reconcile.Resul
 		return reconcile.Result{}, nil
 	}
 
+	awsClient, err := r.getAWSClient(desiredState, dnsLog)
+	if err != nil {
+		dnsLog.WithError(err).Error("Error creating aws client")
+		return reconcile.Result{}, err
+	}
+
 	zr, err := NewZoneReconciler(
 		desiredState,
 		r.Client,
-		r.logger,
+		dnsLog,
 		awsClient,
+		r.scheme,
 	)
 	if err != nil {
-		dnsLog.Errorf("error creating zone reconciler: %v", err)
+		dnsLog.WithError(err).Error("Error creating zone reconciler")
 		return reconcile.Result{}, err
 	}
 
 	// Actually reconcile desired state with current state
-	r.logger.WithFields(log.Fields{
-		"object":             desiredState.Name,
+	dnsLog.WithFields(log.Fields{
 		"delta":              delta,
 		"currentGeneration":  desiredState.Generation,
 		"lastSyncGeneration": desiredState.Status.LastSyncGeneration,
-	}).Infof("Syncing DNS Zone: %v", desiredState.Spec.Zone)
-	if err := zr.Reconcile(); err != nil {
-		r.logger.Errorf("encountered error while attempting to reconcile: %v", err)
-		return reconcile.Result{}, err
+	}).Info("Syncing DNS Zone")
+	result, err := zr.Reconcile()
+	if err != nil {
+		dnsLog.WithError(err).Error("Encountered error while attempting to reconcile")
 	}
-
-	return reconcile.Result{}, nil
+	return result, err
 }
 
 func shouldSync(desiredState *hivev1.DNSZone) (bool, time.Duration) {
@@ -186,6 +193,13 @@ func shouldSync(desiredState *hivev1.DNSZone) (bool, time.Duration) {
 		return true, 0 // Spec has changed since last sync, sync now.
 	}
 
+	if desiredState.Spec.LinkToParentDomain {
+		availableCondition := controllerutils.FindDNSZoneCondition(desiredState.Status.Conditions, hivev1.ZoneAvailableDNSZoneCondition)
+		if availableCondition == nil || availableCondition.Status == corev1.ConditionFalse {
+			return true, 0
+		} // If waiting to link to parent, sync now to check domain
+	}
+
 	delta := time.Now().Sub(desiredState.Status.LastSyncTimestamp.Time)
 	if delta >= zoneResyncDuration {
 		// We haven't sync'd in over zoneResyncDuration time, sync now.
@@ -197,7 +211,7 @@ func shouldSync(desiredState *hivev1.DNSZone) (bool, time.Duration) {
 }
 
 // getAWSClient generates an awsclient
-func (r *ReconcileDNSZone) getAWSClient(dnsZone *hivev1.DNSZone) (awsclient.Client, error) {
+func (r *ReconcileDNSZone) getAWSClient(dnsZone *hivev1.DNSZone, dnsLog log.FieldLogger) (awsclient.Client, error) {
 	// This allows for using host profiles for AWS auth.
 	var secretName, regionName string
 
@@ -208,7 +222,7 @@ func (r *ReconcileDNSZone) getAWSClient(dnsZone *hivev1.DNSZone) (awsclient.Clie
 
 	awsClient, err := r.awsClientBuilder(r.Client, secretName, dnsZone.Namespace, regionName)
 	if err != nil {
-		r.logger.Errorf("Error creating AWSClient: %v", err)
+		dnsLog.WithError(err).Error("Error creating AWSClient")
 		return nil, err
 	}
 

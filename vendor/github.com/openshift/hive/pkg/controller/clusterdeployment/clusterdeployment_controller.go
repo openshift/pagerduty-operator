@@ -23,14 +23,15 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	kapi "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/clientcmd"
@@ -40,28 +41,29 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	routev1 "github.com/openshift/api/route/v1"
 	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
 	"github.com/openshift/hive/pkg/controller/images"
+	hivemetrics "github.com/openshift/hive/pkg/controller/metrics"
 	controllerutils "github.com/openshift/hive/pkg/controller/utils"
 	"github.com/openshift/hive/pkg/imageset"
 	"github.com/openshift/hive/pkg/install"
 )
 
 const (
+	controllerName = "clusterDeployment"
+
 	// serviceAccountName will be a service account that can run the installer and then
 	// upload artifacts to the cluster's namespace.
 	serviceAccountName = "cluster-installer"
-	roleName           = "cluster-installer"
-	roleBindingName    = "cluster-installer"
 
 	// deleteAfterAnnotation is the annotation that contains a duration after which the cluster should be cleaned up.
 	deleteAfterAnnotation       = "hive.openshift.io/delete-after"
 	adminCredsSecretPasswordKey = "password"
-	pullSecretKey               = ".dockercfg"
 	adminSSHKeySecretKey        = "ssh-publickey"
 	adminKubeconfigKey          = "kubeconfig"
 	clusterVersionObjectName    = "version"
@@ -70,7 +72,67 @@ const (
 	clusterDeploymentGenerationAnnotation = "hive.openshift.io/cluster-deployment-generation"
 	clusterImageSetNotFoundReason         = "ClusterImageSetNotFound"
 	clusterImageSetFoundReason            = "ClusterImageSetFound"
+
+	dnsZoneCheckInterval = 30 * time.Second
+
+	defaultRequeueTime = time.Second
 )
+
+var (
+	metricClusterDeploymentInstallRestarts = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "hive_cluster_deployment_install_restarts",
+			// Will clear once hive restarts.
+			Help: "Number of container restarts for install jobs, labeled by cluster and namespace. No longer reported after cluster is installed.",
+		},
+		[]string{"cluster_deployment", "namespace"},
+	)
+	metricClusterDeploymentSucceeded = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "hive_cluster_deployment_install_succeeded_bool",
+			// Will clear once hive restarts.
+			Help: "0 if uninstalled, 1 if installed, labeled by cluster and namespace. No longer reported after cluster is installed.",
+		},
+		[]string{"cluster_deployment", "namespace"},
+	)
+	metricCompletedInstallJobRestarts = prometheus.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "hive_cluster_deployment_completed_install_restart",
+			Help:    "Distribution of the number of restarts for all completed cluster installations.",
+			Buckets: []float64{0, 2, 10, 20, 50},
+		},
+	)
+	metricInstallJobDuration = prometheus.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "hive_cluster_deployment_install_job_duration_seconds",
+			Help:    "Distribution of the runtime of completed install jobs.",
+			Buckets: []float64{60, 300, 600, 1200, 1800, 2400, 3000, 3600},
+		},
+	)
+	metricInstallDelaySeconds = prometheus.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "hive_cluster_deployment_install_job_delay_seconds",
+			Help:    "Time between cluster deployment creation and creation of the job to install/provision the cluster.",
+			Buckets: []float64{30, 60, 120, 300, 600, 1200, 1800},
+		},
+	)
+	metricImageSetDelaySeconds = prometheus.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "hive_cluster_deployment_imageset_job_delay_seconds",
+			Help:    "Time between cluster deployment creation and creation of the job which resolves the installer image to use for a ClusterImageSet.",
+			Buckets: []float64{10, 30, 60, 300, 600, 1200, 1800},
+		},
+	)
+)
+
+func init() {
+	metrics.Registry.MustRegister(metricClusterDeploymentInstallRestarts)
+	metrics.Registry.MustRegister(metricClusterDeploymentSucceeded)
+	metrics.Registry.MustRegister(metricInstallJobDuration)
+	metrics.Registry.MustRegister(metricCompletedInstallJobRestarts)
+	metrics.Registry.MustRegister(metricInstallDelaySeconds)
+	metrics.Registry.MustRegister(metricImageSetDelaySeconds)
+}
 
 // Add creates a new ClusterDeployment Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
@@ -83,7 +145,6 @@ func NewReconciler(mgr manager.Manager) reconcile.Reconciler {
 	return &ReconcileClusterDeployment{
 		Client:                        mgr.GetClient(),
 		scheme:                        mgr.GetScheme(),
-		amiLookupFunc:                 lookupAMI,
 		remoteClusterAPIClientBuilder: controllerutils.BuildClusterAPIClientFromKubeconfig,
 	}
 }
@@ -91,7 +152,7 @@ func NewReconciler(mgr manager.Manager) reconcile.Reconciler {
 // AddToManager adds a new Controller to mgr with r as the reconcile.Reconciler
 func AddToManager(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Create a new controller
-	c, err := controller.New("clusterdeployment-controller", mgr, controller.Options{Reconciler: r})
+	c, err := controller.New("clusterdeployment-controller", mgr, controller.Options{Reconciler: r, MaxConcurrentReconciles: controllerutils.GetConcurrentReconciles()})
 	if err != nil {
 		return err
 	}
@@ -107,6 +168,20 @@ func AddToManager(mgr manager.Manager, r reconcile.Reconciler) error {
 		IsController: true,
 		OwnerType:    &hivev1.ClusterDeployment{},
 	})
+
+	// Watch for pods created by an install job:
+	err = c.Watch(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestsFromMapFunc{
+		ToRequests: handler.ToRequestsFunc(selectorPodWatchHandler),
+	})
+	if err != nil {
+		return err
+	}
+
+	// Watch for dnszones created by a ClusterDeployment:
+	err = c.Watch(&source.Kind{Type: &hivev1.DNSZone{}}, &handler.EnqueueRequestForOwner{
+		IsController: true,
+		OwnerType:    &hivev1.ClusterDeployment{},
+	})
 	if err != nil {
 		return err
 	}
@@ -119,8 +194,7 @@ var _ reconcile.Reconciler = &ReconcileClusterDeployment{}
 // ReconcileClusterDeployment reconciles a ClusterDeployment object
 type ReconcileClusterDeployment struct {
 	client.Client
-	scheme        *runtime.Scheme
-	amiLookupFunc func(cd *hivev1.ClusterDeployment) (string, error)
+	scheme *runtime.Scheme
 
 	// remoteClusterAPIClientBuilder is a function pointer to the function that builds a client for the
 	// remote cluster's cluster-api
@@ -134,11 +208,26 @@ type ReconcileClusterDeployment struct {
 //
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=core,resources=serviceaccounts;secrets;configmaps,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
 // +kubebuilder:rbac:groups=rbac.authorization.k8s.io,resources=roles;rolebindings,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=hive.openshift.io,resources=clusterdeployments;clusterdeployments/status;clusterdeployments/finalizers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=hive.openshift.io,resources=clusterimagesets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=hive.openshift.io,resources=clusterimagesets/status,verbs=get;update;patch
 func (r *ReconcileClusterDeployment) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+	start := time.Now()
+	cdLog := log.WithFields(log.Fields{
+		"clusterDeployment": request.Name,
+		"namespace":         request.Namespace,
+		"controller":        controllerName,
+	})
+
+	// For logging, we need to see when the reconciliation loop starts and ends.
+	cdLog.Info("reconciling cluster deployment")
+	defer func() {
+		dur := time.Since(start)
+		cdLog.WithField("elapsed", dur).Info("reconcile complete")
+	}()
+
 	// Fetch the ClusterDeployment instance
 	cd := &hivev1.ClusterDeployment{}
 	err := r.Get(context.TODO(), request.NamespacedName, cd)
@@ -146,16 +235,18 @@ func (r *ReconcileClusterDeployment) Reconcile(request reconcile.Request) (recon
 		if errors.IsNotFound(err) {
 			// Object not found, return.  Created objects are automatically garbage collected.
 			// For additional cleanup logic use finalizers.
+			cdLog.Info("cluster deployment Not Found")
 			return reconcile.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
+		cdLog.WithError(err).Error("Error getting cluster deployment")
 		return reconcile.Result{}, err
 	}
-	cdLog := log.WithFields(log.Fields{
-		"clusterDeployment": cd.Name,
-		"namespace":         cd.Namespace,
-	})
-	cdLog.Info("reconciling cluster deployment")
+
+	return r.reconcile(request, cd, cdLog)
+}
+
+func (r *ReconcileClusterDeployment) reconcile(request reconcile.Request, cd *hivev1.ClusterDeployment, cdLog log.FieldLogger) (reconcile.Result, error) {
 	origCD := cd
 	cd = cd.DeepCopy()
 
@@ -168,14 +259,12 @@ func (r *ReconcileClusterDeployment) Reconcile(request reconcile.Request) (recon
 		err := r.Status().Update(context.TODO(), cd)
 		if err != nil {
 			cdLog.WithError(err).Error("error updating cluster deployment")
+			return reconcile.Result{}, err
 		}
-		return reconcile.Result{}, err
-	}
-
-	_, err = r.setupClusterInstallServiceAccount(cd.Namespace, cdLog)
-	if err != nil {
-		cdLog.WithError(err).Error("error setting up service account and role")
-		return reconcile.Result{}, err
+		return reconcile.Result{
+			Requeue:      true,
+			RequeueAfter: defaultRequeueTime,
+		}, nil
 	}
 
 	imageSet, err := r.getClusterImageSet(cd, cdLog)
@@ -221,31 +310,14 @@ func (r *ReconcileClusterDeployment) Reconcile(request reconcile.Request) (recon
 
 	if !controllerutils.HasFinalizer(cd, hivev1.FinalizerDeprovision) {
 		cdLog.Debugf("adding clusterdeployment finalizer")
-		return reconcile.Result{}, r.addClusterDeploymentFinalizer(cd)
-	}
-
-	if cd.Spec.Platform.AWS != nil {
-		if !isDefaultAMISet(cd) {
-			// Ensure we have an AMI set, if not lookup the latest:
-			// TODO: this will be obsolete by the design for OS image lifecycle, we will no
-			// longer need to lookup, pin, and set on machine sets. In cluster components will do
-			// this for us.
-			cdLog.Debugf("looking up a default AMI for cluster")
-			ami, err := r.amiLookupFunc(cd)
-			if err != nil {
-				cdLog.WithError(err).Error("error looking up default AMI for cluster")
-				return reconcile.Result{}, err
-			}
-			setDefaultAMI(cd, ami)
-			cdLog.WithField("AMI", ami).Infof("set default machine platform AMI")
-			controllerutils.FixupEmptyClusterVersionFields(&cd.Status.ClusterVersionStatus)
-			err = r.Update(context.TODO(), cd)
-			if err != nil {
-				cdLog.WithError(err).Error("error updating default machine annotation")
-			}
+		if err := r.addClusterDeploymentFinalizer(cd); err != nil {
+			cdLog.WithError(err).Error("error adding finalizer")
 			return reconcile.Result{}, err
 		}
-		cdLog.Debug("default AMI already set")
+		return reconcile.Result{
+			Requeue:      true,
+			RequeueAfter: defaultRequeueTime,
+		}, nil
 	}
 
 	cdLog.Debug("loading SSH key secret")
@@ -253,84 +325,142 @@ func (r *ReconcileClusterDeployment) Reconcile(request reconcile.Request) (recon
 		cdLog.Error("cluster has no ssh key set, unable to launch install")
 		return reconcile.Result{}, fmt.Errorf("cluster has no ssh key set, unable to launch install")
 	}
-	sshKey, err := r.loadSecretData(cd.Spec.SSHKey.Name,
+	sshKey, err := controllerutils.LoadSecretData(r.Client, cd.Spec.SSHKey.Name,
 		cd.Namespace, adminSSHKeySecretKey)
 	if err != nil {
 		cdLog.WithError(err).Error("unable to load ssh key from secret")
 		return reconcile.Result{}, err
 	}
 
-	cdLog.Debug("loading pull secret secret")
-	pullSecret, err := r.loadSecretData(cd.Spec.PullSecret.Name, cd.Namespace, pullSecretKey)
-	if err != nil {
-		cdLog.WithError(err).Error("unable to load pull secret from secret")
-		return reconcile.Result{}, err
-	}
-
 	if cd.Status.InstallerImage == nil {
-		return reconcile.Result{}, r.resolveInstallerImage(cd, hiveImage, cdLog)
-	}
-
-	job, cfgMap, err := install.GenerateInstallerJob(
-		cd,
-		hiveImage,
-		releaseImage,
-		serviceAccountName,
-		sshKey,
-		pullSecret)
-	if err != nil {
-		cdLog.WithError(err).Error("error generating install job")
+		err = r.resolveInstallerImage(cd, hiveImage, cdLog)
 		return reconcile.Result{}, err
 	}
 
-	if err = controllerutil.SetControllerReference(cd, job, r.scheme); err != nil {
-		cdLog.WithError(err).Error("error setting controller reference on job")
-		return reconcile.Result{}, err
-	}
-	if err = controllerutil.SetControllerReference(cd, cfgMap, r.scheme); err != nil {
-		cdLog.WithError(err).Error("error setting controller reference on config map")
-		return reconcile.Result{}, err
-	}
-
-	cdLog = cdLog.WithField("job", job.Name)
-
-	cdLog.Debug("checking if install-config.yaml config map exists")
-	// Check if the ConfigMap already exists for this ClusterDeployment:
-	existingCfgMap := &kapi.ConfigMap{}
-	err = r.Get(context.TODO(), types.NamespacedName{Name: cfgMap.Name, Namespace: cfgMap.Namespace}, existingCfgMap)
-	if err != nil && errors.IsNotFound(err) {
-		cdLog.WithField("configMap", cfgMap.Name).Infof("creating config map")
-		err = r.Create(context.TODO(), cfgMap)
+	if cd.Spec.ManageDNS {
+		managedDNSZoneAvailable, err := r.ensureManagedDNSZone(cd, cdLog)
 		if err != nil {
-			cdLog.Errorf("error creating config map: %v", err)
 			return reconcile.Result{}, err
 		}
-	} else if err != nil {
-		cdLog.Errorf("error getting config map: %v", err)
-		return reconcile.Result{}, err
+		if !managedDNSZoneAvailable {
+			// The clusterdeployment will be queued when the owned DNSZone's status
+			// is updated to available.
+			cdLog.Debug("DNSZone is not yet available. Waiting for zone to become available.")
+			return reconcile.Result{}, nil
+		}
 	}
 
-	// Check if the Job already exists for this ClusterDeployment:
+	// firstInstalledObserve is the flag that is used for reporting the provision job duration metric
+	firstInstalledObserve := false
+	containerRestarts := 0
+	// Check if an install job already exists:
 	existingJob := &batchv1.Job{}
-	err = r.Get(context.TODO(), types.NamespacedName{Name: job.Name, Namespace: job.Namespace}, existingJob)
+	installJobName := install.GetInstallJobName(cd)
+	err = r.Get(context.TODO(), types.NamespacedName{Name: installJobName, Namespace: cd.Namespace}, existingJob)
 	if err != nil && errors.IsNotFound(err) {
-		// If the ClusterDeployment is already installed, we do not need to create a new job:
-		if cd.Status.Installed {
-			cdLog.Debug("cluster is already installed, no job needed")
-		} else {
+		cdLog.Debug("no install job exists")
+		existingJob = nil
+	} else if err != nil {
+		cdLog.WithError(err).Error("error looking for install job")
+		return reconcile.Result{}, err
+	} else {
+		// setting the flag so that we can report the metric after cd is installed
+		if existingJob.Status.Succeeded > 0 && !cd.Status.Installed {
+			firstInstalledObserve = true
+		}
+	}
+
+	if cd.Status.Installed {
+		cdLog.Debug("cluster is already installed, no processing of install job needed")
+	} else {
+		// Indicate that the cluster is still installing:
+		metricClusterDeploymentSucceeded.WithLabelValues(cd.Name, cd.Namespace).Set(float64(0))
+
+		cdLog.Debug("loading pull secret secret")
+		pullSecret, err := controllerutils.LoadSecretData(r.Client, cd.Spec.PullSecret.Name, cd.Namespace, corev1.DockerConfigJsonKey)
+		if err != nil {
+			cdLog.WithError(err).Error("unable to load pull secret from secret")
+			return reconcile.Result{}, err
+		}
+
+		job, cfgMap, err := install.GenerateInstallerJob(
+			cd,
+			hiveImage,
+			releaseImage,
+			serviceAccountName,
+			sshKey,
+			pullSecret)
+		if err != nil {
+			cdLog.WithError(err).Error("error generating install job")
+			return reconcile.Result{}, err
+		}
+
+		if err = controllerutil.SetControllerReference(cd, job, r.scheme); err != nil {
+			cdLog.WithError(err).Error("error setting controller reference on job")
+			return reconcile.Result{}, err
+		}
+		if err = controllerutil.SetControllerReference(cd, cfgMap, r.scheme); err != nil {
+			cdLog.WithError(err).Error("error setting controller reference on config map")
+			return reconcile.Result{}, err
+		}
+
+		cdLog = cdLog.WithField("job", job.Name)
+
+		// Check if the ConfigMap already exists for this ClusterDeployment:
+		cdLog.Debug("checking if install-config.yaml config map exists")
+		existingCfgMap := &kapi.ConfigMap{}
+		err = r.Get(context.TODO(), types.NamespacedName{Name: cfgMap.Name, Namespace: cfgMap.Namespace}, existingCfgMap)
+		if err != nil && errors.IsNotFound(err) {
+			cdLog.WithField("configMap", cfgMap.Name).Infof("creating config map")
+			err = r.Create(context.TODO(), cfgMap)
+			if err != nil {
+				cdLog.Errorf("error creating config map: %v", err)
+				return reconcile.Result{}, err
+			}
+		} else if err != nil {
+			cdLog.Errorf("error getting config map: %v", err)
+			return reconcile.Result{}, err
+		}
+
+		if existingJob == nil {
+			_, err = controllerutils.SetupClusterInstallServiceAccount(r, cd.Namespace, cdLog)
+			if err != nil {
+				cdLog.WithError(err).Error("error setting up service account and role")
+				return reconcile.Result{}, err
+			}
+
 			cdLog.Infof("creating install job")
 			err = r.Create(context.TODO(), job)
 			if err != nil {
 				cdLog.Errorf("error creating job: %v", err)
 				return reconcile.Result{}, err
 			}
-		}
-	} else if err != nil {
-		cdLog.Errorf("error getting job: %v", err)
-		return reconcile.Result{}, err
-	} else {
-		cdLog.Infof("cluster job exists, cluster deployment status: %v", cd.Status.Installed)
-		if !cd.Status.Installed {
+			kickstartDuration := time.Since(cd.CreationTimestamp.Time)
+			cdLog.WithField("elapsed", kickstartDuration.Seconds()).Info("calculated time to install job seconds")
+			metricInstallDelaySeconds.Observe(float64(kickstartDuration.Seconds()))
+		} else if err != nil {
+			cdLog.Errorf("error getting job: %v", err)
+			return reconcile.Result{}, err
+		} else {
+			cdLog.Debug("provision job exists")
+			containerRestarts, err = r.calcInstallPodRestarts(cd, cdLog)
+			if err != nil {
+				// Metrics calculation should not shut down reconciliation, logging and moving on.
+				log.WithError(err).Warn("error listing pods, unable to calculate pod restarts but continuing")
+			} else {
+				if containerRestarts > 0 {
+					cdLog.WithFields(log.Fields{
+						"restarts": containerRestarts,
+					}).Warn("install pod has restarted")
+				}
+
+				// Set metric for the number of install restarts for this cluster.
+				metricClusterDeploymentInstallRestarts.WithLabelValues(cd.Name, cd.Namespace).Set(float64(containerRestarts))
+
+				// Store the restart count on the cluster deployment status as well.
+				cd.Status.InstallRestarts = containerRestarts
+			}
+
 			if existingJob.Annotations != nil && cfgMap.Annotations != nil {
 				didGenerationChange, err := r.updateOutdatedConfigurations(cd.Generation, existingJob, cfgMap, cdLog)
 				if err != nil {
@@ -348,7 +478,21 @@ func (r *ReconcileClusterDeployment) Reconcile(request reconcile.Request) (recon
 		return reconcile.Result{}, err
 	}
 
-	cdLog.Debugf("reconcile complete")
+	// firstInstalledObserve will be true if this is the first time we've noticed the install job completed.
+	// If true, we know we can report the metrics associated with a completed job.
+	if firstInstalledObserve {
+		// jobDuration calculates the time elapsed since the install job started
+		jobDuration := existingJob.Status.CompletionTime.Time.Sub(existingJob.Status.StartTime.Time)
+		cdLog.WithField("duration", jobDuration.Seconds()).Debug("install job completed")
+		metricInstallJobDuration.Observe(float64(jobDuration.Seconds()))
+
+		// Indicate successful install. We do not want to report this metric forever to limit cardinality.
+		metricClusterDeploymentSucceeded.WithLabelValues(cd.Name, cd.Namespace).Set(float64(1))
+
+		// Report a metric for the total number of container restarts:
+		metricCompletedInstallJobRestarts.Observe(float64(containerRestarts))
+	}
+
 	// Check for requeueAfter duration
 	if requeueAfter != 0 {
 		cdLog.Debugf("cluster will re-sync due to expiry time in: %v", requeueAfter)
@@ -475,10 +619,21 @@ func (r *ReconcileClusterDeployment) resolveInstallerImage(cd *hivev1.ClusterDep
 		}
 		return err
 	case errors.IsNotFound(err):
+		_, err = controllerutils.SetupClusterInstallServiceAccount(r, cd.Namespace, cdLog)
+		if err != nil {
+			cdLog.WithError(err).Error("error setting up service account and role")
+			return err
+		}
+
 		jobLog.Info("creating imageset job")
 		err = r.Create(context.TODO(), job)
 		if err != nil {
 			jobLog.WithError(err).Error("error creating job")
+		} else {
+			// kickstartDuration calculates the delay between creation of cd and start of imageset job
+			kickstartDuration := time.Since(cd.CreationTimestamp.Time)
+			cdLog.WithField("elapsed", kickstartDuration.Seconds()).Info("calculated time to imageset job seconds")
+			metricImageSetDelaySeconds.Observe(float64(kickstartDuration.Seconds()))
 		}
 		return err
 	case err != nil:
@@ -548,19 +703,6 @@ func (r *ReconcileClusterDeployment) updateOutdatedConfigurations(cdGeneration i
 	return didGenerationChange, err
 }
 
-func (r *ReconcileClusterDeployment) loadSecretData(secretName, namespace, dataKey string) (string, error) {
-	s := &kapi.Secret{}
-	err := r.Get(context.TODO(), types.NamespacedName{Name: secretName, Namespace: namespace}, s)
-	if err != nil {
-		return "", err
-	}
-	retStr, ok := s.Data[dataKey]
-	if !ok {
-		return "", fmt.Errorf("secret %s did not contain key %s", secretName, dataKey)
-	}
-	return string(retStr), nil
-}
-
 func (r *ReconcileClusterDeployment) updateClusterDeploymentStatus(cd *hivev1.ClusterDeployment, origCD *hivev1.ClusterDeployment, job *batchv1.Job, cdLog log.FieldLogger) error {
 	cdLog.Debug("updating cluster deployment status")
 	if job != nil && job.Name != "" && job.Namespace != "" {
@@ -604,18 +746,18 @@ func (r *ReconcileClusterDeployment) updateClusterDeploymentStatus(cd *hivev1.Cl
 	} else {
 		cdLog.Infof("cluster deployment status unchanged")
 	}
-
 	return nil
 }
 
 // setAdminKubeconfigStatus sets all cluster status fields that depend on the admin kubeconfig.
 func (r *ReconcileClusterDeployment) setAdminKubeconfigStatus(cd *hivev1.ClusterDeployment, adminKubeconfigSecret *corev1.Secret, cdLog log.FieldLogger) error {
-	remoteClusterAPIClient, err := r.remoteClusterAPIClientBuilder(string(adminKubeconfigSecret.Data[adminKubeconfigKey]))
-	if err != nil {
-		cdLog.WithError(err).Error("error building remote cluster-api client connection")
-		return err
-	}
 	if cd.Status.WebConsoleURL == "" || cd.Status.APIURL == "" {
+		remoteClusterAPIClient, err := r.remoteClusterAPIClientBuilder(string(adminKubeconfigSecret.Data[adminKubeconfigKey]))
+		if err != nil {
+			cdLog.WithError(err).Error("error building remote cluster-api client connection")
+			return err
+		}
+
 		// Parse the admin kubeconfig for the server URL:
 		config, err := clientcmd.Load(adminKubeconfigSecret.Data["kubeconfig"])
 		if err != nil {
@@ -694,7 +836,7 @@ func (r *ReconcileClusterDeployment) syncDeletedClusterDeployment(cd *hivev1.Clu
 		}
 	} else {
 		// Generate an uninstall job:
-		uninstallJob, err := install.GenerateUninstallerJob(cd, hiveImage)
+		uninstallJob, err := install.GenerateUninstallerJobForClusterDeployment(cd, hiveImage)
 		if err != nil {
 			cdLog.Errorf("error generating uninstaller job: %v", err)
 			return reconcile.Result{}, err
@@ -710,6 +852,12 @@ func (r *ReconcileClusterDeployment) syncDeletedClusterDeployment(cd *hivev1.Clu
 		existingJob := &batchv1.Job{}
 		err = r.Get(context.TODO(), types.NamespacedName{Name: uninstallJob.Name, Namespace: uninstallJob.Namespace}, existingJob)
 		if err != nil && errors.IsNotFound(err) {
+			_, err := controllerutils.SetupClusterInstallServiceAccount(r, cd.Namespace, cdLog)
+			if err != nil {
+				cdLog.WithError(err).Error("error setting up service account and role")
+				return reconcile.Result{}, err
+			}
+
 			err = r.Create(context.TODO(), uninstallJob)
 			if err != nil {
 				cdLog.Errorf("error creating uninstall job: %v", err)
@@ -724,6 +872,10 @@ func (r *ReconcileClusterDeployment) syncDeletedClusterDeployment(cd *hivev1.Clu
 		// Uninstall job exists, check it's status and if successful, remove the finalizer:
 		if controllerutils.IsSuccessful(existingJob) {
 			cdLog.Infof("uninstall job successful, removing finalizer")
+			// jobDuration calculates the time elapsed since the uninstall job started for deprovision job
+			jobDuration := existingJob.Status.CompletionTime.Time.Sub(existingJob.Status.StartTime.Time)
+			cdLog.WithField("duration", jobDuration.Seconds()).Debug("uninstall job completed")
+			hivemetrics.MetricUninstallJobDuration.Observe(float64(jobDuration.Seconds()))
 			err = r.removeClusterDeploymentFinalizer(cd)
 			if err != nil {
 				cdLog.WithError(err).Error("error removing finalizer")
@@ -749,103 +901,111 @@ func (r *ReconcileClusterDeployment) removeClusterDeploymentFinalizer(cd *hivev1
 	return r.Update(context.TODO(), cd)
 }
 
-// setupClusterInstallServiceAccount ensures a service account exists which can upload
-// the required artifacts after running the installer in a pod. (metadata, admin kubeconfig)
-func (r *ReconcileClusterDeployment) setupClusterInstallServiceAccount(namespace string, cdLog log.FieldLogger) (*kapi.ServiceAccount, error) {
-	// create new serviceaccount if it doesn't already exist
-	currentSA := &kapi.ServiceAccount{}
-	err := r.Client.Get(context.Background(), client.ObjectKey{Name: serviceAccountName, Namespace: namespace}, currentSA)
-	if err != nil && !errors.IsNotFound(err) {
-		return nil, fmt.Errorf("error checking for existing serviceaccount")
+func (r *ReconcileClusterDeployment) ensureManagedDNSZone(cd *hivev1.ClusterDeployment, cdLog log.FieldLogger) (bool, error) {
+	// for now we only support AWS
+	if cd.Spec.AWS == nil || cd.Spec.PlatformSecrets.AWS == nil {
+		cdLog.Error("cluster deployment platform is not AWS, cannot manage DNS zone")
+		return false, fmt.Errorf("only AWS managed DNS is supported")
 	}
+	dnsZone := &hivev1.DNSZone{}
+	dnsZoneNamespacedName := types.NamespacedName{Namespace: cd.Namespace, Name: dnsZoneName(cd.Name)}
+	logger := cdLog.WithField("zone", dnsZoneNamespacedName.String())
 
+	err := r.Get(context.TODO(), dnsZoneNamespacedName, dnsZone)
+	if err == nil {
+		availableCondition := controllerutils.FindDNSZoneCondition(dnsZone.Status.Conditions, hivev1.ZoneAvailableDNSZoneCondition)
+		return availableCondition != nil && availableCondition.Status == corev1.ConditionTrue, nil
+	}
 	if errors.IsNotFound(err) {
-		currentSA = &kapi.ServiceAccount{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      serviceAccountName,
-				Namespace: namespace,
-			},
-		}
-		err = r.Client.Create(context.Background(), currentSA)
-
-		if err != nil {
-			return nil, fmt.Errorf("error creating serviceaccount: %v", err)
-		}
-		cdLog.WithField("name", serviceAccountName).Info("created service account")
-	} else {
-		cdLog.WithField("name", serviceAccountName).Debug("service account already exists")
+		logger.Debug("creating new DNSZone for cluster deployment")
+		return false, r.createManagedDNSZone(cd, logger)
 	}
+	logger.WithError(err).Error("failed to fetch DNS zone")
+	return false, err
+}
 
-	expectedRole := &rbacv1.Role{
+func (r *ReconcileClusterDeployment) createManagedDNSZone(cd *hivev1.ClusterDeployment, logger log.FieldLogger) error {
+	dnsZone := &hivev1.DNSZone{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      roleName,
-			Namespace: namespace,
+			Name:      dnsZoneName(cd.Name),
+			Namespace: cd.Namespace,
 		},
-		Rules: []rbacv1.PolicyRule{
-			{
-				APIGroups: []string{""},
-				Resources: []string{"secrets", "configmaps"},
-				Verbs:     []string{"create", "delete", "get", "list", "update"},
-			},
-			{
-				APIGroups: []string{"hive.openshift.io"},
-				Resources: []string{"clusterdeployments", "clusterdeployments/finalizers", "clusterdeployments/status"},
-				Verbs:     []string{"create", "delete", "get", "list", "update"},
+		Spec: hivev1.DNSZoneSpec{
+			Zone:               cd.Spec.BaseDomain,
+			LinkToParentDomain: true,
+			AWS: &hivev1.AWSDNSZoneSpec{
+				AccountSecret: cd.Spec.PlatformSecrets.AWS.Credentials,
+				Region:        cd.Spec.AWS.Region,
 			},
 		},
 	}
-	currentRole := &rbacv1.Role{}
-	err = r.Client.Get(context.Background(), client.ObjectKey{Name: roleName, Namespace: namespace}, currentRole)
-	if err != nil && !errors.IsNotFound(err) {
-		return nil, fmt.Errorf("error checking for existing role: %v", err)
+
+	for k, v := range cd.Spec.AWS.UserTags {
+		dnsZone.Spec.AWS.AdditionalTags = append(dnsZone.Spec.AWS.AdditionalTags, hivev1.AWSResourceTag{Key: k, Value: v})
 	}
-	if errors.IsNotFound(err) {
-		err = r.Client.Create(context.Background(), expectedRole)
-		if err != nil {
-			return nil, fmt.Errorf("error creating role: %v", err)
+
+	if err := controllerutil.SetControllerReference(cd, dnsZone, r.scheme); err != nil {
+		logger.WithError(err).Error("error setting controller reference on dnszone")
+		return err
+	}
+
+	err := r.Create(context.TODO(), dnsZone)
+	if err != nil {
+		logger.WithError(err).Error("cannot create DNS zone")
+		return err
+	}
+	logger.Debug("dns zone created")
+	return nil
+}
+
+func dnsZoneName(cdName string) string {
+	return fmt.Sprintf("%s-zone", cdName)
+}
+
+func selectorPodWatchHandler(a handler.MapObject) []reconcile.Request {
+	retval := []reconcile.Request{}
+
+	pod := a.Object.(*corev1.Pod)
+	if pod == nil {
+		// Wasn't a Pod, bail out. This should not happen.
+		log.Errorf("Error converting MapObject.Object to Pod. Value: %+v", a.Object)
+		return retval
+	}
+	if pod.Labels == nil {
+		return retval
+	}
+	cdName, ok := pod.Labels[install.ClusterDeploymentNameLabel]
+	if !ok {
+		return retval
+	}
+	retval = append(retval, reconcile.Request{NamespacedName: types.NamespacedName{
+		Name:      cdName,
+		Namespace: pod.Namespace,
+	}})
+	return retval
+}
+
+func (r *ReconcileClusterDeployment) calcInstallPodRestarts(cd *hivev1.ClusterDeployment, cdLog log.FieldLogger) (int, error) {
+	installerPodLabels := map[string]string{install.ClusterDeploymentNameLabel: cd.Name, install.InstallJobLabel: "true"}
+	parsedLabels := labels.SelectorFromSet(installerPodLabels)
+	pods := &corev1.PodList{}
+	err := r.Client.List(context.Background(), &client.ListOptions{Namespace: cd.Namespace, LabelSelector: parsedLabels}, pods)
+	if err != nil {
+		return 0, err
+	}
+
+	if len(pods.Items) > 1 {
+		log.Warnf("found %d install pods for cluster", len(pods.Items))
+	}
+
+	// Calculate restarts across all containers in the pod:
+	containerRestarts := 0
+	for _, pod := range pods.Items {
+		for _, cs := range pod.Status.ContainerStatuses {
+			containerRestarts += int(cs.RestartCount)
 		}
-		cdLog.WithField("name", roleName).Info("created role")
-	} else {
-		cdLog.WithField("name", roleName).Debug("role already exists")
 	}
-
-	// create rolebinding for the serviceaccount
-	currentRB := &rbacv1.RoleBinding{}
-	err = r.Client.Get(context.Background(), client.ObjectKey{Name: roleBindingName, Namespace: namespace}, currentRB)
-
-	if err != nil && !errors.IsNotFound(err) {
-		return nil, fmt.Errorf("error checking for existing rolebinding: %v", err)
-	}
-
-	if errors.IsNotFound(err) {
-		rb := &rbacv1.RoleBinding{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      roleBindingName,
-				Namespace: namespace,
-			},
-			Subjects: []rbacv1.Subject{
-				{
-					Kind:      "ServiceAccount",
-					Name:      currentSA.Name,
-					Namespace: namespace,
-				},
-			},
-			RoleRef: rbacv1.RoleRef{
-				Name: roleName,
-				Kind: "Role",
-			},
-		}
-
-		err = r.Client.Create(context.Background(), rb)
-		if err != nil {
-			return nil, fmt.Errorf("error creating rolebinding: %v", err)
-		}
-		cdLog.WithField("name", roleBindingName).Info("created rolebinding")
-	} else {
-		cdLog.WithField("name", roleBindingName).Debug("rolebinding already exists")
-	}
-
-	return currentSA, nil
+	return containerRestarts, nil
 }
 
 func strPtr(s string) *string {

@@ -277,6 +277,14 @@
   version = "v1.1.6"
 
 [[projects]]
+  digest = "1:58999a98719fddbac6303cb17e8d85b945f60b72f48e3a2df6b950b97fa926f1"
+  name = "github.com/konsorten/go-windows-terminal-sequences"
+  packages = ["."]
+  pruneopts = "NT"
+  revision = "f55edac94c9bbba5d6182a4be46d86a2c9b5b50e"
+  version = "v1.0.2"
+
+[[projects]]
   branch = "master"
   digest = "1:1832b664bdd6ff3139a8590c907044d7d440cd10fa46979d89fe98a11b75b256"
   name = "github.com/mailru/easyjson"
@@ -352,14 +360,14 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:77171e171304baf303df35d4480e3757dde3202bcace73bc4740ba8d950b377c"
+  digest = "1:2f40f833264b1556e2536f6751e730effbeff24d08f799f70bf4d40fdd923c5d"
   name = "github.com/openshift/hive"
   packages = [
     "pkg/apis/hive/v1alpha1",
     "pkg/controller/utils",
   ]
   pruneopts = "NT"
-  revision = "ba6ee5efd982a559a8a32a59f16375d5ccfb177d"
+  revision = "785ab700299ab33aa6796be403e37f447ab8858d"
 
 [[projects]]
   digest = "1:df8e741cd0f86087367f3bcfeb1cf237e96fada71194b6d4cee9412d221ec763"
@@ -464,6 +472,14 @@
   pruneopts = "NT"
   revision = "1cf9852c553c5b7da2d5a4a091129a7822fed0c9"
   version = "v1.2.2"
+
+[[projects]]
+  digest = "1:587d2e689ba400b9e4687ed2f02074fbc07fb33fd5ef72d22b5d68ae470f1267"
+  name = "github.com/sirupsen/logrus"
+  packages = ["."]
+  pruneopts = "NT"
+  revision = "8bdbc7bcc01dcbb8ec23dc8a28e332258d25251f"
+  version = "v1.4.1"
 
 [[projects]]
   digest = "1:1bc08ec221c4fb25e6f2c019b23fe989fb44573c696983d8e403a3b76cc378e1"
@@ -968,7 +984,6 @@
     "github.com/go-logr/logr",
     "github.com/openshift/hive/pkg/apis/hive/v1alpha1",
     "github.com/openshift/hive/pkg/controller/utils",
-    "github.com/operator-framework/operator-sdk/pkg/k8sutil",
     "github.com/operator-framework/operator-sdk/pkg/leader",
     "github.com/operator-framework/operator-sdk/pkg/log/zap",
     "github.com/operator-framework/operator-sdk/pkg/metrics",
