@@ -35,6 +35,8 @@ import (
 
 var log = logf.Log.WithName("controller_syncset")
 
+const syncsetPostfix string = "-pd-sync"
+
 /**
 * USER ACTION REQUIRED: This is a scaffold file intended for the user to modify with their own Controller
 * business logic.  Delete these comments after modifying this file.*
@@ -112,7 +114,10 @@ func (r *ReconcileSyncSet) Reconcile(request reconcile.Request) (reconcile.Resul
 	r.reqLogger.Info("Reconciling SyncSet")
 
 	// Wasn't a pagerduty
-	if request.Name[len(request.Name)-8:len(request.Name)] != "-pd-sync" {
+	if len(request.Name) < len(syncsetPostfix) {
+		return reconcile.Result{}, nil
+	}
+	if request.Name[len(request.Name)-len(syncsetPostfix):len(request.Name)] != syncsetPostfix {
 		return reconcile.Result{}, nil
 	}
 
