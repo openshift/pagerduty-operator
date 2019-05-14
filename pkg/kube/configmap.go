@@ -19,7 +19,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// GenerateConfigMap returns a syncset that can be created with the oc client
+// GenerateConfigMap returns a configmap that can be created with the oc client
 func GenerateConfigMap(namespace string, name string, pdServiceID string, pdIntegrationID string) *corev1.ConfigMap {
 	cmName := name + "-pd-config"
 
