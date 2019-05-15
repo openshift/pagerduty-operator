@@ -16,11 +16,11 @@ package clusterdeployment
 
 import (
 	"context"
-	"fmt"
 
 	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
 	hivecontrollerutils "github.com/openshift/hive/pkg/controller/utils"
 	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -29,7 +29,7 @@ import (
 func (r *ReconcileClusterDeployment) handleDelete(request reconcile.Request, instance *hivev1.ClusterDeployment) (reconcile.Result, error) {
 	r.reqLogger.Info("Deleting syncset")
 
-	ssName := fmt.Sprintf("%v-pd-sync", instance.Name)
+	ssName := instance.Name + "-pd-sync"
 	ss := &hivev1.SyncSet{}
 	err := r.client.Get(context.TODO(), types.NamespacedName{Name: ssName, Namespace: request.Namespace}, ss)
 	if err != nil {
@@ -47,12 +47,31 @@ func (r *ReconcileClusterDeployment) handleDelete(request reconcile.Request, ins
 		return reconcile.Result{}, err
 	}
 
+	err = pdData.ParseClusterConfig(r.client, request.Namespace, request.Name)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
 	err = pdData.DeleteService()
 	if err != nil {
 		return reconcile.Result{}, err
 	}
 
 	err = r.client.Delete(context.TODO(), ss)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	r.reqLogger.Info("Deleting configmap")
+	cmName := instance.Name + "-pd-config"
+	cm := &corev1.ConfigMap{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: cmName, Namespace: request.Namespace}, cm)
+	if err != nil {
+		if errors.IsNotFound(err) == false {
+			return reconcile.Result{}, err
+		}
+	}
+	err = r.client.Delete(context.TODO(), cm)
 	if err != nil {
 		return reconcile.Result{}, err
 	}

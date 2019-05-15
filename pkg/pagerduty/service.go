@@ -26,6 +26,19 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+func getConfigMapKey(data map[string]string, key string) (string, error) {
+	if _, ok := data[key]; !ok {
+		errorStr := fmt.Sprintf("%v does not exist", key)
+		return "", errors.New(errorStr)
+	}
+	retString := data[key]
+	if len(retString) <= 0 {
+		errorStr := fmt.Sprintf("%v is empty", key)
+		return "", errors.New(errorStr)
+	}
+	return retString, nil
+}
+
 func getSecretKey(data map[string][]byte, key string) (string, error) {
 	if _, ok := data[key]; !ok {
 		errorStr := fmt.Sprintf("%v does not exist", key)
@@ -60,9 +73,12 @@ type Data struct {
 	APIKey             string
 	ClusterID          string
 	BaseDomain         string
+
+	ServiceID     string
+	IntegrationID string
 }
 
-// ParsePDConfig parses the PD Config map and stores it in the struct
+// ParsePDConfig parses the PD secret and stores it in the struct
 func (data *Data) ParsePDConfig(osc client.Client) error {
 
 	pdAPISecret := &corev1.Secret{}
@@ -107,23 +123,48 @@ func (data *Data) ParsePDConfig(osc client.Client) error {
 	return nil
 }
 
+// ParseClusterConfig parses the cluster specific config map and stores the IDs in the data struct
+func (data *Data) ParseClusterConfig(osc client.Client, namespace string, name string) error {
+	pdAPIConfigMap := &corev1.ConfigMap{}
+	err := osc.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name + "-pd-config"}, pdAPIConfigMap)
+	if err != nil {
+		return err
+	}
+
+	data.ServiceID, err = getConfigMapKey(pdAPIConfigMap.Data, "SERVICE_ID")
+	if err != nil {
+		return err
+	}
+
+	data.IntegrationID, err = getConfigMapKey(pdAPIConfigMap.Data, "INTEGRATION_ID")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // GetService searches the PD API for an already existing service
-func (data *Data) GetService() (string, error) {
+func (data *Data) GetService() (*pdApi.Service, error) {
 	client := pdApi.NewClient(data.APIKey)
-	var opts pdApi.ListServiceOptions
-	opts.Query = data.servicePrefix + "-" + data.ClusterID + "." + data.BaseDomain + "-hive-cluster"
-	services, err := client.ListServices(opts)
+
+	service, err := client.GetService(data.ServiceID, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return service, nil
+}
+
+// GetIntegrationKey searches the PD API for an already existing service and returns the first integration key
+func (data *Data) GetIntegrationKey() (string, error) {
+	client := pdApi.NewClient(data.APIKey)
+	integration, err := client.GetIntegration(data.ServiceID, data.IntegrationID, pdApi.GetIntegrationOptions{})
 	if err != nil {
 		return "", err
 	}
 
-	if len(services.Services) <= 0 {
-		return "", errors.New("No services returned from PagerDuty")
-	} else if len(services.Services) > 1 {
-		return "", errors.New("Multiple services returned from PagerDuty")
-	}
-
-	return services.Services[0].ID, nil
+	return integration.IntegrationKey, nil
 }
 
 // CreateService creates a service in pagerduty for the specified clusterid and returns the service key
@@ -141,25 +182,32 @@ func (data *Data) CreateService() (string, error) {
 		EscalationPolicy:       *escalationPolicy,
 		AutoResolveTimeout:     &data.autoResolveTimeout,
 		AcknowledgementTimeout: &data.acknowledgeTimeOut,
+		AlertCreation:          "create_alerts_and_incidents",
 	}
 
 	newSvc, err := client.CreateService(clusterService)
 	if err != nil {
 		return "", err
 	}
+	data.ServiceID = newSvc.ID
 
-	return newSvc.ID, nil
+	clusterIntegration := pdApi.Integration{
+		Name: "V4 Alertmanager",
+		Type: "events_api_v2_inbound_integration",
+	}
+
+	newInt, err := client.CreateIntegration(newSvc.ID, clusterIntegration)
+	if err != nil {
+		return "", err
+	}
+	data.IntegrationID = newInt.ID
+
+	return data.IntegrationID, nil
 }
 
 // DeleteService will get a service from the PD api and delete it
 func (data *Data) DeleteService() error {
-	id, err := data.GetService()
-	if err != nil {
-		// TODO Figure out how to handle if the PD Service is already deleted
-		return nil
-	}
-
 	client := pdApi.NewClient(data.APIKey)
-	err = client.DeleteService(id)
+	err := client.DeleteService(data.ServiceID)
 	return err
 }
