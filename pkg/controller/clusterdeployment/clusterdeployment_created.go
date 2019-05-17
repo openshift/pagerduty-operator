@@ -19,6 +19,7 @@ import (
 
 	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
 	hivecontrollerutils "github.com/openshift/hive/pkg/controller/utils"
+	"github.com/openshift/pagerduty-operator/config"
 	"github.com/openshift/pagerduty-operator/pkg/kube"
 	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -28,8 +29,8 @@ import (
 func (r *ReconcileClusterDeployment) handleCreate(request reconcile.Request, instance *hivev1.ClusterDeployment) (reconcile.Result, error) {
 	r.reqLogger.Info("Creating syncset")
 
-	if hivecontrollerutils.HasFinalizer(instance, "pd.manage.openshift.io/pagerduty") == false {
-		hivecontrollerutils.AddFinalizer(instance, "pd.manage.openshift.io/pagerduty")
+	if hivecontrollerutils.HasFinalizer(instance, config.OperatorFinalizer) == false {
+		hivecontrollerutils.AddFinalizer(instance, config.OperatorFinalizer)
 		err := r.client.Update(context.TODO(), instance)
 		if err != nil {
 			return reconcile.Result{}, err
