@@ -22,11 +22,15 @@ import (
 	"github.com/openshift/pagerduty-operator/pkg/kube"
 	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 func (r *ReconcileClusterDeployment) handleCreate(request reconcile.Request, instance *hivev1.ClusterDeployment) (reconcile.Result, error) {
-	r.reqLogger.Info("Creating syncset")
+	if !instance.Status.Installed {
+		// Cluster isn't installed yet, return
+		return reconcile.Result{}, nil
+	}
 
 	if hivecontrollerutils.HasFinalizer(instance, "pd.manage.openshift.io/pagerduty") == false {
 		hivecontrollerutils.AddFinalizer(instance, "pd.manage.openshift.io/pagerduty")
@@ -59,7 +63,12 @@ func (r *ReconcileClusterDeployment) handleCreate(request reconcile.Request, ins
 		return reconcile.Result{}, err
 	}
 
+	r.reqLogger.Info("Creating syncset")
 	newSS := kube.GenerateSyncSet(request.Namespace, request.Name, pdIntegrationKey)
+	if err = controllerutil.SetControllerReference(instance, newSS, r.scheme); err != nil {
+		r.reqLogger.Error(err, "Error setting controller reference on syncset")
+		return reconcile.Result{}, err
+	}
 	if err := r.client.Create(context.TODO(), newSS); err != nil {
 		if errors.IsAlreadyExists(err) {
 			// SyncSet already exists, we should just update it
@@ -71,7 +80,12 @@ func (r *ReconcileClusterDeployment) handleCreate(request reconcile.Request, ins
 		return reconcile.Result{}, err
 	}
 
+	r.reqLogger.Info("Creating configmap")
 	newCM := kube.GenerateConfigMap(request.Namespace, request.Name, pdData.ServiceID, pdData.IntegrationID)
+	if err = controllerutil.SetControllerReference(instance, newCM, r.scheme); err != nil {
+		r.reqLogger.Error(err, "Error setting controller reference on configmap")
+		return reconcile.Result{}, err
+	}
 	if err := r.client.Create(context.TODO(), newCM); err != nil {
 		if errors.IsAlreadyExists(err) {
 			if updateErr := r.client.Update(context.TODO(), newCM); updateErr != nil {
