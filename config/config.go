@@ -15,8 +15,9 @@
 package config
 
 const (
-	OperatorConfigMapName string = "pagerduty-config"
-	OperatorName          string = "pagerduty-operator"
-	OperatorNamespace     string = "pagerduty-operator"
-	OperatorFinalizer     string = "pd.managed.openshift.io/pagerduty"
+	OperatorConfigMapName   string = "pagerduty-config"
+	OperatorName            string = "pagerduty-operator"
+	OperatorNamespace       string = "pagerduty-operator"
+	OperatorFinalizer       string = "pd.managed.openshift.io/pagerduty"
+	OperatorFinalizerLegacy string = "pd.manage.openshift.io/pagerduty"
 )
