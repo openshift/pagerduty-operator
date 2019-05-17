@@ -101,6 +101,16 @@ func (r *ReconcileClusterDeployment) Reconcile(request reconcile.Request) (recon
 		return reconcile.Result{}, err
 	}
 
+	// This is a temp item to clean up old finalizers
+	if hivecontrollerutils.HasFinalizer(instance, config.OperatorFinalizerLegacy) {
+		hivecontrollerutils.DeleteFinalizer(instance, config.OperatorFinalizerLegacy)
+		err = r.client.Update(context.TODO(), instance)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+		return reconcile.Result{}, nil
+	}
+
 	if instance.DeletionTimestamp != nil {
 		if hivecontrollerutils.HasFinalizer(instance, config.OperatorFinalizer) {
 			return r.handleDelete(request, instance)
