@@ -19,6 +19,7 @@ import (
 
 	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
 	hivecontrollerutils "github.com/openshift/hive/pkg/controller/utils"
+	"github.com/openshift/pagerduty-operator/config"
 	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -43,8 +44,8 @@ func (r *ReconcileClusterDeployment) handleDelete(request reconcile.Request, ins
 		r.reqLogger.Error(err, "Failed cleaning up pagerduty.")
 	}
 
-	if hivecontrollerutils.HasFinalizer(instance, "pd.manage.openshift.io/pagerduty") {
-		hivecontrollerutils.DeleteFinalizer(instance, "pd.manage.openshift.io/pagerduty")
+	if hivecontrollerutils.HasFinalizer(instance, config.OperatorFinalizer) {
+		hivecontrollerutils.DeleteFinalizer(instance, config.OperatorFinalizer)
 		err = r.client.Update(context.TODO(), instance)
 		if err != nil {
 			return reconcile.Result{}, err

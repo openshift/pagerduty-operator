@@ -21,6 +21,7 @@ import (
 	"github.com/go-logr/logr"
 	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
 	hivecontrollerutils "github.com/openshift/hive/pkg/controller/utils"
+	"github.com/openshift/pagerduty-operator/config"
 	"k8s.io/apimachinery/pkg/types"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -101,7 +102,7 @@ func (r *ReconcileClusterDeployment) Reconcile(request reconcile.Request) (recon
 	}
 
 	if instance.DeletionTimestamp != nil {
-		if hivecontrollerutils.HasFinalizer(instance, "pd.manage.openshift.io/pagerduty") {
+		if hivecontrollerutils.HasFinalizer(instance, config.OperatorFinalizer) {
 			return r.handleDelete(request, instance)
 		}
 		return reconcile.Result{}, nil
