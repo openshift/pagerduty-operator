@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	pdApi "github.com/PagerDuty/go-pagerduty"
 	corev1 "k8s.io/api/core/v1"
@@ -185,9 +186,31 @@ func (data *Data) CreateService() (string, error) {
 		AlertCreation:          "create_alerts_and_incidents",
 	}
 
-	newSvc, err := client.CreateService(clusterService)
+	var newSvc *pdApi.Service
+	newSvc, err = client.CreateService(clusterService)
 	if err != nil {
-		return "", err
+		if !strings.Contains(err.Error(), "Name has already been taken") {
+			return "", err
+		}
+		lso := pdApi.ListServiceOptions{}
+		lso.Query = clusterService.Name
+		currentSvcs, newerr := client.ListServices(lso)
+		if newerr != nil {
+			return "", err
+		}
+
+		if len(currentSvcs.Services) > 0 {
+			for _, svc := range currentSvcs.Services {
+				if svc.Name == clusterService.Name {
+					newSvc = &svc
+					break
+				}
+			}
+		}
+
+		if newSvc == nil {
+			return "", err
+		}
 	}
 	data.ServiceID = newSvc.ID
 
