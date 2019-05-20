@@ -56,6 +56,24 @@ with open('manifests/02-role.yaml', 'r') as stream:
             'serviceAccountName': OPERATOR_NAME,
         })
 
+# Add prometheus-k8s role to the CSV:
+with open('manifests/06-prometheus-k8s-role.yaml', 'r') as stream:
+    prom_role = yaml.load(stream)
+    csv['spec']['install']['spec']['clusterPermissions'].append(
+        {
+            'rules': prom_role['rules'],
+            'serviceAccountName': OPERATOR_NAME,
+        })
+
+# Add prometheus-k8s rolebinding to the CSV:
+with open('manifests/07-prometheus-k8s-rolebinding.yaml', 'r') as stream:
+    prom_rolebinding = yaml.load(stream)
+    csv['spec']['install']['spec']['clusterPermissions'].append(
+        {
+            'rules': prom_rolebinding['rules'],
+            'serviceAccountName': OPERATOR_NAME,
+        })        
+
 # Add our deployment spec for the hive operator:
 with open('manifests/05-operator.yaml', 'r') as stream:
     operator_components = []
