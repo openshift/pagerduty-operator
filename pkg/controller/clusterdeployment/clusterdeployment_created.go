@@ -52,13 +52,13 @@ func (r *ReconcileClusterDeployment) handleCreate(request reconcile.Request, ins
 	err := pdData.ParseClusterConfig(r.client, request.Namespace, request.Name)
 	if err != nil {
 		var createErr error
-		pdIntegrationKey, createErr = pdData.CreateService()
+		pdIntegrationKey, createErr = r.pdclient.CreateService(pdData)
 		if createErr != nil {
 			return reconcile.Result{}, createErr
 		}
 	}
 
-	pdIntegrationKey, err = pdData.GetIntegrationKey()
+	pdIntegrationKey, err = r.pdclient.GetIntegrationKey(pdData)
 	if err != nil {
 		return reconcile.Result{}, err
 	}

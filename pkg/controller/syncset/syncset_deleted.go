@@ -48,10 +48,10 @@ func (r *ReconcileSyncSet) recreateSyncSet(request reconcile.Request) (reconcile
 	var pdIntegrationKey string
 	recreateCM := false
 
-	pdIntegrationKey, err = pdData.GetIntegrationKey()
+	pdIntegrationKey, err = r.pdclient.GetIntegrationKey(pdData)
 	if err != nil {
 		var createErr error
-		pdIntegrationKey, createErr = pdData.CreateService()
+		pdIntegrationKey, createErr = r.pdclient.CreateService(pdData)
 		if createErr != nil {
 			return reconcile.Result{}, createErr
 		}

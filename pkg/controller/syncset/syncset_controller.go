@@ -19,7 +19,10 @@ import (
 
 	"github.com/go-logr/logr"
 	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
+	hivecontrollerutils "github.com/openshift/hive/pkg/controller/utils"
+	"github.com/openshift/pagerduty-operator/config"
 
+	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -44,12 +47,31 @@ const syncsetPostfix string = "-pd-sync"
 // Add creates a new SyncSet Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
-	return add(mgr, newReconciler(mgr))
+	newRec, err := newReconciler(mgr)
+	if err != nil {
+		return err
+	}
+
+	return add(mgr, newRec)
 }
 
 // newReconciler returns a new reconcile.Reconciler
-func newReconciler(mgr manager.Manager) reconcile.Reconciler {
-	return &ReconcileSyncSet{client: mgr.GetClient(), scheme: mgr.GetScheme()}
+func newReconciler(mgr manager.Manager) (reconcile.Reconciler, error) {
+	//return &ReconcileSyncSet{client: mgr.GetClient(), scheme: mgr.GetScheme()}
+
+	tempClient, err := client.New(mgr.GetConfig(), client.Options{Scheme: mgr.GetScheme()})
+	if err != nil {
+		return nil, err
+	}
+
+	// get PD API key from secret
+	pdAPIKey, err := hivecontrollerutils.LoadSecretData(tempClient, config.PagerDutyAPISecretName, config.OperatorNamespace, config.PagerDutyAPISecretKey)
+
+	return &ReconcileSyncSet{
+		client:   mgr.GetClient(),
+		scheme:   mgr.GetScheme(),
+		pdclient: pd.NewClient(pdAPIKey),
+	}, nil
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
@@ -78,6 +100,7 @@ type ReconcileSyncSet struct {
 	client    client.Client
 	scheme    *runtime.Scheme
 	reqLogger logr.Logger
+	pdclient  pd.Client
 }
 
 func (r *ReconcileSyncSet) checkClusterDeployment(request reconcile.Request) (bool, error) {

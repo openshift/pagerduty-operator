@@ -39,7 +39,7 @@ func (r *ReconcileClusterDeployment) handleDelete(request reconcile.Request, ins
 		return reconcile.Result{}, err
 	}
 
-	err = pdData.DeleteService()
+	err = r.pdclient.DeleteService(pdData)
 	if err != nil {
 		r.reqLogger.Error(err, "Failed cleaning up pagerduty.")
 	}
