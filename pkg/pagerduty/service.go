@@ -65,6 +65,28 @@ func convertStrToUint(value string) (uint, error) {
 	return retVal, nil
 }
 
+//Client is a wrapper interface for the svcClient to allow for easier testing
+type Client interface {
+	GetService(data *Data) (*pdApi.Service, error)
+	GetIntegrationKey(data *Data) (string, error)
+	CreateService(data *Data) (string, error)
+	DeleteService(data *Data) error
+}
+
+//svcClient wraps pdApi.Client
+type svcClient struct {
+	APIKey   string
+	pdClient *pdApi.Client
+}
+
+//NewClient creates out client wrapper object for the actual pdApi.Client we use.
+func NewClient(APIKey string) Client {
+	return &svcClient{
+		APIKey:   APIKey,
+		pdClient: pdApi.NewClient(APIKey),
+	}
+}
+
 // Data describes the data that is needed for PagerDuty api calls
 type Data struct {
 	escalationPolicyID string
@@ -146,10 +168,8 @@ func (data *Data) ParseClusterConfig(osc client.Client, namespace string, name s
 }
 
 // GetService searches the PD API for an already existing service
-func (data *Data) GetService() (*pdApi.Service, error) {
-	client := pdApi.NewClient(data.APIKey)
-
-	service, err := client.GetService(data.ServiceID, nil)
+func (c *svcClient) GetService(data *Data) (*pdApi.Service, error) {
+	service, err := c.pdClient.GetService(data.ServiceID, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -158,9 +178,8 @@ func (data *Data) GetService() (*pdApi.Service, error) {
 }
 
 // GetIntegrationKey searches the PD API for an already existing service and returns the first integration key
-func (data *Data) GetIntegrationKey() (string, error) {
-	client := pdApi.NewClient(data.APIKey)
-	integration, err := client.GetIntegration(data.ServiceID, data.IntegrationID, pdApi.GetIntegrationOptions{})
+func (c *svcClient) GetIntegrationKey(data *Data) (string, error) {
+	integration, err := c.pdClient.GetIntegration(data.ServiceID, data.IntegrationID, pdApi.GetIntegrationOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -169,10 +188,9 @@ func (data *Data) GetIntegrationKey() (string, error) {
 }
 
 // CreateService creates a service in pagerduty for the specified clusterid and returns the service key
-func (data *Data) CreateService() (string, error) {
-	client := pdApi.NewClient(data.APIKey)
+func (c *svcClient) CreateService(data *Data) (string, error) {
 
-	escalationPolicy, err := client.GetEscalationPolicy(string(data.escalationPolicyID), nil)
+	escalationPolicy, err := c.pdClient.GetEscalationPolicy(string(data.escalationPolicyID), nil)
 	if err != nil {
 		return "", errors.New("Escalation policy not found in PagerDuty")
 	}
@@ -187,14 +205,14 @@ func (data *Data) CreateService() (string, error) {
 	}
 
 	var newSvc *pdApi.Service
-	newSvc, err = client.CreateService(clusterService)
+	newSvc, err = c.pdClient.CreateService(clusterService)
 	if err != nil {
 		if !strings.Contains(err.Error(), "Name has already been taken") {
 			return "", err
 		}
 		lso := pdApi.ListServiceOptions{}
 		lso.Query = clusterService.Name
-		currentSvcs, newerr := client.ListServices(lso)
+		currentSvcs, newerr := c.pdClient.ListServices(lso)
 		if newerr != nil {
 			return "", err
 		}
@@ -219,7 +237,7 @@ func (data *Data) CreateService() (string, error) {
 		Type: "events_api_v2_inbound_integration",
 	}
 
-	newInt, err := client.CreateIntegration(newSvc.ID, clusterIntegration)
+	newInt, err := c.pdClient.CreateIntegration(newSvc.ID, clusterIntegration)
 	if err != nil {
 		return "", err
 	}
@@ -229,8 +247,7 @@ func (data *Data) CreateService() (string, error) {
 }
 
 // DeleteService will get a service from the PD api and delete it
-func (data *Data) DeleteService() error {
-	client := pdApi.NewClient(data.APIKey)
-	err := client.DeleteService(data.ServiceID)
+func (c *svcClient) DeleteService(data *Data) error {
+	err := c.pdClient.DeleteService(data.ServiceID)
 	return err
 }

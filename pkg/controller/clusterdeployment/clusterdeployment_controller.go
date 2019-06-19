@@ -24,6 +24,7 @@ import (
 	"github.com/openshift/pagerduty-operator/config"
 	"k8s.io/apimachinery/pkg/types"
 
+	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -40,12 +41,29 @@ var log = logf.Log.WithName("pagerduty_cd")
 // Add creates a new ClusterDeployment Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
-	return add(mgr, newReconciler(mgr))
+	newRec, err := newReconciler(mgr)
+	if err != nil {
+		return err
+	}
+
+	return add(mgr, newRec)
 }
 
 // newReconciler returns a new reconcile.Reconciler
-func newReconciler(mgr manager.Manager) reconcile.Reconciler {
-	return &ReconcileClusterDeployment{client: mgr.GetClient(), scheme: mgr.GetScheme()}
+func newReconciler(mgr manager.Manager) (reconcile.Reconciler, error) {
+	tempClient, err := client.New(mgr.GetConfig(), client.Options{Scheme: mgr.GetScheme()})
+	if err != nil {
+		return nil, err
+	}
+
+	// get PD API key from secret
+	pdAPIKey, err := hivecontrollerutils.LoadSecretData(tempClient, config.PagerDutyAPISecretName, config.OperatorNamespace, config.PagerDutyAPISecretKey)
+
+	return &ReconcileClusterDeployment{
+		client:   mgr.GetClient(),
+		scheme:   mgr.GetScheme(),
+		pdclient: pd.NewClient(pdAPIKey),
+	}, nil
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
@@ -74,6 +92,7 @@ type ReconcileClusterDeployment struct {
 	client    client.Client
 	scheme    *runtime.Scheme
 	reqLogger logr.Logger
+	pdclient  pd.Client
 }
 
 // Reconcile reads that state of the cluster for a ClusterDeployment object and makes changes based on the state read
