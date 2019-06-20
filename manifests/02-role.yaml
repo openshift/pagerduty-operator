@@ -58,3 +58,9 @@ rules:
   verbs:
   - create
   - delete
+- apiGroups:
+  - route.openshift.io
+  resources:
+  - routes
+  verbs:
+  - '*'
