@@ -205,9 +205,9 @@ func (c *svcClient) CreateService(data *Data) (string, error) {
 		AcknowledgementTimeout: &data.acknowledgeTimeOut,
 		AlertCreation:          "create_alerts_and_incidents",
 		IncidentUrgencyRule: &pdApi.IncidentUrgencyRule{
-			Type: "constant",
+			Type:    "constant",
 			Urgency: config.PagerDutyUrgencyRule,
-		}
+		},
 	}
 
 	var newSvc *pdApi.Service
