@@ -21,6 +21,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/openshift/pagerduty-operator/config"
+
 	pdApi "github.com/PagerDuty/go-pagerduty"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -202,6 +204,10 @@ func (c *svcClient) CreateService(data *Data) (string, error) {
 		AutoResolveTimeout:     &data.autoResolveTimeout,
 		AcknowledgementTimeout: &data.acknowledgeTimeOut,
 		AlertCreation:          "create_alerts_and_incidents",
+		IncidentUrgencyRule: &pdApi.IncidentUrgencyRule{
+			Type:    "constant",
+			Urgency: config.PagerDutyUrgencyRule,
+		},
 	}
 
 	var newSvc *pdApi.Service

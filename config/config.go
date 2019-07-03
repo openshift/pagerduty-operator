@@ -22,4 +22,12 @@ const (
 	PagerDutyAPISecretKey   string = "PAGERDUTY_API_KEY"
 	OperatorFinalizer       string = "pd.managed.openshift.io/pagerduty"
 	OperatorFinalizerLegacy string = "pd.manage.openshift.io/pagerduty"
+
+	// PagerDutyUrgencyRule is the type of IncidentUrgencyRule for new incidents
+	// coming into the Service. This is for the creation of NEW SERVICES ONLY
+	// Supported values (by this operator) are:
+	// * high - Treat all incidents as high urgency
+	// * severity_based - Look to the severity on the PagerDuty Incident to map
+	//   the urgency. An unset incident severity is equivalent to critical.
+	PagerDutyUrgencyRule string = "severity_based"
 )
