@@ -21,11 +21,10 @@ import (
 	"os"
 	"runtime"
 
+	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
+	"github.com/openshift/operator-custom-metrics/pkg/metrics"
 	"github.com/openshift/pagerduty-operator/pkg/apis"
 	"github.com/openshift/pagerduty-operator/pkg/controller"
-	operatormetrics "github.com/openshift/pagerduty-operator/pkg/metrics"
-
-	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
 	"github.com/operator-framework/operator-sdk/pkg/leader"
 	"github.com/operator-framework/operator-sdk/pkg/log/zap"
 
@@ -41,8 +40,8 @@ import (
 
 // Change below variables to serve metrics on different host or port.
 var (
-	metricsHost       = "0.0.0.0"
-	metricsPort int32 = 8383
+	metricsPort = "8080"
+	metricsPath = "/metrics"
 )
 var log = logf.Log.WithName("cmd")
 
@@ -93,8 +92,7 @@ func main() {
 
 	// Create a new Cmd to provide shared dependencies and start components
 	mgr, err := manager.New(cfg, manager.Options{
-		Namespace:          "",
-		MetricsBindAddress: fmt.Sprintf("%s:%d", metricsHost, metricsPort),
+		Namespace: "",
 	})
 	if err != nil {
 		log.Error(err, "")
@@ -125,8 +123,10 @@ func main() {
 		os.Exit(1)
 	}
 
+	metricsServer := metrics.NewBuilder().WithPort(metricsPort).WithPath(metricsPath).
+		GetConfig()
 	// Configure metrics if it errors log the error but continue
-	if err := operatormetrics.ConfigureMetrics(context.TODO()); err != nil {
+	if err := metrics.ConfigureMetrics(context.TODO(), *metricsServer); err != nil {
 		log.Error(err, "Failed to configure Metrics")
 	}
 
