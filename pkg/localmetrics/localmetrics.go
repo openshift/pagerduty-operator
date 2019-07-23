@@ -12,17 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package metrics
+package localmetrics
 
 import (
-	"net/http"
-
 	"github.com/prometheus/client_golang/prometheus"
-)
-
-const (
-	// MetricsEndpoint is the port to export metrics on
-	MetricsEndpoint = ":8080"
 )
 
 var (
@@ -31,30 +24,10 @@ var (
 		Help: "Placeholder",
 	}, []string{"name"})
 
-	metricsList = []prometheus.Collector{
+	MetricsList = []prometheus.Collector{
 		metricPlaceholder,
 	}
 )
-
-// StartMetrics register metrics and exposes them
-func StartMetrics() {
-
-	// Register metrics and start serving them on /metrics endpoint
-	RegisterMetrics()
-	http.Handle("/metrics", prometheus.Handler())
-	go http.ListenAndServe(MetricsEndpoint, nil)
-}
-
-// RegisterMetrics for the operator
-func RegisterMetrics() error {
-	for _, metric := range metricsList {
-		err := prometheus.Register(metric)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
 
 // UpdatePlaceholderGauge ...
 func UpdatePlaceholderGauge() {

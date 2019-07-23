@@ -385,6 +385,14 @@
   revision = "785ab700299ab33aa6796be403e37f447ab8858d"
 
 [[projects]]
+  digest = "1:341f4eaa5439f00199e5eb36cf068578bf0e63d6f7d6d5307de26ae53d49b784"
+  name = "github.com/openshift/operator-custom-metrics"
+  packages = ["pkg/metrics"]
+  pruneopts = "NT"
+  revision = "d0d7d512f402b1514326f4bf1f6adf17f7097480"
+  version = "v0.1.0"
+
+[[projects]]
   digest = "1:df8e741cd0f86087367f3bcfeb1cf237e96fada71194b6d4cee9412d221ec763"
   name = "github.com/operator-framework/operator-sdk"
   packages = [
@@ -1014,13 +1022,13 @@
   analyzer-version = 1
   input-imports = [
     "github.com/PagerDuty/go-pagerduty",
-    "github.com/coreos/prometheus-operator/pkg/apis/monitoring/v1",
     "github.com/go-logr/logr",
     "github.com/golang/mock/gomock",
+    "github.com/openshift/api/route/v1",
     "github.com/openshift/hive/pkg/apis",
     "github.com/openshift/hive/pkg/apis/hive/v1alpha1",
     "github.com/openshift/hive/pkg/controller/utils",
-    "github.com/operator-framework/operator-sdk/pkg/k8sutil",
+    "github.com/openshift/operator-custom-metrics/pkg/metrics",
     "github.com/operator-framework/operator-sdk/pkg/leader",
     "github.com/operator-framework/operator-sdk/pkg/log/zap",
     "github.com/operator-framework/operator-sdk/version",
@@ -1032,7 +1040,6 @@
     "k8s.io/apimachinery/pkg/apis/meta/v1",
     "k8s.io/apimachinery/pkg/runtime",
     "k8s.io/apimachinery/pkg/types",
-    "k8s.io/apimachinery/pkg/util/intstr",
     "k8s.io/client-go/kubernetes/scheme",
     "k8s.io/client-go/plugin/pkg/client/auth/gcp",
     "k8s.io/code-generator/cmd/client-gen",
