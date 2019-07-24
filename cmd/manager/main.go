@@ -25,8 +25,12 @@ import (
 	"github.com/openshift/operator-custom-metrics/pkg/metrics"
 	"github.com/openshift/pagerduty-operator/pkg/apis"
 	"github.com/openshift/pagerduty-operator/pkg/controller"
+	"github.com/openshift/pagerduty-operator/pkg/localmetrics"
 	"github.com/operator-framework/operator-sdk/pkg/leader"
 	"github.com/operator-framework/operator-sdk/pkg/log/zap"
+
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 
 	routev1 "github.com/openshift/api/route/v1"
 	sdkVersion "github.com/operator-framework/operator-sdk/version"
@@ -124,11 +128,29 @@ func main() {
 	}
 
 	metricsServer := metrics.NewBuilder().WithPort(metricsPort).WithPath(metricsPath).
+		WithCollectors(localmetrics.MetricPagerDutyCreateFailure).
+		WithCollectors(localmetrics.MetricPagerDutyDeleteFailure).
+		WithCollectors(localmetrics.MetricPagerDutyHeartbeat).
 		GetConfig()
+
 	// Configure metrics if it errors log the error but continue
+
 	if err := metrics.ConfigureMetrics(context.TODO(), *metricsServer); err != nil {
 		log.Error(err, "Failed to configure Metrics")
 	}
+
+	client := mgr.GetClient()
+	pdAPISecret := &corev1.Secret{}
+	err = client.Get(context.TODO(), types.NamespacedName{Namespace: "pagerduty-operator", Name: "pagerduty-api-key"}, pdAPISecret)
+	var APIkey string
+
+	if err == nil {
+		APIkey = string(pdAPISecret.Data["PAGERDUTY_API_KEY"])
+	} else {
+		log.Error(err, "Failed to get secret")
+	}
+
+	go localmetrics.UpdateAPIMetrics(APIkey)
 
 	log.Info("Starting the Cmd.")
 

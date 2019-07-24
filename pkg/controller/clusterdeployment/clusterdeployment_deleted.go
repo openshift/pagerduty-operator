@@ -20,11 +20,14 @@ import (
 	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
 	hivecontrollerutils "github.com/openshift/hive/pkg/controller/utils"
 	"github.com/openshift/pagerduty-operator/config"
+	metrics "github.com/openshift/pagerduty-operator/pkg/localmetrics"
 	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 func (r *ReconcileClusterDeployment) handleDelete(request reconcile.Request, instance *hivev1.ClusterDeployment) (reconcile.Result, error) {
+	ClusterID := instance.Spec.ClusterName
+
 	pdData := &pd.Data{
 		ClusterID:  instance.Spec.ClusterName,
 		BaseDomain: instance.Spec.BaseDomain,
@@ -48,9 +51,11 @@ func (r *ReconcileClusterDeployment) handleDelete(request reconcile.Request, ins
 		hivecontrollerutils.DeleteFinalizer(instance, config.OperatorFinalizer)
 		err = r.client.Update(context.TODO(), instance)
 		if err != nil {
+			metrics.UpdateMetricPagerDutyDeleteFailure(1, ClusterID)
 			return reconcile.Result{}, err
 		}
 	}
+	metrics.UpdateMetricPagerDutyDeleteFailure(0, ClusterID)
 
 	return reconcile.Result{}, nil
 }
