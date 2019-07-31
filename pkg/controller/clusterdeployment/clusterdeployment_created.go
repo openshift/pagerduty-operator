@@ -21,6 +21,7 @@ import (
 	hivecontrollerutils "github.com/openshift/hive/pkg/controller/utils"
 	"github.com/openshift/pagerduty-operator/config"
 	"github.com/openshift/pagerduty-operator/pkg/kube"
+	localmetrics "github.com/openshift/pagerduty-operator/pkg/localmetrics"
 	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -41,6 +42,8 @@ func (r *ReconcileClusterDeployment) handleCreate(request reconcile.Request, ins
 		}
 	}
 
+	ClusterID := instance.Spec.ClusterName
+
 	pdData := &pd.Data{
 		ClusterID:  instance.Spec.ClusterName,
 		BaseDomain: instance.Spec.BaseDomain,
@@ -54,9 +57,11 @@ func (r *ReconcileClusterDeployment) handleCreate(request reconcile.Request, ins
 		var createErr error
 		pdIntegrationKey, createErr = r.pdclient.CreateService(pdData)
 		if createErr != nil {
+			localmetrics.UpdateMetricPagerDutyCreateFailure(1, ClusterID)
 			return reconcile.Result{}, createErr
 		}
 	}
+	localmetrics.UpdateMetricPagerDutyCreateFailure(0, ClusterID)
 
 	pdIntegrationKey, err = r.pdclient.GetIntegrationKey(pdData)
 	if err != nil {
