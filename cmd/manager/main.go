@@ -34,6 +34,7 @@ import (
 
 	routev1 "github.com/openshift/api/route/v1"
 	sdkVersion "github.com/operator-framework/operator-sdk/version"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/pflag"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
@@ -142,15 +143,16 @@ func main() {
 	client := mgr.GetClient()
 	pdAPISecret := &corev1.Secret{}
 	err = client.Get(context.TODO(), types.NamespacedName{Namespace: "pagerduty-operator", Name: "pagerduty-api-key"}, pdAPISecret)
-	var APIkey string
+	var APIKey string
 
 	if err == nil {
-		APIkey = string(pdAPISecret.Data["PAGERDUTY_API_KEY"])
+		APIKey = string(pdAPISecret.Data["PAGERDUTY_API_KEY"])
 	} else {
 		log.Error(err, "Failed to get secret")
 	}
 
-	go localmetrics.UpdateAPIMetrics(APIkey)
+	timer := prometheus.NewTimer(localmetrics.MetricPagerDutyHeartbeat)
+	go localmetrics.UpdateAPIMetrics(APIKey, timer)
 
 	log.Info("Starting the Cmd.")
 
