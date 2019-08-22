@@ -85,12 +85,6 @@ func UpdateMetricPagerDutyHeartbeat(APIKey string, timer *prometheus.Timer) {
 	metricLogger := log.WithValues("Namespace", "pagerduty-operator")
 	metricLogger.Info("Metrics for PD API")
 
-	_, err := http.NewRequest("GET", "api.pagerduty.com", nil)
-	if err != nil {
-		MetricPagerDutyHeartbeat.Observe(float64(timer.ObserveDuration()))
-		metricLogger.Error(err, "Failed to get reach api")
-	}
-
 	// if there is an api key make an authenticated called
 	if APIKey != "" {
 		req, _ := http.NewRequest("GET", apiEndpoint, nil)
