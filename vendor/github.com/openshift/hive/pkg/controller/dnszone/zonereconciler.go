@@ -1,24 +1,9 @@
-/*
-Copyright 2018 The Kubernetes Authors.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 package dnszone
 
 import (
 	"context"
 	"fmt"
+	"os"
 	"reflect"
 	"strings"
 	"time"
@@ -41,6 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	apihelpers "github.com/openshift/hive/pkg/apis/helpers"
 	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
 	awsclient "github.com/openshift/hive/pkg/awsclient"
 	controllerutils "github.com/openshift/hive/pkg/controller/utils"
@@ -52,6 +38,7 @@ const (
 	defaultNSRecordTTL              = hivev1.TTL(60)
 	dnsClientTimeout                = 30 * time.Second
 	resolverConfigFile              = "/etc/resolv.conf"
+	zoneCheckDNSServersEnvVar       = "ZONE_CHECK_DNS_SERVERS"
 )
 
 // ZoneReconciler manages getting the desired state, getting the current state and reconciling the two.
@@ -547,6 +534,7 @@ func (zr *ZoneReconciler) deleteRoute53HostedZone(hostedZone *route53.HostedZone
 }
 
 func (zr *ZoneReconciler) updateStatus(hostedZone *route53.HostedZone, nameServers []string, isSOAAvailable bool) error {
+	orig := zr.dnsZone.DeepCopy()
 	zr.logger.Debug("Updating DNSZone status")
 
 	zr.dnsZone.Status.NameServers = nameServers
@@ -556,6 +544,10 @@ func (zr *ZoneReconciler) updateStatus(hostedZone *route53.HostedZone, nameServe
 	var availableStatus corev1.ConditionStatus
 	var availableReason, availableMessage string
 	if isSOAAvailable {
+		// We need to keep track of the last time we synced to rate limit our AWS calls.
+		tmpTime := metav1.Now()
+		zr.dnsZone.Status.LastSyncTimestamp = &tmpTime
+
 		availableStatus = corev1.ConditionTrue
 		availableReason = "ZoneAvailable"
 		availableMessage = "DNS SOA record for zone is reachable"
@@ -564,6 +556,7 @@ func (zr *ZoneReconciler) updateStatus(hostedZone *route53.HostedZone, nameServe
 		availableReason = "ZoneUnavailable"
 		availableMessage = "DNS SOA record for zone is not reachable"
 	}
+	zr.dnsZone.Status.LastSyncGeneration = zr.dnsZone.ObjectMeta.Generation
 	zr.dnsZone.Status.Conditions = controllerutils.SetDNSZoneCondition(
 		zr.dnsZone.Status.Conditions,
 		hivev1.ZoneAvailableDNSZoneCondition,
@@ -571,12 +564,15 @@ func (zr *ZoneReconciler) updateStatus(hostedZone *route53.HostedZone, nameServe
 		availableReason,
 		availableMessage,
 		controllerutils.UpdateConditionNever)
-	zr.addRateLimitingStatusEntries()
-	err := zr.kubeClient.Status().Update(context.TODO(), zr.dnsZone)
-	if err != nil {
-		zr.logger.WithError(err).Error("Cannot update DNSZone status")
+
+	if !reflect.DeepEqual(orig.Status, zr.dnsZone.Status) {
+		err := zr.kubeClient.Status().Update(context.TODO(), zr.dnsZone)
+		if err != nil {
+			zr.logger.WithError(err).Error("Cannot update DNSZone status")
+		}
+		return err
 	}
-	return err
+	return nil
 }
 
 func (zr *ZoneReconciler) getHostedZoneNSRecord(zoneID string) ([]string, error) {
@@ -615,18 +611,8 @@ func (zr *ZoneReconciler) getHostedZoneNSRecord(zoneID string) ([]string, error)
 	return result, nil
 }
 
-// addRateLimitingStatusEntries adds the status entries specific to the AWS rate limiting that we do to abuse the AWS API.
-func (zr *ZoneReconciler) addRateLimitingStatusEntries() {
-	zr.logger.Debug("Adding rate limiting status entries to DNSZone")
-	// We need to keep track of the last object generation and time we sync'd on.
-	// This is used to rate limit our calls to AWS.
-	zr.dnsZone.Status.LastSyncGeneration = zr.dnsZone.ObjectMeta.Generation
-	tmpTime := metav1.Now()
-	zr.dnsZone.Status.LastSyncTimestamp = &tmpTime
-}
-
 func parentLinkRecordName(dnsZoneName string) string {
-	return fmt.Sprintf("%s-ns", dnsZoneName)
+	return apihelpers.GetResourceName(dnsZoneName, "ns")
 }
 
 func lookupSOARecord(zone string, logger log.FieldLogger) (bool, error) {
@@ -635,8 +621,19 @@ func lookupSOARecord(zone string, logger log.FieldLogger) (bool, error) {
 	client := dns.Client{Timeout: dnsClientTimeout}
 
 	dnsServers := []string{}
-	for _, s := range clientConfig.Servers {
-		dnsServers = append(dnsServers, fmt.Sprintf("%s:%s", s, clientConfig.Port))
+	serversFromEnv := os.Getenv(zoneCheckDNSServersEnvVar)
+	if len(serversFromEnv) > 0 {
+		dnsServers = strings.Split(serversFromEnv, ",")
+		// Add port to servers with unspecified port
+		for i := range dnsServers {
+			if !strings.Contains(dnsServers[i], ":") {
+				dnsServers[i] = dnsServers[i] + ":53"
+			}
+		}
+	} else {
+		for _, s := range clientConfig.Servers {
+			dnsServers = append(dnsServers, fmt.Sprintf("%s:%s", s, clientConfig.Port))
+		}
 	}
 	logger.WithField("servers", dnsServers).Debug("looking up domain SOA record")
 

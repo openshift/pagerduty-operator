@@ -19,10 +19,10 @@ import (
 
 	"github.com/go-logr/logr"
 	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
-	hivecontrollerutils "github.com/openshift/hive/pkg/controller/utils"
 	"github.com/openshift/pagerduty-operator/config"
 
 	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
+	"github.com/openshift/pagerduty-operator/pkg/utils"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -65,7 +65,7 @@ func newReconciler(mgr manager.Manager) (reconcile.Reconciler, error) {
 	}
 
 	// get PD API key from secret
-	pdAPIKey, err := hivecontrollerutils.LoadSecretData(tempClient, config.PagerDutyAPISecretName, config.OperatorNamespace, config.PagerDutyAPISecretKey)
+	pdAPIKey, err := utils.LoadSecretData(tempClient, config.PagerDutyAPISecretName, config.OperatorNamespace, config.PagerDutyAPISecretKey)
 
 	return &ReconcileSyncSet{
 		client:   mgr.GetClient(),

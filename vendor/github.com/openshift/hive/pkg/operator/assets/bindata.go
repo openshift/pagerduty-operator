@@ -13,21 +13,33 @@
 // config/hiveadmission/syncset-webhook.yaml
 // config/manager/deployment.yaml
 // config/manager/service.yaml
-// config/clusterimagesets/openshift-4.0-beta3.yaml
-// config/clusterimagesets/openshift-4.0-beta4.yaml
-// config/clusterimagesets/openshift-4.0-latest.yaml
 // config/external-dns/deployment.yaml
 // config/external-dns/rbac_role.yaml
 // config/external-dns/rbac_role_binding.yaml
 // config/external-dns/service_account.yaml
 // config/rbac/hive_admin_role.yaml
 // config/rbac/hive_admin_role_binding.yaml
+// config/rbac/hive_controllers_role.yaml
+// config/rbac/hive_controllers_role_binding.yaml
 // config/rbac/hive_frontend_role.yaml
 // config/rbac/hive_frontend_role_binding.yaml
+// config/rbac/hive_frontend_serviceaccount.yaml
 // config/rbac/hive_reader_role.yaml
 // config/rbac/hive_reader_role_binding.yaml
-// config/rbac/manager_role.yaml
-// config/rbac/manager_role_binding.yaml
+// config/crds/hive_v1alpha1_clusterdeployment.yaml
+// config/crds/hive_v1alpha1_clusterdeprovisionrequest.yaml
+// config/crds/hive_v1alpha1_clusterimageset.yaml
+// config/crds/hive_v1alpha1_clusterprovision.yaml
+// config/crds/hive_v1alpha1_clusterstate.yaml
+// config/crds/hive_v1alpha1_dnsendpoint.yaml
+// config/crds/hive_v1alpha1_dnszone.yaml
+// config/crds/hive_v1alpha1_hiveconfig.yaml
+// config/crds/hive_v1alpha1_selectorsyncidentityprovider.yaml
+// config/crds/hive_v1alpha1_selectorsyncset.yaml
+// config/crds/hive_v1alpha1_syncidentityprovider.yaml
+// config/crds/hive_v1alpha1_syncset.yaml
+// config/crds/hive_v1alpha1_syncsetinstance.yaml
+// config/configmaps/install-log-regexes-configmap.yaml
 // DO NOT EDIT!
 
 package assets
@@ -233,7 +245,7 @@ spec:
         - "--audit-log-path=-"
         - "--tls-cert-file=/var/serving-cert/tls.crt"
         - "--tls-private-key-file=/var/serving-cert/tls.key"
-        - "--v=8"
+        - "--v=2"
         ports:
         - containerPort: 9443
         volumeMounts:
@@ -606,7 +618,7 @@ spec:
         command:
           - /opt/services/manager
           - --log-level
-          - debug
+          - info
         volumeMounts:
         - name: kubectl-cache
           mountPath: /var/cache/kubectl
@@ -663,83 +675,6 @@ func configManagerServiceYaml() (*asset, error) {
 	return a, nil
 }
 
-var _configClusterimagesetsOpenshift40Beta3Yaml = []byte(`apiVersion: hive.openshift.io/v1alpha1
-kind: ClusterImageSet
-metadata:
-  labels:
-    controller-tools.k8s.io: "1.0"
-  name: openshift-v4.0-beta3
-spec:
-  releaseImage: "quay.io/openshift-release-dev/ocp-release:4.0.0-0.9"
-  hiveImage: "quay.io/twiest/hive-controller:20190403"
-`)
-
-func configClusterimagesetsOpenshift40Beta3YamlBytes() ([]byte, error) {
-	return _configClusterimagesetsOpenshift40Beta3Yaml, nil
-}
-
-func configClusterimagesetsOpenshift40Beta3Yaml() (*asset, error) {
-	bytes, err := configClusterimagesetsOpenshift40Beta3YamlBytes()
-	if err != nil {
-		return nil, err
-	}
-
-	info := bindataFileInfo{name: "config/clusterimagesets/openshift-4.0-beta3.yaml", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
-	a := &asset{bytes: bytes, info: info}
-	return a, nil
-}
-
-var _configClusterimagesetsOpenshift40Beta4Yaml = []byte(`apiVersion: hive.openshift.io/v1alpha1
-kind: ClusterImageSet
-metadata:
-  labels:
-    controller-tools.k8s.io: "1.0"
-  name: openshift-v4.0-beta4
-spec:
-  releaseImage: "quay.io/openshift-release-dev/ocp-release:4.1.0-rc.0"
-  hiveImage: "quay.io/twiest/hive-controller:20190423"`)
-
-func configClusterimagesetsOpenshift40Beta4YamlBytes() ([]byte, error) {
-	return _configClusterimagesetsOpenshift40Beta4Yaml, nil
-}
-
-func configClusterimagesetsOpenshift40Beta4Yaml() (*asset, error) {
-	bytes, err := configClusterimagesetsOpenshift40Beta4YamlBytes()
-	if err != nil {
-		return nil, err
-	}
-
-	info := bindataFileInfo{name: "config/clusterimagesets/openshift-4.0-beta4.yaml", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
-	a := &asset{bytes: bytes, info: info}
-	return a, nil
-}
-
-var _configClusterimagesetsOpenshift40LatestYaml = []byte(`apiVersion: hive.openshift.io/v1alpha1
-kind: ClusterImageSet
-metadata:
-  labels:
-    controller-tools.k8s.io: "1.0"
-  name: openshift-v4.0-latest
-spec:
-  releaseImage: "registry.svc.ci.openshift.org/openshift/origin-release:v4.0"
-  hiveImage: "registry.svc.ci.openshift.org/openshift/hive-v4.0:hive"
-`)
-
-func configClusterimagesetsOpenshift40LatestYamlBytes() ([]byte, error) {
-	return _configClusterimagesetsOpenshift40LatestYaml, nil
-}
-
-func configClusterimagesetsOpenshift40LatestYaml() (*asset, error) {
-	bytes, err := configClusterimagesetsOpenshift40LatestYamlBytes()
-	if err != nil {
-		return nil, err
-	}
-
-	info := bindataFileInfo{name: "config/clusterimagesets/openshift-4.0-latest.yaml", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
-	a := &asset{bytes: bytes, info: info}
-	return a, nil
-}
-
 var _configExternalDnsDeploymentYaml = []byte(`apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -765,8 +700,8 @@ spec:
         - --source=crd
         - --crd-source-apiversion=hive.openshift.io/v1alpha1
         - --crd-source-kind=DNSEndpoint
-        - --registry=noop
-        - --policy=upsert-only
+        - --registry=txt
+        - --policy=sync
 `)
 
 func configExternalDnsDeploymentYamlBytes() ([]byte, error) {
@@ -906,12 +841,15 @@ rules:
   - hive.openshift.io
   resources:
   - clusterdeployments
+  - clusterprovisions
   - dnszones
   - dnsendpoints
   - selectorsyncidentityproviders
   - syncidentityproviders
   - syncsets
+  - syncsetinstances
   - clusterdeprovisionrequests
+  - clusterstates
   verbs:
   - get
   - list
@@ -922,6 +860,7 @@ rules:
   - clusterimagesets
   - hiveconfigs
   - selectorsyncsets
+  - selectorsyncidentityproviders
   verbs:
   - get
   - list
@@ -930,6 +869,48 @@ rules:
   - update
   - patch
   - delete
+- apiGroups:
+  - admission.hive.openshift.io
+  resources:
+  - clusterdeployments
+  - clusterimagesets
+  - clusterprovisions
+  - dnszones
+  - selectorsyncsets
+  - syncsets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - apiextensions.k8s.io
+  resources:
+  - customresourcedefinitions
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - apiregistration.k8s.io
+  resources:
+  - apiservices
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - admissionregistration.k8s.io
+  resources:
+  - mutatingwebhookconfigurations
+  - validatingwebhookconfigurations
+  verbs:
+  - get
+  - list
+  - watch
 `)
 
 func configRbacHive_admin_roleYamlBytes() ([]byte, error) {
@@ -975,6 +956,333 @@ func configRbacHive_admin_role_bindingYaml() (*asset, error) {
 	return a, nil
 }
 
+var _configRbacHive_controllers_roleYaml = []byte(`apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: manager-role
+rules:
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - serviceaccounts
+  - secrets
+  - configmaps
+  - events
+  - persistentvolumeclaims
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - namespaces
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - roles
+  - rolebindings
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - hive.openshift.io
+  resources:
+  - clusterdeployments
+  - clusterdeployments/status
+  - clusterdeployments/finalizers
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - hive.openshift.io
+  resources:
+  - clusterprovisions
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+- apiGroups:
+  - hive.openshift.io
+  resources:
+  - clusterimagesets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - hive.openshift.io
+  resources:
+  - clusterimagesets/status
+  verbs:
+  - get
+  - update
+  - patch
+- apiGroups:
+  - hive.openshift.io
+  resources:
+  - clusterdeprovisionrequests
+  - clusterdeprovisionrequests/finalizers
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - hive.openshift.io
+  resources:
+  - clusterdeprovisionrequests/status
+  verbs:
+  - get
+  - update
+  - patch
+- apiGroups:
+  - hive.openshift.io
+  resources:
+  - clusterprovisions
+  - clusterprovisions/status
+  - clusterprovisions/finalizers
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - hive.openshift.io
+  resources:
+  - clusterstates
+  - clusterstates/status
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - hive.openshift.io
+  resources:
+  - dnszones
+  - dnszones/status
+  - dnszones/finalizers
+  - dnsendpoints
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - hive.openshift.io
+  resources:
+  - clusterdeployments
+  verbs:
+  - get
+  - watch
+  - update
+- apiGroups:
+  - hive.openshift.io
+  resources:
+  - syncsets
+  verbs:
+  - get
+  - create
+  - update
+  - delete
+  - patch
+  - list
+  - watch
+- apiGroups:
+  - hive.openshift.io
+  resources:
+  - syncidentityproviders
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - hive.openshift.io
+  resources:
+  - selectorsyncidentityproviders
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - hive.openshift.io
+  resources:
+  - clusterdeployments
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - hive.openshift.io
+  resources:
+  - clusterdeployments
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - hive.openshift.io
+  resources:
+  - syncsets
+  verbs:
+  - get
+  - create
+  - update
+  - delete
+  - patch
+  - list
+  - watch
+- apiGroups:
+  - hive.openshift.io
+  resources:
+  - selectorsyncsets
+  verbs:
+  - get
+  - create
+  - update
+  - delete
+  - patch
+  - list
+  - watch
+- apiGroups:
+  - hive.openshift.io
+  resources:
+  - syncsetinstances
+  - syncsetinstances/status
+  verbs:
+  - get
+  - create
+  - update
+  - delete
+  - patch
+  - list
+  - watch
+- apiGroups:
+  - hive.openshift.io
+  resources:
+  - clusterdeployments
+  - syncsets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+- apiGroups:
+  - velero.io
+  resources:
+  - backups
+  verbs:
+  - create
+`)
+
+func configRbacHive_controllers_roleYamlBytes() ([]byte, error) {
+	return _configRbacHive_controllers_roleYaml, nil
+}
+
+func configRbacHive_controllers_roleYaml() (*asset, error) {
+	bytes, err := configRbacHive_controllers_roleYamlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "config/rbac/hive_controllers_role.yaml", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var _configRbacHive_controllers_role_bindingYaml = []byte(`apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  creationTimestamp: null
+  name: manager-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: manager-role
+subjects:
+- kind: ServiceAccount
+  name: default
+  namespace: system
+`)
+
+func configRbacHive_controllers_role_bindingYamlBytes() ([]byte, error) {
+	return _configRbacHive_controllers_role_bindingYaml, nil
+}
+
+func configRbacHive_controllers_role_bindingYaml() (*asset, error) {
+	bytes, err := configRbacHive_controllers_role_bindingYamlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "config/rbac/hive_controllers_role_binding.yaml", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
 var _configRbacHive_frontend_roleYaml = []byte(`# hive-frontend is a role intended for integrating applications acting as a frontend
 # to Hive. These applications will need quite powerful permissions in the Hive cluster
 # to create namespaces to organize clusters, as well as all the required objects in those
@@ -1006,6 +1314,7 @@ rules:
   resources:
   - secrets
   - configmaps
+  - events
   - namespaces
   verbs:
   - get
@@ -1019,12 +1328,14 @@ rules:
   - hive.openshift.io
   resources:
   - clusterdeployments
+  - clusterprovisions
   - dnszones
   - selectorsyncidentityproviders
   - syncidentityproviders
   - selectorsyncsets
   - syncsets
   - clusterdeprovisionrequests
+  - clusterstates
   verbs:
   - get
   - list
@@ -1089,6 +1400,28 @@ func configRbacHive_frontend_role_bindingYaml() (*asset, error) {
 	return a, nil
 }
 
+var _configRbacHive_frontend_serviceaccountYaml = []byte(`apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: hive-frontend
+  namespace: hive
+`)
+
+func configRbacHive_frontend_serviceaccountYamlBytes() ([]byte, error) {
+	return _configRbacHive_frontend_serviceaccountYaml, nil
+}
+
+func configRbacHive_frontend_serviceaccountYaml() (*asset, error) {
+	bytes, err := configRbacHive_frontend_serviceaccountYamlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "config/rbac/hive_frontend_serviceaccount.yaml", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
 var _configRbacHive_reader_roleYaml = []byte(`# hive-admin is a role intended for hive administrators who need to be able to debug
 # cluster installations, and modify hive configuration.
 apiVersion: rbac.authorization.k8s.io/v1
@@ -1117,13 +1450,16 @@ rules:
   - hive.openshift.io
   resources:
   - clusterdeployments
+  - clusterprovisions
   - dnszones
   - dnsendpoints
   - selectorsyncidentityproviders
   - selectorsyncsets
   - syncidentityproviders
   - syncsets
+  - syncsetinstances
   - clusterdeprovisionrequests
+  - clusterstates
   verbs:
   - get
   - list
@@ -1133,6 +1469,14 @@ rules:
   resources:
   - clusterimagesets
   - hiveconfigs
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - apiextensions.k8s.io
+  resources:
+  - customresourcedefinitions
   verbs:
   - get
   - list
@@ -1182,280 +1526,3233 @@ func configRbacHive_reader_role_bindingYaml() (*asset, error) {
 	return a, nil
 }
 
-var _configRbacManager_roleYaml = []byte(`apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
+var _configCrdsHive_v1alpha1_clusterdeploymentYaml = []byte(`apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
 metadata:
   creationTimestamp: null
-  name: manager-role
-rules:
-- apiGroups:
-  - batch
-  resources:
-  - jobs
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
-- apiGroups:
-  - ""
-  resources:
-  - serviceaccounts
-  - secrets
-  - configmaps
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - rbac.authorization.k8s.io
-  resources:
-  - roles
-  - rolebindings
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
-- apiGroups:
-  - hive.openshift.io
-  resources:
-  - clusterdeployments
-  - clusterdeployments/status
-  - clusterdeployments/finalizers
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
-- apiGroups:
-  - hive.openshift.io
-  resources:
-  - clusterimagesets
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
-- apiGroups:
-  - hive.openshift.io
-  resources:
-  - clusterimagesets/status
-  verbs:
-  - get
-  - update
-  - patch
-- apiGroups:
-  - hive.openshift.io
-  resources:
-  - clusterdeprovisionrequests
-  - clusterdeprovisionrequests/finalizers
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
-- apiGroups:
-  - hive.openshift.io
-  resources:
-  - clusterdeprovisionrequests/status
-  verbs:
-  - get
-  - update
-  - patch
-- apiGroups:
-  - hive.openshift.io
-  resources:
-  - dnszones
-  - dnszones/status
-  - dnszones/finalizers
-  - dnsendpoints
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
-- apiGroups:
-  - apiextensions.k8s.io
-  resources:
-  - customresourcedefinitions
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - clusterregistry.k8s.io
-  resources:
-  - clusters
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
-- apiGroups:
-  - core.federation.k8s.io
-  resources:
-  - federatedclusters
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
-- apiGroups:
-  - hive.openshift.io
-  resources:
-  - clusterdeployments
-  verbs:
-  - get
-  - watch
-  - update
-- apiGroups:
-  - hive.openshift.io
-  resources:
-  - syncsets
-  verbs:
-  - get
-  - create
-  - update
-  - delete
-  - patch
-  - list
-  - watch
-- apiGroups:
-  - hive.openshift.io
-  resources:
-  - syncidentityproviders
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - hive.openshift.io
-  resources:
-  - selectorsyncidentityproviders
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - hive.openshift.io
-  resources:
-  - clusterdeployments
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - hive.openshift.io
-  resources:
-  - clusterdeployments
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - hive.openshift.io
-  resources:
-  - syncsets
-  verbs:
-  - get
-  - create
-  - update
-  - delete
-  - patch
-  - list
-  - watch
-- apiGroups:
-  - hive.openshift.io
-  resources:
-  - selectorsyncsets
-  verbs:
-  - get
-  - create
-  - update
-  - delete
-  - patch
-  - list
-  - watch
+  labels:
+    controller-tools.k8s.io: "1.0"
+  name: clusterdeployments.hive.openshift.io
+spec:
+  additionalPrinterColumns:
+  - JSONPath: .spec.clusterName
+    name: ClusterName
+    type: string
+  - JSONPath: .metadata.labels.hive\.openshift\.io/cluster-type
+    name: ClusterType
+    type: string
+  - JSONPath: .spec.baseDomain
+    name: BaseDomain
+    type: string
+  - JSONPath: .spec.installed
+    name: Installed
+    type: boolean
+  - JSONPath: .status.infraID
+    name: InfraID
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: Age
+    type: date
+  group: hive.openshift.io
+  names:
+    kind: ClusterDeployment
+    plural: clusterdeployments
+    shortNames:
+    - cd
+  scope: Namespaced
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          properties:
+            baseDomain:
+              description: BaseDomain is the base domain to which the cluster should
+                belong.
+              type: string
+            certificateBundles:
+              description: CertificateBundles is a list of certificate bundles associated
+                with this cluster
+              items:
+                properties:
+                  generate:
+                    description: Generate indicates whether this bundle should have
+                      real certificates generated for it.
+                    type: boolean
+                  name:
+                    description: Name is an identifier that must be unique within
+                      the bundle and must be referenced by an ingress or by the control
+                      plane serving certs
+                    type: string
+                  secretRef:
+                    description: SecretRef is the reference to the secret that contains
+                      the certificate bundle. If the certificate bundle is to be generated,
+                      it will be generated with the name in this reference. Otherwise,
+                      it is expected that the secret should exist in the same namespace
+                      as the ClusterDeployment
+                    type: object
+                required:
+                - name
+                type: object
+              type: array
+            clusterName:
+              description: ClusterName is the friendly name of the cluster. It is
+                used for subdomains, some resource tagging, and other instances where
+                a friendly name for the cluster is useful.
+              type: string
+            compute:
+              description: Compute is the list of MachinePools containing compute
+                nodes that need to be installed.
+              items:
+                properties:
+                  labels:
+                    description: Map of label string keys and values that will be
+                      applied to the created MachineSet's MachineSpec. This list will
+                      overwrite any modifications made to Node labels on an ongoing
+                      basis.
+                    type: object
+                  name:
+                    description: Name is the name of the machine pool.
+                    type: string
+                  platform:
+                    description: Platform is configuration for machine pool specific
+                      to the platform.
+                    properties:
+                      aws:
+                        description: AWS is the configuration used when installing
+                          on AWS.
+                        properties:
+                          rootVolume:
+                            description: EC2RootVolume defines the storage for ec2
+                              instance.
+                            properties:
+                              iops:
+                                description: IOPS defines the iops for the storage.
+                                format: int64
+                                type: integer
+                              size:
+                                description: Size defines the size of the storage.
+                                format: int64
+                                type: integer
+                              type:
+                                description: Type defines the type of the storage.
+                                type: string
+                            type: object
+                          type:
+                            description: InstanceType defines the ec2 instance type.
+                              eg. m4-large
+                            type: string
+                          zones:
+                            description: Zones is list of availability zones that
+                              can be used.
+                            items:
+                              type: string
+                            type: array
+                        type: object
+                    type: object
+                  replicas:
+                    description: Replicas is the count of machines for this machine
+                      pool. Default is 1.
+                    format: int64
+                    type: integer
+                  taints:
+                    description: List of taints that will be applied to the created
+                      MachineSet's MachineSpec. This list will overwrite any modifications
+                      made to Node taints on an ongoing basis.
+                    items:
+                      type: object
+                    type: array
+                type: object
+              type: array
+            controlPlane:
+              description: ControlPlane is the MachinePool containing control plane
+                nodes that need to be installed.
+              properties:
+                labels:
+                  description: Map of label string keys and values that will be applied
+                    to the created MachineSet's MachineSpec. This list will overwrite
+                    any modifications made to Node labels on an ongoing basis.
+                  type: object
+                name:
+                  description: Name is the name of the machine pool.
+                  type: string
+                platform:
+                  description: Platform is configuration for machine pool specific
+                    to the platform.
+                  properties:
+                    aws:
+                      description: AWS is the configuration used when installing on
+                        AWS.
+                      properties:
+                        rootVolume:
+                          description: EC2RootVolume defines the storage for ec2 instance.
+                          properties:
+                            iops:
+                              description: IOPS defines the iops for the storage.
+                              format: int64
+                              type: integer
+                            size:
+                              description: Size defines the size of the storage.
+                              format: int64
+                              type: integer
+                            type:
+                              description: Type defines the type of the storage.
+                              type: string
+                          type: object
+                        type:
+                          description: InstanceType defines the ec2 instance type.
+                            eg. m4-large
+                          type: string
+                        zones:
+                          description: Zones is list of availability zones that can
+                            be used.
+                          items:
+                            type: string
+                          type: array
+                      type: object
+                  type: object
+                replicas:
+                  description: Replicas is the count of machines for this machine
+                    pool. Default is 1.
+                  format: int64
+                  type: integer
+                taints:
+                  description: List of taints that will be applied to the created
+                    MachineSet's MachineSpec. This list will overwrite any modifications
+                    made to Node taints on an ongoing basis.
+                  items:
+                    type: object
+                  type: array
+              type: object
+            controlPlaneConfig:
+              description: ControlPlaneConfig contains additional configuration for
+                the target cluster's control plane
+              properties:
+                servingCertificates:
+                  description: ServingCertificates specifies serving certificates
+                    for the control plane
+                  properties:
+                    additional:
+                      description: Additional is a list of additional domains and
+                        certificates that are also associated with the control plane's
+                        api endpoint.
+                      items:
+                        properties:
+                          domain:
+                            description: Domain is the domain of the additional control
+                              plane certificate
+                            type: string
+                          name:
+                            description: Name references a CertificateBundle in the
+                              ClusterDeployment.Spec that should be used for this
+                              additional certificate.
+                            type: string
+                        type: object
+                      type: array
+                    default:
+                      description: Default references the name of a CertificateBundle
+                        in the ClusterDeployment that should be used for the control
+                        plane's default endpoint.
+                      type: string
+                  type: object
+              type: object
+            imageSet:
+              description: ImageSet is a reference to a ClusterImageSet. If values
+                are specified for Images, those will take precedence over the ones
+                from the ClusterImageSet.
+              properties:
+                name:
+                  description: Name is the name of the ClusterImageSet that this refers
+                    to
+                  type: string
+              type: object
+            images:
+              description: Images allows overriding the default images used to provision
+                and manage the cluster.
+              properties:
+                installerImage:
+                  description: InstallerImage is the image containing the openshift-install
+                    binary that will be used to install.
+                  type: string
+                installerImagePullPolicy:
+                  description: InstallerImagePullPolicy is the pull policy for the
+                    installer image.
+                  type: string
+                releaseImage:
+                  description: ReleaseImage is the image containing metadata for all
+                    components that run in the cluster, and is the primary and best
+                    way to specify what specific version of OpenShift you wish to
+                    install.
+                  type: string
+              type: object
+            ingress:
+              description: Ingress allows defining desired clusteringress/shards to
+                be configured on the cluster.
+              items:
+                properties:
+                  domain:
+                    description: Domain (sometimes referred to as shard) is the full
+                      DNS suffix that the resulting IngressController object will
+                      service (eg abcd.mycluster.mydomain.com).
+                    type: string
+                  name:
+                    description: Name of the ClusterIngress object to create.
+                    type: string
+                  namespaceSelector:
+                    description: NamespaceSelector allows filtering the list of namespaces
+                      serviced by the ingress controller.
+                    type: object
+                  routeSelector:
+                    description: RouteSelector allows filtering the set of Routes
+                      serviced by the ingress controller
+                    type: object
+                  servingCertificate:
+                    description: ServingCertificate references a CertificateBundle
+                      in the ClusterDeployment.Spec that should be used for this Ingress
+                    type: string
+                required:
+                - name
+                - domain
+                type: object
+              type: array
+            installed:
+              description: Installed is true if the cluster has been installed
+              type: boolean
+            manageDNS:
+              description: ManageDNS specifies whether a DNSZone should be created
+                and managed automatically for this ClusterDeployment
+              type: boolean
+            networking:
+              description: Networking defines the pod network provider in the cluster.
+              properties:
+                clusterNetworks:
+                  description: ClusterNetworks is the IP address space from which
+                    to assign pod IPs.
+                  items:
+                    properties:
+                      cidr:
+                        type: string
+                      hostSubnetLength:
+                        format: int32
+                        type: integer
+                    type: object
+                  type: array
+                machineCIDR:
+                  description: MachineCIDR is the IP address space from which to assign
+                    machine IPs.
+                  type: string
+                serviceCIDR:
+                  description: ServiceCIDR is the IP address space from which to assign
+                    service IPs.
+                  type: string
+                type:
+                  description: Type is the network type to install
+                  type: string
+              type: object
+            platform:
+              description: Platform is the configuration for the specific platform
+                upon which to perform the installation.
+              properties:
+                aws:
+                  description: AWS is the configuration used when installing on AWS.
+                  properties:
+                    defaultMachinePlatform:
+                      description: DefaultMachinePlatform is the default configuration
+                        used when installing on AWS for machine pools which do not
+                        define their own platform configuration.
+                      properties:
+                        rootVolume:
+                          description: EC2RootVolume defines the storage for ec2 instance.
+                          properties:
+                            iops:
+                              description: IOPS defines the iops for the storage.
+                              format: int64
+                              type: integer
+                            size:
+                              description: Size defines the size of the storage.
+                              format: int64
+                              type: integer
+                            type:
+                              description: Type defines the type of the storage.
+                              type: string
+                          type: object
+                        type:
+                          description: InstanceType defines the ec2 instance type.
+                            eg. m4-large
+                          type: string
+                        zones:
+                          description: Zones is list of availability zones that can
+                            be used.
+                          items:
+                            type: string
+                          type: array
+                      type: object
+                    region:
+                      description: Region specifies the AWS region where the cluster
+                        will be created.
+                      type: string
+                    userTags:
+                      description: UserTags specifies additional tags for AWS resources
+                        created for the cluster.
+                      type: object
+                  type: object
+              type: object
+            platformSecrets:
+              description: PlatformSecrets contains credentials and secrets for the
+                cluster infrastructure.
+              properties:
+                aws:
+                  properties:
+                    credentials:
+                      description: Credentials refers to a secret that contains the
+                        AWS account access credentials.
+                      type: object
+                  type: object
+              type: object
+            preserveOnDelete:
+              description: PreserveOnDelete allows the user to disconnect a cluster
+                from Hive without deprovisioning it
+              type: boolean
+            pullSecret:
+              description: PullSecret is the reference to the secret to use when pulling
+                images.
+              type: object
+            sshKey:
+              description: SSHKey is the reference to the secret that contains a public
+                key to use for access to compute instances.
+              type: object
+          required:
+          - clusterName
+          - sshKey
+          - baseDomain
+          - networking
+          - controlPlane
+          - compute
+          - platform
+          - platformSecrets
+          type: object
+        status:
+          properties:
+            adminKubeconfigSecret:
+              description: AdminKubeconfigSecret references the secret containing
+                the admin kubeconfig for this cluster.
+              type: object
+            adminPasswordSecret:
+              description: AdminPasswordSecret references the secret containing the
+                admin username/password which can be used to login to this cluster.
+              type: object
+            apiURL:
+              description: APIURL is the URL where the cluster's API can be accessed.
+              type: string
+            certificateBundles:
+              description: CertificateBundles contains of the status of the certificate
+                bundles associated with this cluster deployment.
+              items:
+                properties:
+                  generated:
+                    description: Generated indicates whether the certificate bundle
+                      was generated
+                    type: boolean
+                  name:
+                    description: Name of the certificate bundle
+                    type: string
+                type: object
+              type: array
+            cliImage:
+              description: CLIImage is the name of the oc cli image to use when installing
+                the target cluster
+              type: string
+            clusterID:
+              description: ClusterID is a globally unique identifier for this cluster
+                generated during installation. Used for reporting metrics among other
+                places.
+              type: string
+            clusterVersionStatus:
+              description: ClusterVersionStatus will hold a copy of the remote cluster's
+                ClusterVersion.Status
+              properties:
+                availableUpdates:
+                  description: availableUpdates contains the list of updates that
+                    are appropriate for this cluster. This list may be empty if no
+                    updates are recommended, if the update service is unavailable,
+                    or if an invalid channel has been specified.
+                  items:
+                    properties:
+                      force:
+                        description: force allows an administrator to update to an
+                          image that has failed verification, does not appear in the
+                          availableUpdates list, or otherwise would be blocked by
+                          normal protections on update. This option should only be
+                          used when the authenticity of the provided image has been
+                          verified out of band because the provided image will run
+                          with full administrative access to the cluster. Do not use
+                          this flag with images that comes from unknown or potentially
+                          malicious sources.  This flag does not override other forms
+                          of consistency checking that are required before a new update
+                          is deployed.
+                        type: boolean
+                      image:
+                        description: image is a container image location that contains
+                          the update. When this field is part of spec, image is optional
+                          if version is specified and the availableUpdates field contains
+                          a matching version.
+                        type: string
+                      version:
+                        description: version is a semantic versioning identifying
+                          the update version. When this field is part of spec, version
+                          is optional if image is specified.
+                        type: string
+                    type: object
+                  nullable: true
+                  type: array
+                conditions:
+                  description: conditions provides information about the cluster version.
+                    The condition "Available" is set to true if the desiredUpdate
+                    has been reached. The condition "Progressing" is set to true if
+                    an update is being applied. The condition "Degraded" is set to
+                    true if an update is currently blocked by a temporary or permanent
+                    error. Conditions are only valid for the current desiredUpdate
+                    when metadata.generation is equal to status.generation.
+                  items:
+                    properties:
+                      lastTransitionTime:
+                        description: lastTransitionTime is the time of the last update
+                          to the current status object.
+                        format: date-time
+                        type: string
+                      message:
+                        description: message provides additional information about
+                          the current condition. This is only to be consumed by humans.
+                        type: string
+                      reason:
+                        description: reason is the reason for the condition's last
+                          transition.  Reasons are CamelCase
+                        type: string
+                      status:
+                        description: status of the condition, one of True, False,
+                          Unknown.
+                        type: string
+                      type:
+                        description: type specifies the state of the operator's reconciliation
+                          functionality.
+                        type: string
+                    type: object
+                  type: array
+                desired:
+                  description: desired is the version that the cluster is reconciling
+                    towards. If the cluster is not yet fully initialized desired will
+                    be set with the information available, which may be an image or
+                    a tag.
+                  properties:
+                    force:
+                      description: force allows an administrator to update to an image
+                        that has failed verification, does not appear in the availableUpdates
+                        list, or otherwise would be blocked by normal protections
+                        on update. This option should only be used when the authenticity
+                        of the provided image has been verified out of band because
+                        the provided image will run with full administrative access
+                        to the cluster. Do not use this flag with images that comes
+                        from unknown or potentially malicious sources.  This flag
+                        does not override other forms of consistency checking that
+                        are required before a new update is deployed.
+                      type: boolean
+                    image:
+                      description: image is a container image location that contains
+                        the update. When this field is part of spec, image is optional
+                        if version is specified and the availableUpdates field contains
+                        a matching version.
+                      type: string
+                    version:
+                      description: version is a semantic versioning identifying the
+                        update version. When this field is part of spec, version is
+                        optional if image is specified.
+                      type: string
+                  type: object
+                history:
+                  description: history contains a list of the most recent versions
+                    applied to the cluster. This value may be empty during cluster
+                    startup, and then will be updated when a new update is being applied.
+                    The newest update is first in the list and it is ordered by recency.
+                    Updates in the history have state Completed if the rollout completed
+                    - if an update was failing or halfway applied the state will be
+                    Partial. Only a limited amount of update history is preserved.
+                  items:
+                    properties:
+                      completionTime:
+                        description: completionTime, if set, is when the update was
+                          fully applied. The update that is currently being applied
+                          will have a null completion time. Completion time will always
+                          be set for entries that are not the current update (usually
+                          to the started time of the next update).
+                        format: date-time
+                        nullable: true
+                        type: string
+                      image:
+                        description: image is a container image location that contains
+                          the update. This value is always populated.
+                        type: string
+                      startedTime:
+                        description: startedTime is the time at which the update was
+                          started.
+                        format: date-time
+                        type: string
+                      state:
+                        description: state reflects whether the update was fully applied.
+                          The Partial state indicates the update is not fully applied,
+                          while the Completed state indicates the update was successfully
+                          rolled out at least once (all parts of the update successfully
+                          applied).
+                        type: string
+                      verified:
+                        description: verified indicates whether the provided update
+                          was properly verified before it was installed. If this is
+                          false the cluster may not be trusted.
+                        type: boolean
+                      version:
+                        description: version is a semantic versioning identifying
+                          the update version. If the requested image does not define
+                          a version, or if a failure occurs retrieving the image,
+                          this value may be empty.
+                        type: string
+                    type: object
+                  type: array
+                observedGeneration:
+                  description: observedGeneration reports which version of the spec
+                    is being synced. If this value is not equal to metadata.generation,
+                    then the desired and conditions fields may represent from a previous
+                    version.
+                  format: int64
+                  type: integer
+                versionHash:
+                  description: versionHash is a fingerprint of the content that the
+                    cluster will be updated with. It is used by the operator to avoid
+                    unnecessary work and is for internal use only.
+                  type: string
+              type: object
+            conditions:
+              description: Conditions includes more detailed status for the cluster
+                deployment
+              items:
+                properties:
+                  lastProbeTime:
+                    description: LastProbeTime is the last time we probed the condition.
+                    format: date-time
+                    type: string
+                  lastTransitionTime:
+                    description: LastTransitionTime is the last time the condition
+                      transitioned from one status to another.
+                    format: date-time
+                    type: string
+                  message:
+                    description: Message is a human-readable message indicating details
+                      about last transition.
+                    type: string
+                  reason:
+                    description: Reason is a unique, one-word, CamelCase reason for
+                      the condition's last transition.
+                    type: string
+                  status:
+                    description: Status is the status of the condition.
+                    type: string
+                  type:
+                    description: Type is the type of the condition.
+                    type: string
+                type: object
+              type: array
+            federated:
+              description: Federated is true if the cluster deployment has been federated
+                with the host cluster.
+              type: boolean
+            federatedClusterRef:
+              description: FederatedClusterRef is the reference to the federated cluster
+                resource associated with this ClusterDeployment.
+              type: object
+            infraID:
+              description: InfraID is an identifier for this cluster generated during
+                installation and used for tagging/naming resources in cloud providers.
+              type: string
+            installRestarts:
+              description: InstallRestarts is the total count of container restarts
+                on the clusters install job.
+              format: int64
+              type: integer
+            installed:
+              description: Installed is true if the installer job has successfully
+                completed for this cluster. Deprecated.
+              type: boolean
+            installedTimestamp:
+              description: InstalledTimestamp is the time we first detected that the
+                cluster has been successfully installed.
+              format: date-time
+              type: string
+            installerImage:
+              description: InstallerImage is the name of the installer image to use
+                when installing the target cluster
+              type: string
+            provision:
+              description: Provision is a reference to the last ClusterProvision created
+                for the deployment
+              type: object
+            webConsoleURL:
+              description: WebConsoleURL is the URL for the cluster's web console
+                UI.
+              type: string
+          type: object
+  version: v1alpha1
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
 `)
 
-func configRbacManager_roleYamlBytes() ([]byte, error) {
-	return _configRbacManager_roleYaml, nil
+func configCrdsHive_v1alpha1_clusterdeploymentYamlBytes() ([]byte, error) {
+	return _configCrdsHive_v1alpha1_clusterdeploymentYaml, nil
 }
 
-func configRbacManager_roleYaml() (*asset, error) {
-	bytes, err := configRbacManager_roleYamlBytes()
+func configCrdsHive_v1alpha1_clusterdeploymentYaml() (*asset, error) {
+	bytes, err := configCrdsHive_v1alpha1_clusterdeploymentYamlBytes()
 	if err != nil {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "config/rbac/manager_role.yaml", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
+	info := bindataFileInfo{name: "config/crds/hive_v1alpha1_clusterdeployment.yaml", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
 
-var _configRbacManager_role_bindingYaml = []byte(`apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
+var _configCrdsHive_v1alpha1_clusterdeprovisionrequestYaml = []byte(`apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
 metadata:
   creationTimestamp: null
-  name: manager-rolebinding
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: manager-role
-subjects:
-- kind: ServiceAccount
-  name: default
-  namespace: system
+  labels:
+    controller-tools.k8s.io: "1.0"
+  name: clusterdeprovisionrequests.hive.openshift.io
+spec:
+  additionalPrinterColumns:
+  - JSONPath: .spec.infraID
+    name: InfraID
+    type: string
+  - JSONPath: .spec.clusterID
+    name: ClusterID
+    type: string
+  - JSONPath: .status.completed
+    name: Completed
+    type: boolean
+  - JSONPath: .metadata.creationTimestamp
+    name: Age
+    type: date
+  group: hive.openshift.io
+  names:
+    kind: ClusterDeprovisionRequest
+    plural: clusterdeprovisionrequests
+    shortNames:
+    - cdr
+  scope: Namespaced
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          properties:
+            clusterID:
+              description: ClusterID is a globally unique identifier for the cluster
+                to deprovision. It will be used if specified.
+              type: string
+            infraID:
+              description: InfraID is the identifier generated during installation
+                for a cluster. It is used for tagging/naming resources in cloud providers.
+              type: string
+            platform:
+              description: Platform contains platform-specific configuration for a
+                ClusterDeprovisionRequest
+              properties:
+                aws:
+                  description: AWS contains AWS-specific deprovision request settings
+                  properties:
+                    credentials:
+                      description: Credentials is the AWS account credentials to use
+                        for deprovisioning the cluster
+                      type: object
+                    region:
+                      description: Region is the AWS region for this deprovisioning
+                        request
+                      type: string
+                  type: object
+              type: object
+          type: object
+        status:
+          properties:
+            completed:
+              description: Completed is true when the uninstall has completed successfully
+              type: boolean
+          type: object
+  version: v1alpha1
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
 `)
 
-func configRbacManager_role_bindingYamlBytes() ([]byte, error) {
-	return _configRbacManager_role_bindingYaml, nil
+func configCrdsHive_v1alpha1_clusterdeprovisionrequestYamlBytes() ([]byte, error) {
+	return _configCrdsHive_v1alpha1_clusterdeprovisionrequestYaml, nil
 }
 
-func configRbacManager_role_bindingYaml() (*asset, error) {
-	bytes, err := configRbacManager_role_bindingYamlBytes()
+func configCrdsHive_v1alpha1_clusterdeprovisionrequestYaml() (*asset, error) {
+	bytes, err := configCrdsHive_v1alpha1_clusterdeprovisionrequestYamlBytes()
 	if err != nil {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "config/rbac/manager_role_binding.yaml", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
+	info := bindataFileInfo{name: "config/crds/hive_v1alpha1_clusterdeprovisionrequest.yaml", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var _configCrdsHive_v1alpha1_clusterimagesetYaml = []byte(`apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  creationTimestamp: null
+  labels:
+    controller-tools.k8s.io: "1.0"
+  name: clusterimagesets.hive.openshift.io
+spec:
+  additionalPrinterColumns:
+  - JSONPath: .status.installerImage
+    name: Installer
+    type: string
+  - JSONPath: .spec.releaseImage
+    name: Release
+    type: string
+  group: hive.openshift.io
+  names:
+    kind: ClusterImageSet
+    plural: clusterimagesets
+    shortNames:
+    - imgset
+  scope: Cluster
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          properties:
+            installerImage:
+              description: InstallerImage is the image used to install a cluster.
+                If not specified, the installer image reference is obtained from the
+                release image.
+              type: string
+            releaseImage:
+              description: ReleaseImage is the image that contains the payload to
+                use when installing a cluster. If the installer image is specified,
+                the release image is optional.
+              type: string
+          type: object
+        status:
+          type: object
+  version: v1alpha1
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+`)
+
+func configCrdsHive_v1alpha1_clusterimagesetYamlBytes() ([]byte, error) {
+	return _configCrdsHive_v1alpha1_clusterimagesetYaml, nil
+}
+
+func configCrdsHive_v1alpha1_clusterimagesetYaml() (*asset, error) {
+	bytes, err := configCrdsHive_v1alpha1_clusterimagesetYamlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "config/crds/hive_v1alpha1_clusterimageset.yaml", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var _configCrdsHive_v1alpha1_clusterprovisionYaml = []byte(`apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  creationTimestamp: null
+  labels:
+    controller-tools.k8s.io: "1.0"
+  name: clusterprovisions.hive.openshift.io
+spec:
+  additionalPrinterColumns:
+  - JSONPath: .spec.clusterDeployment.name
+    name: ClusterDeployment
+    type: string
+  - JSONPath: .spec.stage
+    name: Stage
+    type: string
+  - JSONPath: .spec.infraID
+    name: InfraID
+    type: string
+  group: hive.openshift.io
+  names:
+    kind: ClusterProvision
+    plural: clusterprovisions
+  scope: Namespaced
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          properties:
+            adminKubeconfigSecret:
+              description: AdminKubeconfigSecret references the secret containing
+                the admin kubeconfig for this cluster.
+              type: object
+            adminPasswordSecret:
+              description: AdminPasswordSecret references the secret containing the
+                admin username/password which can be used to login to this cluster.
+              type: object
+            attempt:
+              description: Attempt is which attempt number of the cluster deployment
+                that this ClusterProvision is
+              format: int64
+              type: integer
+            clusterDeployment:
+              description: ClusterDeployment references the cluster deployment provisioned.
+              type: object
+            clusterID:
+              description: ClusterID is a globally unique identifier for this cluster
+                generated during installation. Used for reporting metrics among other
+                places.
+              type: string
+            infraID:
+              description: InfraID is an identifier for this cluster generated during
+                installation and used for tagging/naming resources in cloud providers.
+              type: string
+            installLog:
+              description: InstallLog is the log from the installer.
+              type: string
+            metadata:
+              description: Metadata is the metadata.json generated by the installer,
+                providing metadata information about the cluster created.
+              type: object
+            podSpec:
+              description: PodSpec is the spec to use for the installer pod.
+              type: object
+            prevClusterID:
+              description: PrevClusterID is the cluster ID of the previous failed
+                provision attempt.
+              type: string
+            prevInfraID:
+              description: PrevInfraID is the infra ID of the previous failed provision
+                attempt.
+              type: string
+            stage:
+              description: Stage is the stage of provisioning that the cluster deployment
+                has reached.
+              type: string
+          type: object
+        status:
+          properties:
+            conditions:
+              description: Conditions includes more detailed status for the cluster
+                provision
+              items:
+                properties:
+                  lastProbeTime:
+                    description: LastProbeTime is the last time we probed the condition.
+                    format: date-time
+                    type: string
+                  lastTransitionTime:
+                    description: LastTransitionTime is the last time the condition
+                      transitioned from one status to another.
+                    format: date-time
+                    type: string
+                  message:
+                    description: Message is a human-readable message indicating details
+                      about last transition.
+                    type: string
+                  reason:
+                    description: Reason is a unique, one-word, CamelCase reason for
+                      the condition's last transition.
+                    type: string
+                  status:
+                    description: Status is the status of the condition.
+                    type: string
+                  type:
+                    description: Type is the type of the condition.
+                    type: string
+                type: object
+              type: array
+            job:
+              type: object
+          type: object
+  version: v1alpha1
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+`)
+
+func configCrdsHive_v1alpha1_clusterprovisionYamlBytes() ([]byte, error) {
+	return _configCrdsHive_v1alpha1_clusterprovisionYaml, nil
+}
+
+func configCrdsHive_v1alpha1_clusterprovisionYaml() (*asset, error) {
+	bytes, err := configCrdsHive_v1alpha1_clusterprovisionYamlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "config/crds/hive_v1alpha1_clusterprovision.yaml", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var _configCrdsHive_v1alpha1_clusterstateYaml = []byte(`apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  creationTimestamp: null
+  labels:
+    controller-tools.k8s.io: "1.0"
+  name: clusterstates.hive.openshift.io
+spec:
+  group: hive.openshift.io
+  names:
+    kind: ClusterState
+    plural: clusterstates
+  scope: Namespaced
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          type: object
+        status:
+          properties:
+            clusterOperators:
+              description: ClusterOperators contains the state for every cluster operator
+                in the target cluster
+              items:
+                properties:
+                  conditions:
+                    description: Conditions is the set of conditions in the status
+                      of the cluster operator on the target cluster
+                    items:
+                      properties:
+                        lastTransitionTime:
+                          description: lastTransitionTime is the time of the last
+                            update to the current status object.
+                          format: date-time
+                          type: string
+                        message:
+                          description: message provides additional information about
+                            the current condition. This is only to be consumed by
+                            humans.
+                          type: string
+                        reason:
+                          description: reason is the reason for the condition's last
+                            transition.  Reasons are CamelCase
+                          type: string
+                        status:
+                          description: status of the condition, one of True, False,
+                            Unknown.
+                          type: string
+                        type:
+                          description: type specifies the state of the operator's
+                            reconciliation functionality.
+                          type: string
+                      type: object
+                    type: array
+                  name:
+                    description: Name is the name of the cluster operator
+                    type: string
+                type: object
+              type: array
+            lastUpdated:
+              description: LastUpdated is the last time that operator state was updated
+              format: date-time
+              type: string
+          type: object
+  version: v1alpha1
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+`)
+
+func configCrdsHive_v1alpha1_clusterstateYamlBytes() ([]byte, error) {
+	return _configCrdsHive_v1alpha1_clusterstateYaml, nil
+}
+
+func configCrdsHive_v1alpha1_clusterstateYaml() (*asset, error) {
+	bytes, err := configCrdsHive_v1alpha1_clusterstateYamlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "config/crds/hive_v1alpha1_clusterstate.yaml", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var _configCrdsHive_v1alpha1_dnsendpointYaml = []byte(`apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  creationTimestamp: null
+  labels:
+    controller-tools.k8s.io: "1.0"
+  name: dnsendpoints.hive.openshift.io
+spec:
+  group: hive.openshift.io
+  names:
+    kind: DNSEndpoint
+    plural: dnsendpoints
+  scope: Namespaced
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          properties:
+            endpoints:
+              description: Endpoints is the list of DNS records to create/update
+              items:
+                properties:
+                  dnsName:
+                    description: The hostname of the DNS record
+                    type: string
+                  labels:
+                    description: Labels stores labels defined for the Endpoint
+                    type: object
+                  providerSpecific:
+                    description: ProviderSpecific stores provider specific config
+                    type: object
+                  recordTTL:
+                    description: TTL for the record
+                    format: int64
+                    type: integer
+                  recordType:
+                    description: RecordType type of record, e.g. CNAME, A, SRV, TXT
+                      etc
+                    type: string
+                  targets:
+                    description: The targets the DNS record points to
+                    items:
+                      type: string
+                    type: array
+                type: object
+              type: array
+          type: object
+        status:
+          properties:
+            observedGeneration:
+              description: ObservedGeneration is the generation observed by the external-dns
+                controller.
+              format: int64
+              type: integer
+          type: object
+  version: v1alpha1
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+`)
+
+func configCrdsHive_v1alpha1_dnsendpointYamlBytes() ([]byte, error) {
+	return _configCrdsHive_v1alpha1_dnsendpointYaml, nil
+}
+
+func configCrdsHive_v1alpha1_dnsendpointYaml() (*asset, error) {
+	bytes, err := configCrdsHive_v1alpha1_dnsendpointYamlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "config/crds/hive_v1alpha1_dnsendpoint.yaml", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var _configCrdsHive_v1alpha1_dnszoneYaml = []byte(`apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  creationTimestamp: null
+  labels:
+    controller-tools.k8s.io: "1.0"
+  name: dnszones.hive.openshift.io
+spec:
+  group: hive.openshift.io
+  names:
+    kind: DNSZone
+    plural: dnszones
+  scope: Namespaced
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          properties:
+            aws:
+              description: AWS specifies AWS-specific cloud configuration
+              properties:
+                accountSecret:
+                  description: AccountSecret contains a reference to a secret that
+                    contains AWS credentials for CRUD operations
+                  type: object
+                additionalTags:
+                  description: AdditionalTags is a set of additional tags to set on
+                    the DNS hosted zone. In addition to these tags,the DNS Zone controller
+                    will set a hive.openhsift.io/hostedzone tag identifying the HostedZone
+                    record that it belongs to.
+                  items:
+                    properties:
+                      key:
+                        description: Key is the key for the tag
+                        type: string
+                      value:
+                        description: Value is the value for the tag
+                        type: string
+                    type: object
+                  type: array
+                region:
+                  description: Region specifies the region-specific API endpoint to
+                    use
+                  type: string
+              type: object
+            linkToParentDomain:
+              description: LinkToParentDomain specifies whether DNS records should
+                be automatically created to link this DNSZone with a parent domain.
+              type: boolean
+            zone:
+              description: Zone is the DNS zone to host
+              type: string
+          type: object
+        status:
+          properties:
+            aws:
+              description: AWSDNSZoneStatus contains status information specific to
+                AWS
+              properties:
+                zoneID:
+                  description: ZoneID is the ID of the zone in AWS
+                  type: string
+              type: object
+            conditions:
+              description: Conditions includes more detailed status for the DNSZone
+              items:
+                properties:
+                  lastProbeTime:
+                    description: LastProbeTime is the last time we probed the condition.
+                    format: date-time
+                    type: string
+                  lastTransitionTime:
+                    description: LastTransitionTime is the last time the condition
+                      transitioned from one status to another.
+                    format: date-time
+                    type: string
+                  message:
+                    description: Message is a human-readable message indicating details
+                      about last transition.
+                    type: string
+                  reason:
+                    description: Reason is a unique, one-word, CamelCase reason for
+                      the condition's last transition.
+                    type: string
+                  status:
+                    description: Status is the status of the condition.
+                    type: string
+                  type:
+                    description: Type is the type of the condition.
+                    type: string
+                type: object
+              type: array
+            lastSyncGeneration:
+              description: LastSyncGeneration is the generation of the zone resource
+                that was last sync'd. This is used to know if the Object has changed
+                and we should sync immediately.
+              format: int64
+              type: integer
+            lastSyncTimestamp:
+              description: LastSyncTimestamp is the time that the zone was last sync'd.
+              format: date-time
+              type: string
+            nameServers:
+              description: NameServers is a list of nameservers for this DNS zone
+              items:
+                type: string
+              type: array
+          type: object
+  version: v1alpha1
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+`)
+
+func configCrdsHive_v1alpha1_dnszoneYamlBytes() ([]byte, error) {
+	return _configCrdsHive_v1alpha1_dnszoneYaml, nil
+}
+
+func configCrdsHive_v1alpha1_dnszoneYaml() (*asset, error) {
+	bytes, err := configCrdsHive_v1alpha1_dnszoneYamlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "config/crds/hive_v1alpha1_dnszone.yaml", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var _configCrdsHive_v1alpha1_hiveconfigYaml = []byte(`apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  creationTimestamp: null
+  labels:
+    controller-tools.k8s.io: "1.0"
+  name: hiveconfigs.hive.openshift.io
+spec:
+  group: hive.openshift.io
+  names:
+    kind: HiveConfig
+    plural: hiveconfigs
+  scope: Cluster
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          properties:
+            additionalCertificateAuthorities:
+              description: AdditionalCertificateAuthorities is a list of references
+                to secrets in the 'hive' namespace that contain an additional Certificate
+                Authority to use when communicating with target clusters. These certificate
+                authorities will be used in addition to any self-signed CA generated
+                by each cluster on installation.
+              items:
+                type: object
+              type: array
+            backup:
+              description: Backup specifies configuration for backup integration.
+                If absent, backup integration will be disabled.
+              properties:
+                velero:
+                  description: Velero specifies configuration for the Velero backup
+                    integration.
+                  properties:
+                    enabled:
+                      description: Enabled dictates if Velero backup integration is
+                        enabled. If not specified, the default is disabled.
+                      type: boolean
+                  type: object
+              type: object
+            externalDNS:
+              description: ExternalDNS specifies configuration for external-dns if
+                it is to be deployed by Hive. If absent, external-dns will not be
+                deployed.
+              properties:
+                aws:
+                  description: AWS contains AWS-specific settings for external DNS
+                  properties:
+                    credentials:
+                      description: Credentials references a secret that will be used
+                        to authenticate with AWS Route53. It will need permission
+                        to manage entries in each of the managed domains for this
+                        cluster. Secret should have AWS keys named 'aws_access_key_id'
+                        and 'aws_secret_access_key'.
+                      type: object
+                  type: object
+                image:
+                  description: Image is a reference to the image that will run the
+                    external-dns controller. If not specified, a default image will
+                    be used.
+                  type: string
+              type: object
+            failedProvisionConfig:
+              description: FailedProvisionConfig is used to configure settings related
+                to handling provision failures.
+              properties:
+                skipGatherLogs:
+                  description: SkipGatherLogs disables functionality that attempts
+                    to gather full logs from the cluster if an installation fails
+                    for any reason. The logs will be stored in a persistent volume
+                    for up to 7 days.
+                  type: boolean
+              type: object
+            globalPullSecret:
+              description: GlobalPullSecret is used to specify a pull secret that
+                will be used globally by all of the cluster deployments. For each
+                cluster deployment, the contents of GlobalPullSecret will be merged
+                with the specific pull secret for a cluster deployment(if specified),
+                with precedence given to the contents of the pull secret for the cluster
+                deployment.
+              type: object
+            managedDomains:
+              description: 'ManagedDomains is the list of DNS domains that are managed
+                by the Hive cluster When specifying ''managedDNS: true'' in a ClusterDeployment,
+                the ClusterDeployment''s baseDomain should be a direct child of one
+                of these domains, otherwise the ClusterDeployment creation will result
+                in a validation error.'
+              items:
+                type: string
+              type: array
+          type: object
+        status:
+          properties:
+            aggregatorClientCAHash:
+              description: AggregatorClientCAHash keeps an md5 hash of the aggregator
+                client CA configmap data from the openshift-config-managed namespace.
+                When the configmap changes, admission is redeployed.
+              type: string
+          type: object
+  version: v1alpha1
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+`)
+
+func configCrdsHive_v1alpha1_hiveconfigYamlBytes() ([]byte, error) {
+	return _configCrdsHive_v1alpha1_hiveconfigYaml, nil
+}
+
+func configCrdsHive_v1alpha1_hiveconfigYaml() (*asset, error) {
+	bytes, err := configCrdsHive_v1alpha1_hiveconfigYamlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "config/crds/hive_v1alpha1_hiveconfig.yaml", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var _configCrdsHive_v1alpha1_selectorsyncidentityproviderYaml = []byte(`apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  creationTimestamp: null
+  labels:
+    controller-tools.k8s.io: "1.0"
+  name: selectorsyncidentityproviders.hive.openshift.io
+spec:
+  group: hive.openshift.io
+  names:
+    kind: SelectorSyncIdentityProvider
+    plural: selectorsyncidentityproviders
+  scope: Cluster
+  validation:
+    openAPIV3Schema:
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          properties:
+            clusterDeploymentSelector:
+              description: ClusterDeploymentSelector is a LabelSelector indicating
+                which clusters the SelectorIdentityProvider applies to in any namespace.
+              type: object
+            identityProviders:
+              description: IdentityProviders is an ordered list of ways for a user
+                to identify themselves
+              items:
+                properties:
+                  basicAuth:
+                    description: basicAuth contains configuration options for the
+                      BasicAuth IdP
+                    properties:
+                      ca:
+                        description: ca is an optional reference to a config map by
+                          name containing the PEM-encoded CA bundle. It is used as
+                          a trust anchor to validate the TLS certificate presented
+                          by the remote server. The key "ca.crt" is used to locate
+                          the data. If specified and the config map or expected key
+                          is not found, the identity provider is not honored. If the
+                          specified ca data is not valid, the identity provider is
+                          not honored. If empty, the default system roots are used.
+                          The namespace for this config map is openshift-config.
+                        properties:
+                          name:
+                            description: name is the metadata.name of the referenced
+                              config map
+                            type: string
+                        type: object
+                      tlsClientCert:
+                        description: tlsClientCert is an optional reference to a secret
+                          by name that contains the PEM-encoded TLS client certificate
+                          to present when connecting to the server. The key "tls.crt"
+                          is used to locate the data. If specified and the secret
+                          or expected key is not found, the identity provider is not
+                          honored. If the specified certificate data is not valid,
+                          the identity provider is not honored. The namespace for
+                          this secret is openshift-config.
+                        properties:
+                          name:
+                            description: name is the metadata.name of the referenced
+                              secret
+                            type: string
+                        type: object
+                      tlsClientKey:
+                        description: tlsClientKey is an optional reference to a secret
+                          by name that contains the PEM-encoded TLS private key for
+                          the client certificate referenced in tlsClientCert. The
+                          key "tls.key" is used to locate the data. If specified and
+                          the secret or expected key is not found, the identity provider
+                          is not honored. If the specified certificate data is not
+                          valid, the identity provider is not honored. The namespace
+                          for this secret is openshift-config.
+                        properties:
+                          name:
+                            description: name is the metadata.name of the referenced
+                              secret
+                            type: string
+                        type: object
+                      url:
+                        description: url is the remote URL to connect to
+                        type: string
+                    type: object
+                  github:
+                    description: github enables user authentication using GitHub credentials
+                    properties:
+                      ca:
+                        description: ca is an optional reference to a config map by
+                          name containing the PEM-encoded CA bundle. It is used as
+                          a trust anchor to validate the TLS certificate presented
+                          by the remote server. The key "ca.crt" is used to locate
+                          the data. If specified and the config map or expected key
+                          is not found, the identity provider is not honored. If the
+                          specified ca data is not valid, the identity provider is
+                          not honored. If empty, the default system roots are used.
+                          This can only be configured when hostname is set to a non-empty
+                          value. The namespace for this config map is openshift-config.
+                        properties:
+                          name:
+                            description: name is the metadata.name of the referenced
+                              config map
+                            type: string
+                        type: object
+                      clientID:
+                        description: clientID is the oauth client ID
+                        type: string
+                      clientSecret:
+                        description: clientSecret is a required reference to the secret
+                          by name containing the oauth client secret. The key "clientSecret"
+                          is used to locate the data. If the secret or expected key
+                          is not found, the identity provider is not honored. The
+                          namespace for this secret is openshift-config.
+                        properties:
+                          name:
+                            description: name is the metadata.name of the referenced
+                              secret
+                            type: string
+                        type: object
+                      hostname:
+                        description: hostname is the optional domain (e.g. "mycompany.com")
+                          for use with a hosted instance of GitHub Enterprise. It
+                          must match the GitHub Enterprise settings value configured
+                          at /setup/settings#hostname.
+                        type: string
+                      organizations:
+                        description: organizations optionally restricts which organizations
+                          are allowed to log in
+                        items:
+                          type: string
+                        type: array
+                      teams:
+                        description: teams optionally restricts which teams are allowed
+                          to log in. Format is <org>/<team>.
+                        items:
+                          type: string
+                        type: array
+                    type: object
+                  gitlab:
+                    description: gitlab enables user authentication using GitLab credentials
+                    properties:
+                      ca:
+                        description: ca is an optional reference to a config map by
+                          name containing the PEM-encoded CA bundle. It is used as
+                          a trust anchor to validate the TLS certificate presented
+                          by the remote server. The key "ca.crt" is used to locate
+                          the data. If specified and the config map or expected key
+                          is not found, the identity provider is not honored. If the
+                          specified ca data is not valid, the identity provider is
+                          not honored. If empty, the default system roots are used.
+                          The namespace for this config map is openshift-config.
+                        properties:
+                          name:
+                            description: name is the metadata.name of the referenced
+                              config map
+                            type: string
+                        type: object
+                      clientID:
+                        description: clientID is the oauth client ID
+                        type: string
+                      clientSecret:
+                        description: clientSecret is a required reference to the secret
+                          by name containing the oauth client secret. The key "clientSecret"
+                          is used to locate the data. If the secret or expected key
+                          is not found, the identity provider is not honored. The
+                          namespace for this secret is openshift-config.
+                        properties:
+                          name:
+                            description: name is the metadata.name of the referenced
+                              secret
+                            type: string
+                        type: object
+                      url:
+                        description: url is the oauth server base URL
+                        type: string
+                    type: object
+                  google:
+                    description: google enables user authentication using Google credentials
+                    properties:
+                      clientID:
+                        description: clientID is the oauth client ID
+                        type: string
+                      clientSecret:
+                        description: clientSecret is a required reference to the secret
+                          by name containing the oauth client secret. The key "clientSecret"
+                          is used to locate the data. If the secret or expected key
+                          is not found, the identity provider is not honored. The
+                          namespace for this secret is openshift-config.
+                        properties:
+                          name:
+                            description: name is the metadata.name of the referenced
+                              secret
+                            type: string
+                        type: object
+                      hostedDomain:
+                        description: hostedDomain is the optional Google App domain
+                          (e.g. "mycompany.com") to restrict logins to
+                        type: string
+                    type: object
+                  htpasswd:
+                    description: htpasswd enables user authentication using an HTPasswd
+                      file to validate credentials
+                    properties:
+                      fileData:
+                        description: fileData is a required reference to a secret
+                          by name containing the data to use as the htpasswd file.
+                          The key "htpasswd" is used to locate the data. If the secret
+                          or expected key is not found, the identity provider is not
+                          honored. If the specified htpasswd data is not valid, the
+                          identity provider is not honored. The namespace for this
+                          secret is openshift-config.
+                        properties:
+                          name:
+                            description: name is the metadata.name of the referenced
+                              secret
+                            type: string
+                        type: object
+                    type: object
+                  keystone:
+                    description: keystone enables user authentication using keystone
+                      password credentials
+                    properties:
+                      ca:
+                        description: ca is an optional reference to a config map by
+                          name containing the PEM-encoded CA bundle. It is used as
+                          a trust anchor to validate the TLS certificate presented
+                          by the remote server. The key "ca.crt" is used to locate
+                          the data. If specified and the config map or expected key
+                          is not found, the identity provider is not honored. If the
+                          specified ca data is not valid, the identity provider is
+                          not honored. If empty, the default system roots are used.
+                          The namespace for this config map is openshift-config.
+                        properties:
+                          name:
+                            description: name is the metadata.name of the referenced
+                              config map
+                            type: string
+                        type: object
+                      domainName:
+                        description: domainName is required for keystone v3
+                        type: string
+                      tlsClientCert:
+                        description: tlsClientCert is an optional reference to a secret
+                          by name that contains the PEM-encoded TLS client certificate
+                          to present when connecting to the server. The key "tls.crt"
+                          is used to locate the data. If specified and the secret
+                          or expected key is not found, the identity provider is not
+                          honored. If the specified certificate data is not valid,
+                          the identity provider is not honored. The namespace for
+                          this secret is openshift-config.
+                        properties:
+                          name:
+                            description: name is the metadata.name of the referenced
+                              secret
+                            type: string
+                        type: object
+                      tlsClientKey:
+                        description: tlsClientKey is an optional reference to a secret
+                          by name that contains the PEM-encoded TLS private key for
+                          the client certificate referenced in tlsClientCert. The
+                          key "tls.key" is used to locate the data. If specified and
+                          the secret or expected key is not found, the identity provider
+                          is not honored. If the specified certificate data is not
+                          valid, the identity provider is not honored. The namespace
+                          for this secret is openshift-config.
+                        properties:
+                          name:
+                            description: name is the metadata.name of the referenced
+                              secret
+                            type: string
+                        type: object
+                      url:
+                        description: url is the remote URL to connect to
+                        type: string
+                    type: object
+                  ldap:
+                    description: ldap enables user authentication using LDAP credentials
+                    properties:
+                      attributes:
+                        description: attributes maps LDAP attributes to identities
+                        properties:
+                          email:
+                            description: email is the list of attributes whose values
+                              should be used as the email address. Optional. If unspecified,
+                              no email is set for the identity
+                            items:
+                              type: string
+                            type: array
+                          id:
+                            description: id is the list of attributes whose values
+                              should be used as the user ID. Required. First non-empty
+                              attribute is used. At least one attribute is required.
+                              If none of the listed attribute have a value, authentication
+                              fails. LDAP standard identity attribute is "dn"
+                            items:
+                              type: string
+                            type: array
+                          name:
+                            description: name is the list of attributes whose values
+                              should be used as the display name. Optional. If unspecified,
+                              no display name is set for the identity LDAP standard
+                              display name attribute is "cn"
+                            items:
+                              type: string
+                            type: array
+                          preferredUsername:
+                            description: preferredUsername is the list of attributes
+                              whose values should be used as the preferred username.
+                              LDAP standard login attribute is "uid"
+                            items:
+                              type: string
+                            type: array
+                        type: object
+                      bindDN:
+                        description: bindDN is an optional DN to bind with during
+                          the search phase.
+                        type: string
+                      bindPassword:
+                        description: bindPassword is an optional reference to a secret
+                          by name containing a password to bind with during the search
+                          phase. The key "bindPassword" is used to locate the data.
+                          If specified and the secret or expected key is not found,
+                          the identity provider is not honored. The namespace for
+                          this secret is openshift-config.
+                        properties:
+                          name:
+                            description: name is the metadata.name of the referenced
+                              secret
+                            type: string
+                        type: object
+                      ca:
+                        description: ca is an optional reference to a config map by
+                          name containing the PEM-encoded CA bundle. It is used as
+                          a trust anchor to validate the TLS certificate presented
+                          by the remote server. The key "ca.crt" is used to locate
+                          the data. If specified and the config map or expected key
+                          is not found, the identity provider is not honored. If the
+                          specified ca data is not valid, the identity provider is
+                          not honored. If empty, the default system roots are used.
+                          The namespace for this config map is openshift-config.
+                        properties:
+                          name:
+                            description: name is the metadata.name of the referenced
+                              config map
+                            type: string
+                        type: object
+                      insecure:
+                        description: 'insecure, if true, indicates the connection
+                          should not use TLS WARNING: Should not be set to ` + "`" + `true` + "`" + `
+                          with the URL scheme "ldaps://" as "ldaps://" URLs always          attempt
+                          to connect using TLS, even when ` + "`" + `insecure` + "`" + ` is set to ` + "`" + `true` + "`" + `
+                          When ` + "`" + `true` + "`" + `, "ldap://" URLS connect insecurely. When ` + "`" + `false` + "`" + `,
+                          "ldap://" URLs are upgraded to a TLS connection using StartTLS
+                          as specified in https://tools.ietf.org/html/rfc2830.'
+                        type: boolean
+                      url:
+                        description: 'url is an RFC 2255 URL which specifies the LDAP
+                          search parameters to use. The syntax of the URL is: ldap://host:port/basedn?attribute?scope?filter'
+                        type: string
+                    type: object
+                  mappingMethod:
+                    description: mappingMethod determines how identities from this
+                      provider are mapped to users Defaults to "claim"
+                    type: string
+                  name:
+                    description: 'name is used to qualify the identities returned
+                      by this provider. - It MUST be unique and not shared by any
+                      other identity provider used - It MUST be a valid path segment:
+                      name cannot equal "." or ".." or contain "/" or "%" or ":"   Ref:
+                      https://godoc.org/github.com/openshift/origin/pkg/user/apis/user/validation#ValidateIdentityProviderName'
+                    type: string
+                  openID:
+                    description: openID enables user authentication using OpenID credentials
+                    properties:
+                      ca:
+                        description: ca is an optional reference to a config map by
+                          name containing the PEM-encoded CA bundle. It is used as
+                          a trust anchor to validate the TLS certificate presented
+                          by the remote server. The key "ca.crt" is used to locate
+                          the data. If specified and the config map or expected key
+                          is not found, the identity provider is not honored. If the
+                          specified ca data is not valid, the identity provider is
+                          not honored. If empty, the default system roots are used.
+                          The namespace for this config map is openshift-config.
+                        properties:
+                          name:
+                            description: name is the metadata.name of the referenced
+                              config map
+                            type: string
+                        type: object
+                      claims:
+                        description: claims mappings
+                        properties:
+                          email:
+                            description: email is the list of claims whose values
+                              should be used as the email address. Optional. If unspecified,
+                              no email is set for the identity
+                            items:
+                              type: string
+                            type: array
+                          name:
+                            description: name is the list of claims whose values should
+                              be used as the display name. Optional. If unspecified,
+                              no display name is set for the identity
+                            items:
+                              type: string
+                            type: array
+                          preferredUsername:
+                            description: preferredUsername is the list of claims whose
+                              values should be used as the preferred username. If
+                              unspecified, the preferred username is determined from
+                              the value of the sub claim
+                            items:
+                              type: string
+                            type: array
+                        type: object
+                      clientID:
+                        description: clientID is the oauth client ID
+                        type: string
+                      clientSecret:
+                        description: clientSecret is a required reference to the secret
+                          by name containing the oauth client secret. The key "clientSecret"
+                          is used to locate the data. If the secret or expected key
+                          is not found, the identity provider is not honored. The
+                          namespace for this secret is openshift-config.
+                        properties:
+                          name:
+                            description: name is the metadata.name of the referenced
+                              secret
+                            type: string
+                        type: object
+                      extraAuthorizeParameters:
+                        description: extraAuthorizeParameters are any custom parameters
+                          to add to the authorize request.
+                        type: object
+                      extraScopes:
+                        description: extraScopes are any scopes to request in addition
+                          to the standard "openid" scope.
+                        items:
+                          type: string
+                        type: array
+                      issuer:
+                        description: issuer is the URL that the OpenID Provider asserts
+                          as its Issuer Identifier. It must use the https scheme with
+                          no query or fragment component.
+                        type: string
+                    type: object
+                  requestHeader:
+                    description: requestHeader enables user authentication using request
+                      header credentials
+                    properties:
+                      ca:
+                        description: ca is a required reference to a config map by
+                          name containing the PEM-encoded CA bundle. It is used as
+                          a trust anchor to validate the TLS certificate presented
+                          by the remote server. Specifically, it allows verification
+                          of incoming requests to prevent header spoofing. The key
+                          "ca.crt" is used to locate the data. If the config map or
+                          expected key is not found, the identity provider is not
+                          honored. If the specified ca data is not valid, the identity
+                          provider is not honored. The namespace for this config map
+                          is openshift-config.
+                        properties:
+                          name:
+                            description: name is the metadata.name of the referenced
+                              config map
+                            type: string
+                        type: object
+                      challengeURL:
+                        description: challengeURL is a URL to redirect unauthenticated
+                          /authorize requests to Unauthenticated requests from OAuth
+                          clients which expect WWW-Authenticate challenges will be
+                          redirected here. ${url} is replaced with the current URL,
+                          escaped to be safe in a query parameter   https://www.example.com/sso-login?then=${url}
+                          ${query} is replaced with the current query string   https://www.example.com/auth-proxy/oauth/authorize?${query}
+                          Required when challenge is set to true.
+                        type: string
+                      clientCommonNames:
+                        description: clientCommonNames is an optional list of common
+                          names to require a match from. If empty, any client certificate
+                          validated against the clientCA bundle is considered authoritative.
+                        items:
+                          type: string
+                        type: array
+                      emailHeaders:
+                        description: emailHeaders is the set of headers to check for
+                          the email address
+                        items:
+                          type: string
+                        type: array
+                      headers:
+                        description: headers is the set of headers to check for identity
+                          information
+                        items:
+                          type: string
+                        type: array
+                      loginURL:
+                        description: loginURL is a URL to redirect unauthenticated
+                          /authorize requests to Unauthenticated requests from OAuth
+                          clients which expect interactive logins will be redirected
+                          here ${url} is replaced with the current URL, escaped to
+                          be safe in a query parameter   https://www.example.com/sso-login?then=${url}
+                          ${query} is replaced with the current query string   https://www.example.com/auth-proxy/oauth/authorize?${query}
+                          Required when login is set to true.
+                        type: string
+                      nameHeaders:
+                        description: nameHeaders is the set of headers to check for
+                          the display name
+                        items:
+                          type: string
+                        type: array
+                      preferredUsernameHeaders:
+                        description: preferredUsernameHeaders is the set of headers
+                          to check for the preferred username
+                        items:
+                          type: string
+                        type: array
+                    type: object
+                  type:
+                    description: type identifies the identity provider type for this
+                      entry.
+                    type: string
+                type: object
+              type: array
+          required:
+          - identityProviders
+          type: object
+        status:
+          type: object
+  version: v1alpha1
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+`)
+
+func configCrdsHive_v1alpha1_selectorsyncidentityproviderYamlBytes() ([]byte, error) {
+	return _configCrdsHive_v1alpha1_selectorsyncidentityproviderYaml, nil
+}
+
+func configCrdsHive_v1alpha1_selectorsyncidentityproviderYaml() (*asset, error) {
+	bytes, err := configCrdsHive_v1alpha1_selectorsyncidentityproviderYamlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "config/crds/hive_v1alpha1_selectorsyncidentityprovider.yaml", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var _configCrdsHive_v1alpha1_selectorsyncsetYaml = []byte(`apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  creationTimestamp: null
+  labels:
+    controller-tools.k8s.io: "1.0"
+  name: selectorsyncsets.hive.openshift.io
+spec:
+  group: hive.openshift.io
+  names:
+    kind: SelectorSyncSet
+    plural: selectorsyncsets
+  scope: Cluster
+  validation:
+    openAPIV3Schema:
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          properties:
+            clusterDeploymentSelector:
+              description: ClusterDeploymentSelector is a LabelSelector indicating
+                which clusters the SelectorSyncSet applies to in any namespace.
+              type: object
+            patches:
+              description: Patches is the list of patches to apply.
+              items:
+                properties:
+                  apiVersion:
+                    description: APIVersion is the Group and Version of the object
+                      to be patched.
+                    type: string
+                  applyMode:
+                    description: ApplyMode indicates if the patch apply mode is "AlwaysApply"
+                      (default) or "ApplyOnce". ApplyMode "AlwaysApply" indicates
+                      that the patch should be applied every time reconciliation occurs.
+                      ApplyMode "ApplyOnce" indicates that the patch should only be
+                      applied once.
+                    type: string
+                  kind:
+                    description: Kind is the Kind of the object to be patched.
+                    type: string
+                  name:
+                    description: Name is the name of the object to be patched.
+                    type: string
+                  namespace:
+                    description: Namespace is the Namespace in which the object to
+                      patch exists. Defaults to the SyncSet's Namespace.
+                    type: string
+                  patch:
+                    description: Patch is the patch to apply.
+                    type: string
+                  patchType:
+                    description: PatchType indicates the PatchType as "strategic"
+                      (default), "json", or "merge".
+                    type: string
+                type: object
+              type: array
+            resourceApplyMode:
+              description: ResourceApplyMode indicates if the Resource apply mode
+                is "upsert" (default) or "sync". ApplyMode "upsert" indicates create
+                and update. ApplyMode "sync" indicates create, update and delete.
+              type: string
+            resources:
+              description: Resources is the list of objects to sync from RawExtension
+                definitions.
+              items:
+                type: object
+              type: array
+            secretReferences:
+              description: SecretReferences is the list of secrets to sync from existing
+                resources.
+              items:
+                properties:
+                  source:
+                    type: object
+                  target:
+                    type: object
+                type: object
+              type: array
+          type: object
+        status:
+          type: object
+  version: v1alpha1
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+`)
+
+func configCrdsHive_v1alpha1_selectorsyncsetYamlBytes() ([]byte, error) {
+	return _configCrdsHive_v1alpha1_selectorsyncsetYaml, nil
+}
+
+func configCrdsHive_v1alpha1_selectorsyncsetYaml() (*asset, error) {
+	bytes, err := configCrdsHive_v1alpha1_selectorsyncsetYamlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "config/crds/hive_v1alpha1_selectorsyncset.yaml", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var _configCrdsHive_v1alpha1_syncidentityproviderYaml = []byte(`apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  creationTimestamp: null
+  labels:
+    controller-tools.k8s.io: "1.0"
+  name: syncidentityproviders.hive.openshift.io
+spec:
+  group: hive.openshift.io
+  names:
+    kind: SyncIdentityProvider
+    plural: syncidentityproviders
+  scope: Namespaced
+  validation:
+    openAPIV3Schema:
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          properties:
+            clusterDeploymentRefs:
+              description: ClusterDeploymentRefs is the list of LocalObjectReference
+                indicating which clusters the SyncSet applies to in the SyncSet's
+                namespace.
+              items:
+                type: object
+              type: array
+            identityProviders:
+              description: IdentityProviders is an ordered list of ways for a user
+                to identify themselves
+              items:
+                properties:
+                  basicAuth:
+                    description: basicAuth contains configuration options for the
+                      BasicAuth IdP
+                    properties:
+                      ca:
+                        description: ca is an optional reference to a config map by
+                          name containing the PEM-encoded CA bundle. It is used as
+                          a trust anchor to validate the TLS certificate presented
+                          by the remote server. The key "ca.crt" is used to locate
+                          the data. If specified and the config map or expected key
+                          is not found, the identity provider is not honored. If the
+                          specified ca data is not valid, the identity provider is
+                          not honored. If empty, the default system roots are used.
+                          The namespace for this config map is openshift-config.
+                        properties:
+                          name:
+                            description: name is the metadata.name of the referenced
+                              config map
+                            type: string
+                        type: object
+                      tlsClientCert:
+                        description: tlsClientCert is an optional reference to a secret
+                          by name that contains the PEM-encoded TLS client certificate
+                          to present when connecting to the server. The key "tls.crt"
+                          is used to locate the data. If specified and the secret
+                          or expected key is not found, the identity provider is not
+                          honored. If the specified certificate data is not valid,
+                          the identity provider is not honored. The namespace for
+                          this secret is openshift-config.
+                        properties:
+                          name:
+                            description: name is the metadata.name of the referenced
+                              secret
+                            type: string
+                        type: object
+                      tlsClientKey:
+                        description: tlsClientKey is an optional reference to a secret
+                          by name that contains the PEM-encoded TLS private key for
+                          the client certificate referenced in tlsClientCert. The
+                          key "tls.key" is used to locate the data. If specified and
+                          the secret or expected key is not found, the identity provider
+                          is not honored. If the specified certificate data is not
+                          valid, the identity provider is not honored. The namespace
+                          for this secret is openshift-config.
+                        properties:
+                          name:
+                            description: name is the metadata.name of the referenced
+                              secret
+                            type: string
+                        type: object
+                      url:
+                        description: url is the remote URL to connect to
+                        type: string
+                    type: object
+                  github:
+                    description: github enables user authentication using GitHub credentials
+                    properties:
+                      ca:
+                        description: ca is an optional reference to a config map by
+                          name containing the PEM-encoded CA bundle. It is used as
+                          a trust anchor to validate the TLS certificate presented
+                          by the remote server. The key "ca.crt" is used to locate
+                          the data. If specified and the config map or expected key
+                          is not found, the identity provider is not honored. If the
+                          specified ca data is not valid, the identity provider is
+                          not honored. If empty, the default system roots are used.
+                          This can only be configured when hostname is set to a non-empty
+                          value. The namespace for this config map is openshift-config.
+                        properties:
+                          name:
+                            description: name is the metadata.name of the referenced
+                              config map
+                            type: string
+                        type: object
+                      clientID:
+                        description: clientID is the oauth client ID
+                        type: string
+                      clientSecret:
+                        description: clientSecret is a required reference to the secret
+                          by name containing the oauth client secret. The key "clientSecret"
+                          is used to locate the data. If the secret or expected key
+                          is not found, the identity provider is not honored. The
+                          namespace for this secret is openshift-config.
+                        properties:
+                          name:
+                            description: name is the metadata.name of the referenced
+                              secret
+                            type: string
+                        type: object
+                      hostname:
+                        description: hostname is the optional domain (e.g. "mycompany.com")
+                          for use with a hosted instance of GitHub Enterprise. It
+                          must match the GitHub Enterprise settings value configured
+                          at /setup/settings#hostname.
+                        type: string
+                      organizations:
+                        description: organizations optionally restricts which organizations
+                          are allowed to log in
+                        items:
+                          type: string
+                        type: array
+                      teams:
+                        description: teams optionally restricts which teams are allowed
+                          to log in. Format is <org>/<team>.
+                        items:
+                          type: string
+                        type: array
+                    type: object
+                  gitlab:
+                    description: gitlab enables user authentication using GitLab credentials
+                    properties:
+                      ca:
+                        description: ca is an optional reference to a config map by
+                          name containing the PEM-encoded CA bundle. It is used as
+                          a trust anchor to validate the TLS certificate presented
+                          by the remote server. The key "ca.crt" is used to locate
+                          the data. If specified and the config map or expected key
+                          is not found, the identity provider is not honored. If the
+                          specified ca data is not valid, the identity provider is
+                          not honored. If empty, the default system roots are used.
+                          The namespace for this config map is openshift-config.
+                        properties:
+                          name:
+                            description: name is the metadata.name of the referenced
+                              config map
+                            type: string
+                        type: object
+                      clientID:
+                        description: clientID is the oauth client ID
+                        type: string
+                      clientSecret:
+                        description: clientSecret is a required reference to the secret
+                          by name containing the oauth client secret. The key "clientSecret"
+                          is used to locate the data. If the secret or expected key
+                          is not found, the identity provider is not honored. The
+                          namespace for this secret is openshift-config.
+                        properties:
+                          name:
+                            description: name is the metadata.name of the referenced
+                              secret
+                            type: string
+                        type: object
+                      url:
+                        description: url is the oauth server base URL
+                        type: string
+                    type: object
+                  google:
+                    description: google enables user authentication using Google credentials
+                    properties:
+                      clientID:
+                        description: clientID is the oauth client ID
+                        type: string
+                      clientSecret:
+                        description: clientSecret is a required reference to the secret
+                          by name containing the oauth client secret. The key "clientSecret"
+                          is used to locate the data. If the secret or expected key
+                          is not found, the identity provider is not honored. The
+                          namespace for this secret is openshift-config.
+                        properties:
+                          name:
+                            description: name is the metadata.name of the referenced
+                              secret
+                            type: string
+                        type: object
+                      hostedDomain:
+                        description: hostedDomain is the optional Google App domain
+                          (e.g. "mycompany.com") to restrict logins to
+                        type: string
+                    type: object
+                  htpasswd:
+                    description: htpasswd enables user authentication using an HTPasswd
+                      file to validate credentials
+                    properties:
+                      fileData:
+                        description: fileData is a required reference to a secret
+                          by name containing the data to use as the htpasswd file.
+                          The key "htpasswd" is used to locate the data. If the secret
+                          or expected key is not found, the identity provider is not
+                          honored. If the specified htpasswd data is not valid, the
+                          identity provider is not honored. The namespace for this
+                          secret is openshift-config.
+                        properties:
+                          name:
+                            description: name is the metadata.name of the referenced
+                              secret
+                            type: string
+                        type: object
+                    type: object
+                  keystone:
+                    description: keystone enables user authentication using keystone
+                      password credentials
+                    properties:
+                      ca:
+                        description: ca is an optional reference to a config map by
+                          name containing the PEM-encoded CA bundle. It is used as
+                          a trust anchor to validate the TLS certificate presented
+                          by the remote server. The key "ca.crt" is used to locate
+                          the data. If specified and the config map or expected key
+                          is not found, the identity provider is not honored. If the
+                          specified ca data is not valid, the identity provider is
+                          not honored. If empty, the default system roots are used.
+                          The namespace for this config map is openshift-config.
+                        properties:
+                          name:
+                            description: name is the metadata.name of the referenced
+                              config map
+                            type: string
+                        type: object
+                      domainName:
+                        description: domainName is required for keystone v3
+                        type: string
+                      tlsClientCert:
+                        description: tlsClientCert is an optional reference to a secret
+                          by name that contains the PEM-encoded TLS client certificate
+                          to present when connecting to the server. The key "tls.crt"
+                          is used to locate the data. If specified and the secret
+                          or expected key is not found, the identity provider is not
+                          honored. If the specified certificate data is not valid,
+                          the identity provider is not honored. The namespace for
+                          this secret is openshift-config.
+                        properties:
+                          name:
+                            description: name is the metadata.name of the referenced
+                              secret
+                            type: string
+                        type: object
+                      tlsClientKey:
+                        description: tlsClientKey is an optional reference to a secret
+                          by name that contains the PEM-encoded TLS private key for
+                          the client certificate referenced in tlsClientCert. The
+                          key "tls.key" is used to locate the data. If specified and
+                          the secret or expected key is not found, the identity provider
+                          is not honored. If the specified certificate data is not
+                          valid, the identity provider is not honored. The namespace
+                          for this secret is openshift-config.
+                        properties:
+                          name:
+                            description: name is the metadata.name of the referenced
+                              secret
+                            type: string
+                        type: object
+                      url:
+                        description: url is the remote URL to connect to
+                        type: string
+                    type: object
+                  ldap:
+                    description: ldap enables user authentication using LDAP credentials
+                    properties:
+                      attributes:
+                        description: attributes maps LDAP attributes to identities
+                        properties:
+                          email:
+                            description: email is the list of attributes whose values
+                              should be used as the email address. Optional. If unspecified,
+                              no email is set for the identity
+                            items:
+                              type: string
+                            type: array
+                          id:
+                            description: id is the list of attributes whose values
+                              should be used as the user ID. Required. First non-empty
+                              attribute is used. At least one attribute is required.
+                              If none of the listed attribute have a value, authentication
+                              fails. LDAP standard identity attribute is "dn"
+                            items:
+                              type: string
+                            type: array
+                          name:
+                            description: name is the list of attributes whose values
+                              should be used as the display name. Optional. If unspecified,
+                              no display name is set for the identity LDAP standard
+                              display name attribute is "cn"
+                            items:
+                              type: string
+                            type: array
+                          preferredUsername:
+                            description: preferredUsername is the list of attributes
+                              whose values should be used as the preferred username.
+                              LDAP standard login attribute is "uid"
+                            items:
+                              type: string
+                            type: array
+                        type: object
+                      bindDN:
+                        description: bindDN is an optional DN to bind with during
+                          the search phase.
+                        type: string
+                      bindPassword:
+                        description: bindPassword is an optional reference to a secret
+                          by name containing a password to bind with during the search
+                          phase. The key "bindPassword" is used to locate the data.
+                          If specified and the secret or expected key is not found,
+                          the identity provider is not honored. The namespace for
+                          this secret is openshift-config.
+                        properties:
+                          name:
+                            description: name is the metadata.name of the referenced
+                              secret
+                            type: string
+                        type: object
+                      ca:
+                        description: ca is an optional reference to a config map by
+                          name containing the PEM-encoded CA bundle. It is used as
+                          a trust anchor to validate the TLS certificate presented
+                          by the remote server. The key "ca.crt" is used to locate
+                          the data. If specified and the config map or expected key
+                          is not found, the identity provider is not honored. If the
+                          specified ca data is not valid, the identity provider is
+                          not honored. If empty, the default system roots are used.
+                          The namespace for this config map is openshift-config.
+                        properties:
+                          name:
+                            description: name is the metadata.name of the referenced
+                              config map
+                            type: string
+                        type: object
+                      insecure:
+                        description: 'insecure, if true, indicates the connection
+                          should not use TLS WARNING: Should not be set to ` + "`" + `true` + "`" + `
+                          with the URL scheme "ldaps://" as "ldaps://" URLs always          attempt
+                          to connect using TLS, even when ` + "`" + `insecure` + "`" + ` is set to ` + "`" + `true` + "`" + `
+                          When ` + "`" + `true` + "`" + `, "ldap://" URLS connect insecurely. When ` + "`" + `false` + "`" + `,
+                          "ldap://" URLs are upgraded to a TLS connection using StartTLS
+                          as specified in https://tools.ietf.org/html/rfc2830.'
+                        type: boolean
+                      url:
+                        description: 'url is an RFC 2255 URL which specifies the LDAP
+                          search parameters to use. The syntax of the URL is: ldap://host:port/basedn?attribute?scope?filter'
+                        type: string
+                    type: object
+                  mappingMethod:
+                    description: mappingMethod determines how identities from this
+                      provider are mapped to users Defaults to "claim"
+                    type: string
+                  name:
+                    description: 'name is used to qualify the identities returned
+                      by this provider. - It MUST be unique and not shared by any
+                      other identity provider used - It MUST be a valid path segment:
+                      name cannot equal "." or ".." or contain "/" or "%" or ":"   Ref:
+                      https://godoc.org/github.com/openshift/origin/pkg/user/apis/user/validation#ValidateIdentityProviderName'
+                    type: string
+                  openID:
+                    description: openID enables user authentication using OpenID credentials
+                    properties:
+                      ca:
+                        description: ca is an optional reference to a config map by
+                          name containing the PEM-encoded CA bundle. It is used as
+                          a trust anchor to validate the TLS certificate presented
+                          by the remote server. The key "ca.crt" is used to locate
+                          the data. If specified and the config map or expected key
+                          is not found, the identity provider is not honored. If the
+                          specified ca data is not valid, the identity provider is
+                          not honored. If empty, the default system roots are used.
+                          The namespace for this config map is openshift-config.
+                        properties:
+                          name:
+                            description: name is the metadata.name of the referenced
+                              config map
+                            type: string
+                        type: object
+                      claims:
+                        description: claims mappings
+                        properties:
+                          email:
+                            description: email is the list of claims whose values
+                              should be used as the email address. Optional. If unspecified,
+                              no email is set for the identity
+                            items:
+                              type: string
+                            type: array
+                          name:
+                            description: name is the list of claims whose values should
+                              be used as the display name. Optional. If unspecified,
+                              no display name is set for the identity
+                            items:
+                              type: string
+                            type: array
+                          preferredUsername:
+                            description: preferredUsername is the list of claims whose
+                              values should be used as the preferred username. If
+                              unspecified, the preferred username is determined from
+                              the value of the sub claim
+                            items:
+                              type: string
+                            type: array
+                        type: object
+                      clientID:
+                        description: clientID is the oauth client ID
+                        type: string
+                      clientSecret:
+                        description: clientSecret is a required reference to the secret
+                          by name containing the oauth client secret. The key "clientSecret"
+                          is used to locate the data. If the secret or expected key
+                          is not found, the identity provider is not honored. The
+                          namespace for this secret is openshift-config.
+                        properties:
+                          name:
+                            description: name is the metadata.name of the referenced
+                              secret
+                            type: string
+                        type: object
+                      extraAuthorizeParameters:
+                        description: extraAuthorizeParameters are any custom parameters
+                          to add to the authorize request.
+                        type: object
+                      extraScopes:
+                        description: extraScopes are any scopes to request in addition
+                          to the standard "openid" scope.
+                        items:
+                          type: string
+                        type: array
+                      issuer:
+                        description: issuer is the URL that the OpenID Provider asserts
+                          as its Issuer Identifier. It must use the https scheme with
+                          no query or fragment component.
+                        type: string
+                    type: object
+                  requestHeader:
+                    description: requestHeader enables user authentication using request
+                      header credentials
+                    properties:
+                      ca:
+                        description: ca is a required reference to a config map by
+                          name containing the PEM-encoded CA bundle. It is used as
+                          a trust anchor to validate the TLS certificate presented
+                          by the remote server. Specifically, it allows verification
+                          of incoming requests to prevent header spoofing. The key
+                          "ca.crt" is used to locate the data. If the config map or
+                          expected key is not found, the identity provider is not
+                          honored. If the specified ca data is not valid, the identity
+                          provider is not honored. The namespace for this config map
+                          is openshift-config.
+                        properties:
+                          name:
+                            description: name is the metadata.name of the referenced
+                              config map
+                            type: string
+                        type: object
+                      challengeURL:
+                        description: challengeURL is a URL to redirect unauthenticated
+                          /authorize requests to Unauthenticated requests from OAuth
+                          clients which expect WWW-Authenticate challenges will be
+                          redirected here. ${url} is replaced with the current URL,
+                          escaped to be safe in a query parameter   https://www.example.com/sso-login?then=${url}
+                          ${query} is replaced with the current query string   https://www.example.com/auth-proxy/oauth/authorize?${query}
+                          Required when challenge is set to true.
+                        type: string
+                      clientCommonNames:
+                        description: clientCommonNames is an optional list of common
+                          names to require a match from. If empty, any client certificate
+                          validated against the clientCA bundle is considered authoritative.
+                        items:
+                          type: string
+                        type: array
+                      emailHeaders:
+                        description: emailHeaders is the set of headers to check for
+                          the email address
+                        items:
+                          type: string
+                        type: array
+                      headers:
+                        description: headers is the set of headers to check for identity
+                          information
+                        items:
+                          type: string
+                        type: array
+                      loginURL:
+                        description: loginURL is a URL to redirect unauthenticated
+                          /authorize requests to Unauthenticated requests from OAuth
+                          clients which expect interactive logins will be redirected
+                          here ${url} is replaced with the current URL, escaped to
+                          be safe in a query parameter   https://www.example.com/sso-login?then=${url}
+                          ${query} is replaced with the current query string   https://www.example.com/auth-proxy/oauth/authorize?${query}
+                          Required when login is set to true.
+                        type: string
+                      nameHeaders:
+                        description: nameHeaders is the set of headers to check for
+                          the display name
+                        items:
+                          type: string
+                        type: array
+                      preferredUsernameHeaders:
+                        description: preferredUsernameHeaders is the set of headers
+                          to check for the preferred username
+                        items:
+                          type: string
+                        type: array
+                    type: object
+                  type:
+                    description: type identifies the identity provider type for this
+                      entry.
+                    type: string
+                type: object
+              type: array
+          required:
+          - identityProviders
+          - clusterDeploymentRefs
+          type: object
+        status:
+          type: object
+  version: v1alpha1
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+`)
+
+func configCrdsHive_v1alpha1_syncidentityproviderYamlBytes() ([]byte, error) {
+	return _configCrdsHive_v1alpha1_syncidentityproviderYaml, nil
+}
+
+func configCrdsHive_v1alpha1_syncidentityproviderYaml() (*asset, error) {
+	bytes, err := configCrdsHive_v1alpha1_syncidentityproviderYamlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "config/crds/hive_v1alpha1_syncidentityprovider.yaml", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var _configCrdsHive_v1alpha1_syncsetYaml = []byte(`apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  creationTimestamp: null
+  labels:
+    controller-tools.k8s.io: "1.0"
+  name: syncsets.hive.openshift.io
+spec:
+  group: hive.openshift.io
+  names:
+    kind: SyncSet
+    plural: syncsets
+  scope: Namespaced
+  validation:
+    openAPIV3Schema:
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          properties:
+            clusterDeploymentRefs:
+              description: ClusterDeploymentRefs is the list of LocalObjectReference
+                indicating which clusters the SyncSet applies to in the SyncSet's
+                namespace.
+              items:
+                type: object
+              type: array
+            patches:
+              description: Patches is the list of patches to apply.
+              items:
+                properties:
+                  apiVersion:
+                    description: APIVersion is the Group and Version of the object
+                      to be patched.
+                    type: string
+                  applyMode:
+                    description: ApplyMode indicates if the patch apply mode is "AlwaysApply"
+                      (default) or "ApplyOnce". ApplyMode "AlwaysApply" indicates
+                      that the patch should be applied every time reconciliation occurs.
+                      ApplyMode "ApplyOnce" indicates that the patch should only be
+                      applied once.
+                    type: string
+                  kind:
+                    description: Kind is the Kind of the object to be patched.
+                    type: string
+                  name:
+                    description: Name is the name of the object to be patched.
+                    type: string
+                  namespace:
+                    description: Namespace is the Namespace in which the object to
+                      patch exists. Defaults to the SyncSet's Namespace.
+                    type: string
+                  patch:
+                    description: Patch is the patch to apply.
+                    type: string
+                  patchType:
+                    description: PatchType indicates the PatchType as "strategic"
+                      (default), "json", or "merge".
+                    type: string
+                type: object
+              type: array
+            resourceApplyMode:
+              description: ResourceApplyMode indicates if the Resource apply mode
+                is "upsert" (default) or "sync". ApplyMode "upsert" indicates create
+                and update. ApplyMode "sync" indicates create, update and delete.
+              type: string
+            resources:
+              description: Resources is the list of objects to sync from RawExtension
+                definitions.
+              items:
+                type: object
+              type: array
+            secretReferences:
+              description: SecretReferences is the list of secrets to sync from existing
+                resources.
+              items:
+                properties:
+                  source:
+                    type: object
+                  target:
+                    type: object
+                type: object
+              type: array
+          required:
+          - clusterDeploymentRefs
+          type: object
+        status:
+          type: object
+  version: v1alpha1
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+`)
+
+func configCrdsHive_v1alpha1_syncsetYamlBytes() ([]byte, error) {
+	return _configCrdsHive_v1alpha1_syncsetYaml, nil
+}
+
+func configCrdsHive_v1alpha1_syncsetYaml() (*asset, error) {
+	bytes, err := configCrdsHive_v1alpha1_syncsetYamlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "config/crds/hive_v1alpha1_syncset.yaml", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var _configCrdsHive_v1alpha1_syncsetinstanceYaml = []byte(`apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  creationTimestamp: null
+  labels:
+    controller-tools.k8s.io: "1.0"
+  name: syncsetinstances.hive.openshift.io
+spec:
+  group: hive.openshift.io
+  names:
+    kind: SyncSetInstance
+    plural: syncsetinstances
+  scope: Namespaced
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          properties:
+            clusterDeployment:
+              description: ClusterDeployment is a reference to to the clusterdeployment
+                for this syncsetinstance.
+              type: object
+            resourceApplyMode:
+              description: ResourceApplyMode indicates if the resource apply mode
+                is "upsert" (default) or "sync". ApplyMode "upsert" indicates create
+                and update. ApplyMode "sync" indicates create, update and delete.
+              type: string
+            selectorSyncSet:
+              description: SelectorSyncSet is a reference to the selectorsyncset for
+                this syncsetinstance.
+              properties:
+                name:
+                  description: Name is the name of the SelectorSyncSet
+                  type: string
+              type: object
+            syncSet:
+              description: SyncSet is a reference to the syncset for this syncsetinstance.
+              type: object
+            syncSetHash:
+              description: SyncSetHash is a hash of the contents of the syncset or
+                selectorsyncset spec. Its purpose is to cause a syncset instance update
+                whenever there's a change in its source.
+              type: string
+          type: object
+        status:
+          properties:
+            conditions:
+              description: Conditions is the list of SyncConditions used to indicate
+                UnknownObject when a resource type cannot be determined from a SyncSet
+                resource.
+              items:
+                properties:
+                  lastProbeTime:
+                    description: LastProbeTime is the last time we probed the condition.
+                    format: date-time
+                    type: string
+                  lastTransitionTime:
+                    description: LastTransitionTime is the last time the condition
+                      transitioned from one status to another.
+                    format: date-time
+                    type: string
+                  message:
+                    description: Message is a human-readable message indicating details
+                      about last transition.
+                    type: string
+                  reason:
+                    description: Reason is a unique, one-word, CamelCase reason for
+                      the condition's last transition.
+                    type: string
+                  status:
+                    description: Status is the status of the condition.
+                    type: string
+                  type:
+                    description: Type is the type of the condition.
+                    type: string
+                type: object
+              type: array
+            patches:
+              description: Patches is the list of SyncStatus for patches that have
+                been applied.
+              items:
+                properties:
+                  apiVersion:
+                    description: APIVersion is the Group and Version of the object
+                      that was synced or patched.
+                    type: string
+                  conditions:
+                    description: Conditions is the list of conditions indicating success
+                      or failure of object create, update and delete as well as patch
+                      application.
+                    items:
+                      properties:
+                        lastProbeTime:
+                          description: LastProbeTime is the last time we probed the
+                            condition.
+                          format: date-time
+                          type: string
+                        lastTransitionTime:
+                          description: LastTransitionTime is the last time the condition
+                            transitioned from one status to another.
+                          format: date-time
+                          type: string
+                        message:
+                          description: Message is a human-readable message indicating
+                            details about last transition.
+                          type: string
+                        reason:
+                          description: Reason is a unique, one-word, CamelCase reason
+                            for the condition's last transition.
+                          type: string
+                        status:
+                          description: Status is the status of the condition.
+                          type: string
+                        type:
+                          description: Type is the type of the condition.
+                          type: string
+                      type: object
+                    type: array
+                  hash:
+                    description: Hash is the unique md5 hash of the resource or patch.
+                    type: string
+                  kind:
+                    description: Kind is the Kind of the object that was synced or
+                      patched.
+                    type: string
+                  name:
+                    description: Name is the name of the object that was synced or
+                      patched.
+                    type: string
+                  namespace:
+                    description: Namespace is the Namespace of the object that was
+                      synced or patched.
+                    type: string
+                  resource:
+                    description: Resource is the resource name for the object that
+                      was synced. This will be populated for resources, but not patches
+                    type: string
+                type: object
+              type: array
+            resources:
+              description: Resources is the list of SyncStatus for objects that have
+                been synced.
+              items:
+                properties:
+                  apiVersion:
+                    description: APIVersion is the Group and Version of the object
+                      that was synced or patched.
+                    type: string
+                  conditions:
+                    description: Conditions is the list of conditions indicating success
+                      or failure of object create, update and delete as well as patch
+                      application.
+                    items:
+                      properties:
+                        lastProbeTime:
+                          description: LastProbeTime is the last time we probed the
+                            condition.
+                          format: date-time
+                          type: string
+                        lastTransitionTime:
+                          description: LastTransitionTime is the last time the condition
+                            transitioned from one status to another.
+                          format: date-time
+                          type: string
+                        message:
+                          description: Message is a human-readable message indicating
+                            details about last transition.
+                          type: string
+                        reason:
+                          description: Reason is a unique, one-word, CamelCase reason
+                            for the condition's last transition.
+                          type: string
+                        status:
+                          description: Status is the status of the condition.
+                          type: string
+                        type:
+                          description: Type is the type of the condition.
+                          type: string
+                      type: object
+                    type: array
+                  hash:
+                    description: Hash is the unique md5 hash of the resource or patch.
+                    type: string
+                  kind:
+                    description: Kind is the Kind of the object that was synced or
+                      patched.
+                    type: string
+                  name:
+                    description: Name is the name of the object that was synced or
+                      patched.
+                    type: string
+                  namespace:
+                    description: Namespace is the Namespace of the object that was
+                      synced or patched.
+                    type: string
+                  resource:
+                    description: Resource is the resource name for the object that
+                      was synced. This will be populated for resources, but not patches
+                    type: string
+                type: object
+              type: array
+            secretReferences:
+              description: SecretReferences is the list of SyncStatus for secrets
+                that have been synced.
+              items:
+                properties:
+                  apiVersion:
+                    description: APIVersion is the Group and Version of the object
+                      that was synced or patched.
+                    type: string
+                  conditions:
+                    description: Conditions is the list of conditions indicating success
+                      or failure of object create, update and delete as well as patch
+                      application.
+                    items:
+                      properties:
+                        lastProbeTime:
+                          description: LastProbeTime is the last time we probed the
+                            condition.
+                          format: date-time
+                          type: string
+                        lastTransitionTime:
+                          description: LastTransitionTime is the last time the condition
+                            transitioned from one status to another.
+                          format: date-time
+                          type: string
+                        message:
+                          description: Message is a human-readable message indicating
+                            details about last transition.
+                          type: string
+                        reason:
+                          description: Reason is a unique, one-word, CamelCase reason
+                            for the condition's last transition.
+                          type: string
+                        status:
+                          description: Status is the status of the condition.
+                          type: string
+                        type:
+                          description: Type is the type of the condition.
+                          type: string
+                      type: object
+                    type: array
+                  hash:
+                    description: Hash is the unique md5 hash of the resource or patch.
+                    type: string
+                  kind:
+                    description: Kind is the Kind of the object that was synced or
+                      patched.
+                    type: string
+                  name:
+                    description: Name is the name of the object that was synced or
+                      patched.
+                    type: string
+                  namespace:
+                    description: Namespace is the Namespace of the object that was
+                      synced or patched.
+                    type: string
+                  resource:
+                    description: Resource is the resource name for the object that
+                      was synced. This will be populated for resources, but not patches
+                    type: string
+                type: object
+              type: array
+          type: object
+  version: v1alpha1
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+`)
+
+func configCrdsHive_v1alpha1_syncsetinstanceYamlBytes() ([]byte, error) {
+	return _configCrdsHive_v1alpha1_syncsetinstanceYaml, nil
+}
+
+func configCrdsHive_v1alpha1_syncsetinstanceYaml() (*asset, error) {
+	bytes, err := configCrdsHive_v1alpha1_syncsetinstanceYamlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "config/crds/hive_v1alpha1_syncsetinstance.yaml", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var _configConfigmapsInstallLogRegexesConfigmapYaml = []byte(`apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: install-log-regexes
+  namespace: hive
+data:
+  regexes: |
+    - name: DNSAlreadyExists
+      searchRegexStrings:
+      - "aws_route53_record.*Error building changeset:.*Tried to create resource record set.*but it already exists"
+      installFailingReason: DNSAlreadyExists
+      installFailingMessage: DNS record already exists
+    - name: PendingVerification
+      searchRegexStrings:
+      - "PendingVerification: Your request for accessing resources in this region is being validated"
+      installFailingReason: PendingVerification
+      installFailingMessage: Account pending verification for region
+    - name: NoMatchingRoute53Zone
+      searchRegexStrings:
+      - "data.aws_route53_zone.public: no matching Route53Zone found"
+      installFailingReason: NoMatchingRoute53Zone
+      installFailingMessage: No matching Route53Zone found
+    - name: KubeAPIWaitTimeout
+      searchRegexStrings:
+      - "waiting for Kubernetes API: context deadline exceeded"
+      installFailingReason: KubeAPIWaitTimeout
+      installFailingMessage: Timeout waiting for the Kubernetes API to begin responding
+`)
+
+func configConfigmapsInstallLogRegexesConfigmapYamlBytes() ([]byte, error) {
+	return _configConfigmapsInstallLogRegexesConfigmapYaml, nil
+}
+
+func configConfigmapsInstallLogRegexesConfigmapYaml() (*asset, error) {
+	bytes, err := configConfigmapsInstallLogRegexesConfigmapYamlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "config/configmaps/install-log-regexes-configmap.yaml", size: 0, mode: os.FileMode(0), modTime: time.Unix(0, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -1512,34 +4809,46 @@ func AssetNames() []string {
 
 // _bindata is a table, holding each asset generator, mapped to its name.
 var _bindata = map[string]func() (*asset, error){
-	"config/hiveadmission/apiservice.yaml":                      configHiveadmissionApiserviceYaml,
-	"config/hiveadmission/clusterdeployment-webhook.yaml":       configHiveadmissionClusterdeploymentWebhookYaml,
-	"config/hiveadmission/clusterimageset-webhook.yaml":         configHiveadmissionClusterimagesetWebhookYaml,
-	"config/hiveadmission/deployment.yaml":                      configHiveadmissionDeploymentYaml,
-	"config/hiveadmission/dnszones-webhook.yaml":                configHiveadmissionDnszonesWebhookYaml,
-	"config/hiveadmission/hiveadmission_rbac_role.yaml":         configHiveadmissionHiveadmission_rbac_roleYaml,
-	"config/hiveadmission/hiveadmission_rbac_role_binding.yaml": configHiveadmissionHiveadmission_rbac_role_bindingYaml,
-	"config/hiveadmission/selectorsyncset-webhook.yaml":         configHiveadmissionSelectorsyncsetWebhookYaml,
-	"config/hiveadmission/service-account.yaml":                 configHiveadmissionServiceAccountYaml,
-	"config/hiveadmission/service.yaml":                         configHiveadmissionServiceYaml,
-	"config/hiveadmission/syncset-webhook.yaml":                 configHiveadmissionSyncsetWebhookYaml,
-	"config/manager/deployment.yaml":                            configManagerDeploymentYaml,
-	"config/manager/service.yaml":                               configManagerServiceYaml,
-	"config/clusterimagesets/openshift-4.0-beta3.yaml":          configClusterimagesetsOpenshift40Beta3Yaml,
-	"config/clusterimagesets/openshift-4.0-beta4.yaml":          configClusterimagesetsOpenshift40Beta4Yaml,
-	"config/clusterimagesets/openshift-4.0-latest.yaml":         configClusterimagesetsOpenshift40LatestYaml,
-	"config/external-dns/deployment.yaml":                       configExternalDnsDeploymentYaml,
-	"config/external-dns/rbac_role.yaml":                        configExternalDnsRbac_roleYaml,
-	"config/external-dns/rbac_role_binding.yaml":                configExternalDnsRbac_role_bindingYaml,
-	"config/external-dns/service_account.yaml":                  configExternalDnsService_accountYaml,
-	"config/rbac/hive_admin_role.yaml":                          configRbacHive_admin_roleYaml,
-	"config/rbac/hive_admin_role_binding.yaml":                  configRbacHive_admin_role_bindingYaml,
-	"config/rbac/hive_frontend_role.yaml":                       configRbacHive_frontend_roleYaml,
-	"config/rbac/hive_frontend_role_binding.yaml":               configRbacHive_frontend_role_bindingYaml,
-	"config/rbac/hive_reader_role.yaml":                         configRbacHive_reader_roleYaml,
-	"config/rbac/hive_reader_role_binding.yaml":                 configRbacHive_reader_role_bindingYaml,
-	"config/rbac/manager_role.yaml":                             configRbacManager_roleYaml,
-	"config/rbac/manager_role_binding.yaml":                     configRbacManager_role_bindingYaml,
+	"config/hiveadmission/apiservice.yaml":                        configHiveadmissionApiserviceYaml,
+	"config/hiveadmission/clusterdeployment-webhook.yaml":         configHiveadmissionClusterdeploymentWebhookYaml,
+	"config/hiveadmission/clusterimageset-webhook.yaml":           configHiveadmissionClusterimagesetWebhookYaml,
+	"config/hiveadmission/deployment.yaml":                        configHiveadmissionDeploymentYaml,
+	"config/hiveadmission/dnszones-webhook.yaml":                  configHiveadmissionDnszonesWebhookYaml,
+	"config/hiveadmission/hiveadmission_rbac_role.yaml":           configHiveadmissionHiveadmission_rbac_roleYaml,
+	"config/hiveadmission/hiveadmission_rbac_role_binding.yaml":   configHiveadmissionHiveadmission_rbac_role_bindingYaml,
+	"config/hiveadmission/selectorsyncset-webhook.yaml":           configHiveadmissionSelectorsyncsetWebhookYaml,
+	"config/hiveadmission/service-account.yaml":                   configHiveadmissionServiceAccountYaml,
+	"config/hiveadmission/service.yaml":                           configHiveadmissionServiceYaml,
+	"config/hiveadmission/syncset-webhook.yaml":                   configHiveadmissionSyncsetWebhookYaml,
+	"config/manager/deployment.yaml":                              configManagerDeploymentYaml,
+	"config/manager/service.yaml":                                 configManagerServiceYaml,
+	"config/external-dns/deployment.yaml":                         configExternalDnsDeploymentYaml,
+	"config/external-dns/rbac_role.yaml":                          configExternalDnsRbac_roleYaml,
+	"config/external-dns/rbac_role_binding.yaml":                  configExternalDnsRbac_role_bindingYaml,
+	"config/external-dns/service_account.yaml":                    configExternalDnsService_accountYaml,
+	"config/rbac/hive_admin_role.yaml":                            configRbacHive_admin_roleYaml,
+	"config/rbac/hive_admin_role_binding.yaml":                    configRbacHive_admin_role_bindingYaml,
+	"config/rbac/hive_controllers_role.yaml":                      configRbacHive_controllers_roleYaml,
+	"config/rbac/hive_controllers_role_binding.yaml":              configRbacHive_controllers_role_bindingYaml,
+	"config/rbac/hive_frontend_role.yaml":                         configRbacHive_frontend_roleYaml,
+	"config/rbac/hive_frontend_role_binding.yaml":                 configRbacHive_frontend_role_bindingYaml,
+	"config/rbac/hive_frontend_serviceaccount.yaml":               configRbacHive_frontend_serviceaccountYaml,
+	"config/rbac/hive_reader_role.yaml":                           configRbacHive_reader_roleYaml,
+	"config/rbac/hive_reader_role_binding.yaml":                   configRbacHive_reader_role_bindingYaml,
+	"config/crds/hive_v1alpha1_clusterdeployment.yaml":            configCrdsHive_v1alpha1_clusterdeploymentYaml,
+	"config/crds/hive_v1alpha1_clusterdeprovisionrequest.yaml":    configCrdsHive_v1alpha1_clusterdeprovisionrequestYaml,
+	"config/crds/hive_v1alpha1_clusterimageset.yaml":              configCrdsHive_v1alpha1_clusterimagesetYaml,
+	"config/crds/hive_v1alpha1_clusterprovision.yaml":             configCrdsHive_v1alpha1_clusterprovisionYaml,
+	"config/crds/hive_v1alpha1_clusterstate.yaml":                 configCrdsHive_v1alpha1_clusterstateYaml,
+	"config/crds/hive_v1alpha1_dnsendpoint.yaml":                  configCrdsHive_v1alpha1_dnsendpointYaml,
+	"config/crds/hive_v1alpha1_dnszone.yaml":                      configCrdsHive_v1alpha1_dnszoneYaml,
+	"config/crds/hive_v1alpha1_hiveconfig.yaml":                   configCrdsHive_v1alpha1_hiveconfigYaml,
+	"config/crds/hive_v1alpha1_selectorsyncidentityprovider.yaml": configCrdsHive_v1alpha1_selectorsyncidentityproviderYaml,
+	"config/crds/hive_v1alpha1_selectorsyncset.yaml":              configCrdsHive_v1alpha1_selectorsyncsetYaml,
+	"config/crds/hive_v1alpha1_syncidentityprovider.yaml":         configCrdsHive_v1alpha1_syncidentityproviderYaml,
+	"config/crds/hive_v1alpha1_syncset.yaml":                      configCrdsHive_v1alpha1_syncsetYaml,
+	"config/crds/hive_v1alpha1_syncsetinstance.yaml":              configCrdsHive_v1alpha1_syncsetinstanceYaml,
+	"config/configmaps/install-log-regexes-configmap.yaml":        configConfigmapsInstallLogRegexesConfigmapYaml,
 }
 
 // AssetDir returns the file names below a certain
@@ -1584,10 +4893,23 @@ type bintree struct {
 
 var _bintree = &bintree{nil, map[string]*bintree{
 	"config": {nil, map[string]*bintree{
-		"clusterimagesets": {nil, map[string]*bintree{
-			"openshift-4.0-beta3.yaml":  {configClusterimagesetsOpenshift40Beta3Yaml, map[string]*bintree{}},
-			"openshift-4.0-beta4.yaml":  {configClusterimagesetsOpenshift40Beta4Yaml, map[string]*bintree{}},
-			"openshift-4.0-latest.yaml": {configClusterimagesetsOpenshift40LatestYaml, map[string]*bintree{}},
+		"configmaps": {nil, map[string]*bintree{
+			"install-log-regexes-configmap.yaml": {configConfigmapsInstallLogRegexesConfigmapYaml, map[string]*bintree{}},
+		}},
+		"crds": {nil, map[string]*bintree{
+			"hive_v1alpha1_clusterdeployment.yaml":            {configCrdsHive_v1alpha1_clusterdeploymentYaml, map[string]*bintree{}},
+			"hive_v1alpha1_clusterdeprovisionrequest.yaml":    {configCrdsHive_v1alpha1_clusterdeprovisionrequestYaml, map[string]*bintree{}},
+			"hive_v1alpha1_clusterimageset.yaml":              {configCrdsHive_v1alpha1_clusterimagesetYaml, map[string]*bintree{}},
+			"hive_v1alpha1_clusterprovision.yaml":             {configCrdsHive_v1alpha1_clusterprovisionYaml, map[string]*bintree{}},
+			"hive_v1alpha1_clusterstate.yaml":                 {configCrdsHive_v1alpha1_clusterstateYaml, map[string]*bintree{}},
+			"hive_v1alpha1_dnsendpoint.yaml":                  {configCrdsHive_v1alpha1_dnsendpointYaml, map[string]*bintree{}},
+			"hive_v1alpha1_dnszone.yaml":                      {configCrdsHive_v1alpha1_dnszoneYaml, map[string]*bintree{}},
+			"hive_v1alpha1_hiveconfig.yaml":                   {configCrdsHive_v1alpha1_hiveconfigYaml, map[string]*bintree{}},
+			"hive_v1alpha1_selectorsyncidentityprovider.yaml": {configCrdsHive_v1alpha1_selectorsyncidentityproviderYaml, map[string]*bintree{}},
+			"hive_v1alpha1_selectorsyncset.yaml":              {configCrdsHive_v1alpha1_selectorsyncsetYaml, map[string]*bintree{}},
+			"hive_v1alpha1_syncidentityprovider.yaml":         {configCrdsHive_v1alpha1_syncidentityproviderYaml, map[string]*bintree{}},
+			"hive_v1alpha1_syncset.yaml":                      {configCrdsHive_v1alpha1_syncsetYaml, map[string]*bintree{}},
+			"hive_v1alpha1_syncsetinstance.yaml":              {configCrdsHive_v1alpha1_syncsetinstanceYaml, map[string]*bintree{}},
 		}},
 		"external-dns": {nil, map[string]*bintree{
 			"deployment.yaml":        {configExternalDnsDeploymentYaml, map[string]*bintree{}},
@@ -1613,14 +4935,15 @@ var _bintree = &bintree{nil, map[string]*bintree{
 			"service.yaml":    {configManagerServiceYaml, map[string]*bintree{}},
 		}},
 		"rbac": {nil, map[string]*bintree{
-			"hive_admin_role.yaml":            {configRbacHive_admin_roleYaml, map[string]*bintree{}},
-			"hive_admin_role_binding.yaml":    {configRbacHive_admin_role_bindingYaml, map[string]*bintree{}},
-			"hive_frontend_role.yaml":         {configRbacHive_frontend_roleYaml, map[string]*bintree{}},
-			"hive_frontend_role_binding.yaml": {configRbacHive_frontend_role_bindingYaml, map[string]*bintree{}},
-			"hive_reader_role.yaml":           {configRbacHive_reader_roleYaml, map[string]*bintree{}},
-			"hive_reader_role_binding.yaml":   {configRbacHive_reader_role_bindingYaml, map[string]*bintree{}},
-			"manager_role.yaml":               {configRbacManager_roleYaml, map[string]*bintree{}},
-			"manager_role_binding.yaml":       {configRbacManager_role_bindingYaml, map[string]*bintree{}},
+			"hive_admin_role.yaml":               {configRbacHive_admin_roleYaml, map[string]*bintree{}},
+			"hive_admin_role_binding.yaml":       {configRbacHive_admin_role_bindingYaml, map[string]*bintree{}},
+			"hive_controllers_role.yaml":         {configRbacHive_controllers_roleYaml, map[string]*bintree{}},
+			"hive_controllers_role_binding.yaml": {configRbacHive_controllers_role_bindingYaml, map[string]*bintree{}},
+			"hive_frontend_role.yaml":            {configRbacHive_frontend_roleYaml, map[string]*bintree{}},
+			"hive_frontend_role_binding.yaml":    {configRbacHive_frontend_role_bindingYaml, map[string]*bintree{}},
+			"hive_frontend_serviceaccount.yaml":  {configRbacHive_frontend_serviceaccountYaml, map[string]*bintree{}},
+			"hive_reader_role.yaml":              {configRbacHive_reader_roleYaml, map[string]*bintree{}},
+			"hive_reader_role_binding.yaml":      {configRbacHive_reader_role_bindingYaml, map[string]*bintree{}},
 		}},
 	}},
 }}

@@ -1,19 +1,3 @@
-/*
-Copyright 2018 The Kubernetes Authors.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 package hive
 
 import (
@@ -25,6 +9,7 @@ import (
 
 	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
 	webhooks "github.com/openshift/hive/pkg/apis/hive/v1alpha1/validating-webhooks"
+	"github.com/openshift/hive/pkg/constants"
 
 	"github.com/openshift/hive/pkg/operator/assets"
 	"github.com/openshift/hive/pkg/operator/util"
@@ -37,6 +22,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apiextv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
@@ -49,7 +36,16 @@ const (
 )
 
 const (
-	aggregatorClientCAHashAnnotation = "hive.openshift.io/ca-hash"
+	aggregatorClientCAHashAnnotation           = "hive.openshift.io/ca-hash"
+	deprecatedClusterDeploymentMutatingWebhook = "mutateclusterdeployments.admission.hive.openshift.io"
+)
+
+var (
+	mutatingWebhookConfigurationResource = schema.GroupVersionResource{
+		Group:    "admissionregistration.k8s.io",
+		Version:  "v1beta1",
+		Resource: "mutatingwebhookconfigurations",
+	}
 )
 
 func (r *ReconcileHiveConfig) deployHiveAdmission(hLog log.FieldLogger, h *resource.Helper, instance *hivev1.HiveConfig, recorder events.Recorder) error {
@@ -69,6 +65,9 @@ func (r *ReconcileHiveConfig) deployHiveAdmission(hLog log.FieldLogger, h *resou
 
 	if r.hiveImage != "" {
 		hiveAdmDeployment.Spec.Template.Spec.Containers[0].Image = r.hiveImage
+	}
+	if r.hiveImagePullPolicy != "" {
+		hiveAdmDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = r.hiveImagePullPolicy
 	}
 	if hiveAdmDeployment.Annotations == nil {
 		hiveAdmDeployment.Annotations = map[string]string{}
@@ -139,7 +138,10 @@ func (r *ReconcileHiveConfig) deployHiveAdmission(hLog log.FieldLogger, h *resou
 	}
 	if is311 {
 		hLog.Debug("3.11 cluster detected, modifying objects for CA certs")
-		err = r.injectCerts(apiService, []*admregv1.ValidatingWebhookConfiguration{cdWebhook, cisWebhook, dnsZonesWebhook, syncSetsWebhook, selectorSyncSetsWebhook}, hLog)
+		err = r.injectCerts(apiService,
+			[]*admregv1.ValidatingWebhookConfiguration{cdWebhook, cisWebhook, dnsZonesWebhook, syncSetsWebhook, selectorSyncSetsWebhook},
+			[]*admregv1.MutatingWebhookConfiguration{},
+			hLog)
 		if err != nil {
 			hLog.WithError(err).Error("error injecting certs")
 			return err
@@ -155,10 +157,19 @@ func (r *ReconcileHiveConfig) deployHiveAdmission(hLog log.FieldLogger, h *resou
 
 	result, err = h.ApplyRuntimeObject(cdWebhook, scheme.Scheme)
 	if err != nil {
-		hLog.WithError(err).Error("error applying cluster deployment webhook")
+		hLog.WithError(err).Error("error applying cluster deployment validating webhook")
 		return err
 	}
-	hLog.Infof("cluster deployment webhook applied (%s)", result)
+	hLog.Infof("cluster deployment validating webhook applied (%s)", result)
+
+	if _, err = r.dynamicClient.Resource(mutatingWebhookConfigurationResource).Get(deprecatedClusterDeploymentMutatingWebhook, metav1.GetOptions{}); err == nil {
+		err = r.dynamicClient.Resource(mutatingWebhookConfigurationResource).Delete(deprecatedClusterDeploymentMutatingWebhook, &metav1.DeleteOptions{})
+		if err != nil {
+			hLog.WithError(err).Error("error deleting deprecated mutating webhook configuration for cluster deployments")
+			return err
+		}
+		hLog.Infof("deprecated mutating webhook configuration (%s) removed", deprecatedClusterDeploymentMutatingWebhook)
+	}
 
 	result, err = h.ApplyRuntimeObject(cisWebhook, scheme.Scheme)
 	if err != nil {
@@ -193,13 +204,13 @@ func (r *ReconcileHiveConfig) deployHiveAdmission(hLog log.FieldLogger, h *resou
 	return nil
 }
 
-func (r *ReconcileHiveConfig) injectCerts(apiService *apiregistrationv1.APIService, webhooks []*admregv1.ValidatingWebhookConfiguration, hLog log.FieldLogger) error {
+func (r *ReconcileHiveConfig) injectCerts(apiService *apiregistrationv1.APIService, validatingWebhooks []*admregv1.ValidatingWebhookConfiguration, mutatingWebhooks []*admregv1.MutatingWebhookConfiguration, hLog log.FieldLogger) error {
 
 	// Locate the kube CA by looking up secrets in hive namespace, finding one of
 	// type 'kubernetes.io/service-account-token', and reading the CA off it.
 	hLog.Debug("listing secrets in hive namespace")
 	secrets := &corev1.SecretList{}
-	err := r.Client.List(context.Background(), &client.ListOptions{Namespace: hiveNamespace}, secrets)
+	err := r.Client.List(context.Background(), secrets, client.InNamespace(constants.HiveNamespace))
 	if err != nil {
 		hLog.WithError(err).Error("error listing secrets in hive namespace")
 		return err
@@ -231,10 +242,17 @@ func (r *ReconcileHiveConfig) injectCerts(apiService *apiregistrationv1.APIServi
 	// Add the service CA to the aggregated API service:
 	apiService.Spec.CABundle = serviceCA
 
-	// Add the kube CA to each webhook:
-	for whi := range webhooks {
-		for whwhi := range webhooks[whi].Webhooks {
-			webhooks[whi].Webhooks[whwhi].ClientConfig.CABundle = kubeCA
+	// Add the kube CA to each validating webhook:
+	for whi := range validatingWebhooks {
+		for whwhi := range validatingWebhooks[whi].Webhooks {
+			validatingWebhooks[whi].Webhooks[whwhi].ClientConfig.CABundle = kubeCA
+		}
+	}
+
+	// Add the kube CA to each mutating webhook:
+	for whi := range mutatingWebhooks {
+		for whwhi := range mutatingWebhooks[whi].Webhooks {
+			mutatingWebhooks[whi].Webhooks[whwhi].ClientConfig.CABundle = kubeCA
 		}
 	}
 
