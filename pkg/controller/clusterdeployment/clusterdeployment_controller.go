@@ -20,11 +20,11 @@ import (
 
 	"github.com/go-logr/logr"
 	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
-	hivecontrollerutils "github.com/openshift/hive/pkg/controller/utils"
 	"github.com/openshift/pagerduty-operator/config"
 	"k8s.io/apimachinery/pkg/types"
 
 	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
+	"github.com/openshift/pagerduty-operator/pkg/utils"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -57,7 +57,7 @@ func newReconciler(mgr manager.Manager) (reconcile.Reconciler, error) {
 	}
 
 	// get PD API key from secret
-	pdAPIKey, err := hivecontrollerutils.LoadSecretData(tempClient, config.PagerDutyAPISecretName, config.OperatorNamespace, config.PagerDutyAPISecretKey)
+	pdAPIKey, err := utils.LoadSecretData(tempClient, config.PagerDutyAPISecretName, config.OperatorNamespace, config.PagerDutyAPISecretKey)
 
 	return &ReconcileClusterDeployment{
 		client:   mgr.GetClient(),
@@ -121,8 +121,8 @@ func (r *ReconcileClusterDeployment) Reconcile(request reconcile.Request) (recon
 	}
 
 	// This is a temp item to clean up old finalizers
-	if hivecontrollerutils.HasFinalizer(instance, config.OperatorFinalizerLegacy) {
-		hivecontrollerutils.DeleteFinalizer(instance, config.OperatorFinalizerLegacy)
+	if utils.HasFinalizer(instance, config.OperatorFinalizerLegacy) {
+		utils.DeleteFinalizer(instance, config.OperatorFinalizerLegacy)
 		err = r.client.Update(context.TODO(), instance)
 		if err != nil {
 			return reconcile.Result{}, err
@@ -131,7 +131,7 @@ func (r *ReconcileClusterDeployment) Reconcile(request reconcile.Request) (recon
 	}
 
 	if instance.DeletionTimestamp != nil {
-		if hivecontrollerutils.HasFinalizer(instance, config.OperatorFinalizer) {
+		if utils.HasFinalizer(instance, config.OperatorFinalizer) {
 			return r.handleDelete(request, instance)
 		}
 		return reconcile.Result{}, nil

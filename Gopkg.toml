@@ -79,5 +79,5 @@ required = [
   version = "=1.0.4"
 
 [[constraint]]
-  branch = "master"
   name = "github.com/openshift/hive"
+  revision = "7776e82850f8803419ecd92d13c7e09c6cc2cc41"

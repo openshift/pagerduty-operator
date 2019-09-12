@@ -18,11 +18,11 @@ import (
 	"context"
 
 	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
-	hivecontrollerutils "github.com/openshift/hive/pkg/controller/utils"
 	"github.com/openshift/pagerduty-operator/config"
 	"github.com/openshift/pagerduty-operator/pkg/kube"
 	localmetrics "github.com/openshift/pagerduty-operator/pkg/localmetrics"
 	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
+	"github.com/openshift/pagerduty-operator/pkg/utils"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -34,8 +34,8 @@ func (r *ReconcileClusterDeployment) handleCreate(request reconcile.Request, ins
 		return reconcile.Result{}, nil
 	}
 
-	if hivecontrollerutils.HasFinalizer(instance, config.OperatorFinalizer) == false {
-		hivecontrollerutils.AddFinalizer(instance, config.OperatorFinalizer)
+	if utils.HasFinalizer(instance, config.OperatorFinalizer) == false {
+		utils.AddFinalizer(instance, config.OperatorFinalizer)
 		err := r.client.Update(context.TODO(), instance)
 		if err != nil {
 			return reconcile.Result{}, err
