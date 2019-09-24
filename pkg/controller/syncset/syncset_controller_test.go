@@ -25,6 +25,7 @@ const (
 	testNamespace                 = "testNamespace"
 	testIntegrationID             = "ABC123"
 	ClusterDeploymentManagedLabel = "api.openshift.com/managed"
+	testsecretReferencesNmae      = "pd-secret"
 )
 
 type SyncSetEntry struct {
@@ -200,12 +201,12 @@ func verifySyncSetExists(c client.Client, expected *SyncSetEntry) bool {
 	if expected.clusterDeploymentRefName != ss.Spec.ClusterDeploymentRefs[0].Name {
 		return false
 	}
-	secret := rawToSecret(ss.Spec.Resources[0])
-	if secret == nil {
+	secretReferences := ss.Spec.SecretReferences[0].Source.Name
+	if secretReferences == "" {
 		return false
 	}
 
-	return string(secret.Data["PAGERDUTY_KEY"]) == expected.pdIntegrationID
+	return string(secretReferences) == testsecretReferencesNmae
 }
 
 func verifyNoSyncSetExists(c client.Client, expected *SyncSetEntry) bool {

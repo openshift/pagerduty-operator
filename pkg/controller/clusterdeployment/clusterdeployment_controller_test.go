@@ -30,6 +30,7 @@ const (
 	testEscalationPolicy          = "test-escalation-policy"
 	testResolveTimeout            = "300"
 	testAcknowledgeTimeout        = "300"
+	testsecretReferencesNmae      = "pd-secret"
 	ClusterDeploymentManagedLabel = "api.openshift.com/managed"
 )
 
@@ -121,7 +122,8 @@ func testSecret() *corev1.Secret {
 
 // testSyncSet returns a SyncSet for an existing testClusterDeployment to use in testing.
 func testSyncSet() *hivev1alpha1.SyncSet {
-	ss := kube.GenerateSyncSet(testNamespace, testClusterName+"-pd-sync", testIntegrationID)
+	secret := kube.GeneratePdSecret(testNamespace, "pd-secret", testIntegrationID)
+	ss := kube.GenerateSyncSet(testNamespace, testClusterName+"-pd-sync", secret)
 	return ss
 }
 
@@ -312,12 +314,14 @@ func verifySyncSetExists(c client.Client, expected *SyncSetEntry) bool {
 	if expected.clusterDeploymentRefName != ss.Spec.ClusterDeploymentRefs[0].Name {
 		return false
 	}
-	secret := rawToSecret(ss.Spec.Resources[0])
-	if secret == nil {
+	//fmt.Print(ss.Spec)
+	//secret := rawToSecret(ss.Spec.Resources[0])
+	secretReferences := ss.Spec.SecretReferences[0].Source.Name
+	if secretReferences == "" {
 		return false
 	}
 
-	return string(secret.Data["PAGERDUTY_KEY"]) == expected.pdIntegrationID
+	return string(secretReferences) == testsecretReferencesNmae
 }
 
 // verifyNoSyncSetExists verifies that there is no SyncSet present that matches the supplied expected SyncSetEntry.

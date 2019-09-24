@@ -152,7 +152,6 @@ func (r *ReconcileSyncSet) Reconcile(request reconcile.Request) (reconcile.Resul
 			if checkerr != nil {
 				return reconcile.Result{}, checkerr
 			}
-
 			if isCDCreated {
 				return r.recreateSyncSet(request)
 			}

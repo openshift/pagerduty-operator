@@ -25,6 +25,8 @@ import (
 
 	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
 	"github.com/openshift/pagerduty-operator/pkg/utils"
+
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -79,6 +81,10 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	if err != nil {
 		return err
 	}
+	err = c.Watch(&source.Kind{Type: &corev1.Secret{}}, &handler.EnqueueRequestForOwner{
+		IsController: true,
+		OwnerType:    &hivev1.ClusterDeployment{},
+	})
 
 	return nil
 }
@@ -148,11 +154,17 @@ func (r *ReconcileClusterDeployment) Reconcile(request reconcile.Request) (recon
 		r.reqLogger.Info("Is not a managed cluster")
 		return reconcile.Result{}, nil
 	}
-
 	ssName := fmt.Sprintf("%v-pd-sync", instance.Name)
 	ss := &hivev1.SyncSet{}
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: ssName, Namespace: request.Namespace}, ss)
-
+	//checking if ss already in the cluster , if not found ,create one
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return r.handleCreate(request, instance)
+		}
+	}
+	sc := &corev1.Secret{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: ssName, Namespace: request.Namespace}, sc)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return r.handleCreate(request, instance)

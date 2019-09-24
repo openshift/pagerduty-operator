@@ -19,10 +19,13 @@ import (
 
 	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
 	"github.com/openshift/pagerduty-operator/config"
+	"k8s.io/apimachinery/pkg/types"
+
 	"github.com/openshift/pagerduty-operator/pkg/kube"
-	localmetrics "github.com/openshift/pagerduty-operator/pkg/localmetrics"
+	"github.com/openshift/pagerduty-operator/pkg/localmetrics"
 	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
 	"github.com/openshift/pagerduty-operator/pkg/utils"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -32,6 +35,7 @@ func (r *ReconcileClusterDeployment) handleCreate(request reconcile.Request, ins
 	if !instance.Status.Installed {
 		// Cluster isn't installed yet, return
 		return reconcile.Result{}, nil
+
 	}
 
 	if utils.HasFinalizer(instance, config.OperatorFinalizer) == false {
@@ -67,22 +71,45 @@ func (r *ReconcileClusterDeployment) handleCreate(request reconcile.Request, ins
 	if err != nil {
 		return reconcile.Result{}, err
 	}
-
-	r.reqLogger.Info("Creating syncset")
-	newSS := kube.GenerateSyncSet(request.Namespace, request.Name, pdIntegrationKey)
-	if err = controllerutil.SetControllerReference(instance, newSS, r.scheme); err != nil {
-		r.reqLogger.Error(err, "Error setting controller reference on syncset")
-		return reconcile.Result{}, err
-	}
-	if err := r.client.Create(context.TODO(), newSS); err != nil {
-		if errors.IsAlreadyExists(err) {
-			// SyncSet already exists, we should just update it
-			if updateErr := r.client.Update(context.TODO(), newSS); updateErr != nil {
+	//add secret part
+	sc := &corev1.Secret{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: "pd-secret", Namespace: instance.Namespace}, sc)
+	secret := kube.GeneratePdSecret(instance.Namespace, "pd-secret", pdIntegrationKey)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			r.reqLogger.Info("creating pd secret")
+			//add reference
+			if err = controllerutil.SetControllerReference(instance, secret, r.scheme); err != nil {
+				r.reqLogger.Error(err, "Error setting controller reference on secret")
 				return reconcile.Result{}, err
 			}
-			return reconcile.Result{}, nil
+
+			if err = r.client.Create(context.TODO(), secret); err != nil {
+				log.Info("start create a the secret ")
+				if !errors.IsAlreadyExists(err) {
+					return reconcile.Result{}, err
+				}
+			}
 		}
-		return reconcile.Result{}, err
+	}
+	r.reqLogger.Info("Creating syncset")
+	newSS := &hivev1.SyncSet{}
+	oldSS := &hivev1.SyncSet{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: request.Name + "-pd-sync", Namespace: instance.Namespace}, oldSS)
+	//get if syncset already there
+	if err != nil {
+		r.reqLogger.Info("error finding the old syncset")
+		if errors.IsNotFound(err) {
+			r.reqLogger.Info("syncset not found , create a new one on this ")
+			newSS = kube.GenerateSyncSet(request.Namespace, request.Name, secret)
+			if err = controllerutil.SetControllerReference(instance, newSS, r.scheme); err != nil {
+				r.reqLogger.Error(err, "Error setting controller reference on syncset")
+				return reconcile.Result{}, err
+			}
+			if err := r.client.Create(context.TODO(), newSS); err != nil {
+				return reconcile.Result{}, err
+			}
+		}
 	}
 
 	r.reqLogger.Info("Creating configmap")
