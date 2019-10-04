@@ -2,6 +2,8 @@ package clusterdeployment
 
 import (
 	"context"
+	"testing"
+
 	"github.com/golang/mock/gomock"
 	hiveapis "github.com/openshift/hive/pkg/apis"
 	hivev1alpha1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
@@ -18,19 +20,17 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	fakekubeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"testing"
 )
 
 const (
-	testClusterName               = "testCluster"
-	testNamespace                 = "testNamespace"
-	testIntegrationID             = "ABC123"
-	testServiceID                 = "DEF456"
-	testAPIKey                    = "test-pd-api-key"
-	testEscalationPolicy          = "test-escalation-policy"
-	testResolveTimeout            = "300"
-	testAcknowledgeTimeout        = "300"
-	ClusterDeploymentManagedLabel = "api.openshift.com/managed"
+	testClusterName        = "testCluster"
+	testNamespace          = "testNamespace"
+	testIntegrationID      = "ABC123"
+	testServiceID          = "DEF456"
+	testAPIKey             = "test-pd-api-key"
+	testEscalationPolicy   = "test-escalation-policy"
+	testResolveTimeout     = "300"
+	testAcknowledgeTimeout = "300"
 )
 
 type SyncSetEntry struct {
@@ -127,7 +127,28 @@ func testSyncSet() *hivev1alpha1.SyncSet {
 
 // testClusterDeployment returns a fake ClusterDeployment for an installed cluster to use in testing.
 func testClusterDeployment() *hivev1alpha1.ClusterDeployment {
-	labelMap := map[string]string{ClusterDeploymentManagedLabel: "true"}
+	labelMap := map[string]string{config.ClusterDeploymentManagedLabel: "true"}
+	cd := hivev1alpha1.ClusterDeployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      testClusterName,
+			Namespace: testNamespace,
+			Labels:    labelMap,
+		},
+		Spec: hivev1alpha1.ClusterDeploymentSpec{
+			ClusterName: testClusterName,
+		},
+	}
+	cd.Status.Installed = true
+
+	return &cd
+}
+
+// testClusterDeployment returns a fake ClusterDeployment for an installed cluster to use in testing.
+func testNoalertsClusterDeployment() *hivev1alpha1.ClusterDeployment {
+	labelMap := map[string]string{
+		config.ClusterDeploymentManagedLabel:  "true",
+		config.ClusterDeploymentNoalertsLabel: "",
+	}
 	cd := hivev1alpha1.ClusterDeployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      testClusterName,
@@ -155,7 +176,7 @@ func deletedClusterDeployment() *hivev1alpha1.ClusterDeployment {
 
 // unmanagedClusterDeployment returns a fake ClusterDeployment labelled with "api.openshift.com/managed = False" to use in testing.
 func unmanagedClusterDeployment() *hivev1alpha1.ClusterDeployment {
-	labelMap := map[string]string{ClusterDeploymentManagedLabel: "false"}
+	labelMap := map[string]string{config.ClusterDeploymentManagedLabel: "false"}
 	cd := testClusterDeployment()
 	cd.SetLabels(labelMap)
 	return cd
@@ -230,6 +251,16 @@ func TestReconcileClusterDeployment(t *testing.T) {
 			name: "Test Creating (unmanaged without label)",
 			localObjects: []runtime.Object{
 				unlabelledClusterDeployment(),
+			},
+			expectedSyncSets: &SyncSetEntry{},
+			verifySyncSets:   verifyNoSyncSetExists,
+			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
+			},
+		},
+		{
+			name: "Test Creating (managed with noalerts)",
+			localObjects: []runtime.Object{
+				testNoalertsClusterDeployment(),
 			},
 			expectedSyncSets: &SyncSetEntry{},
 			verifySyncSets:   verifyNoSyncSetExists,

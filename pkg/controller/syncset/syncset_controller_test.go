@@ -3,9 +3,13 @@ package syncset
 import (
 	"context"
 	"errors"
+	"testing"
+
 	"github.com/golang/mock/gomock"
 	hiveapis "github.com/openshift/hive/pkg/apis"
 	hivev1alpha1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
+	"github.com/openshift/pagerduty-operator/config"
+
 	mockpd "github.com/openshift/pagerduty-operator/pkg/pagerduty/mock"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -17,14 +21,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	fakekubeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"testing"
 )
 
 const (
-	testClusterName               = "testCluster"
-	testNamespace                 = "testNamespace"
-	testIntegrationID             = "ABC123"
-	ClusterDeploymentManagedLabel = "api.openshift.com/managed"
+	testClusterName   = "testCluster"
+	testNamespace     = "testNamespace"
+	testIntegrationID = "ABC123"
 )
 
 type SyncSetEntry struct {
@@ -68,7 +70,7 @@ func setupDefaultMocks(t *testing.T, localObjects []runtime.Object) *mocks {
 
 // return a managed ClusterDeployment
 func testClusterDeployment() *hivev1alpha1.ClusterDeployment {
-	labelMap := map[string]string{ClusterDeploymentManagedLabel: "true"}
+	labelMap := map[string]string{config.ClusterDeploymentManagedLabel: "true"}
 	cd := hivev1alpha1.ClusterDeployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      testClusterName,
