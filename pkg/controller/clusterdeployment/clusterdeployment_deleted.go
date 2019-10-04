@@ -30,7 +30,6 @@ func (r *ReconcileClusterDeployment) handleDelete(request reconcile.Request, ins
 	if !utils.HasFinalizer(instance, config.OperatorFinalizer) {
 		return reconcile.Result{}, nil
 	}
-	println("handleDelete")
 
 	ClusterID := instance.Spec.ClusterName
 
@@ -43,15 +42,10 @@ func (r *ReconcileClusterDeployment) handleDelete(request reconcile.Request, ins
 		return reconcile.Result{}, err
 	}
 
-	println("1")
-
 	err = pdData.ParseClusterConfig(r.client, request.Namespace, request.Name)
 	if err != nil {
-		println("1 err: " + err.Error())
 		return reconcile.Result{}, err
 	}
-
-	println("2")
 
 	err = r.pdclient.DeleteService(pdData)
 	if err != nil {
@@ -60,7 +54,6 @@ func (r *ReconcileClusterDeployment) handleDelete(request reconcile.Request, ins
 
 	// find the PD syncset and delete it
 	ssName := request.Name + config.SyncSetPostfix
-	println(ssName)
 	r.reqLogger.Info("Deleting PD SyncSet", "Namespace", request.Namespace, "Name", request.Name)
 	syncset := &hivev1.SyncSet{}
 	err = r.client.Get(context.TODO(), types.NamespacedName{Namespace: request.Namespace, Name: ssName}, syncset)

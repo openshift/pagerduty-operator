@@ -373,8 +373,6 @@ func TestRemoveAlertsAfterCreate(t *testing.T) {
 
 		err = mocks.fakeKubeClient.Get(context.TODO(), types.NamespacedName{Namespace: testNamespace, Name: testClusterName}, clusterDeployment)
 
-		println(clusterDeployment.Labels[config.ClusterDeploymentNoalertsLabel])
-
 		// Act (delete)
 		_, err = rcd.Reconcile(reconcile.Request{
 			NamespacedName: types.NamespacedName{
