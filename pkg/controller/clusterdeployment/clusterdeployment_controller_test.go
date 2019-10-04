@@ -326,6 +326,67 @@ func TestReconcileClusterDeployment(t *testing.T) {
 	}
 }
 
+func TestRemoveAlertsAfterCreate(t *testing.T) {
+	t.Run("Test Managed Cluster that later sets noalerts label", func(t *testing.T) {
+		// Arrange
+		mocks := setupDefaultMocks(t, []runtime.Object{
+			testClusterDeployment(),
+			testSecret(),
+			testPDConfigSecret(),
+			testPDConfigMap(), // <-- see comment below
+		})
+		// in order to test the delete, we need to crete the pd secret w/ a non-empty SERVICE_ID, which means CreateService won't be called
+
+		setupDMSMock :=
+			func(r *mockpd.MockClientMockRecorder) {
+				// create (without calling PD)
+				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(1)
+
+				// delete
+				r.DeleteService(gomock.Any()).Return(nil).Times(1)
+			}
+
+		setupDMSMock(mocks.mockPDClient.EXPECT())
+
+		defer mocks.mockCtrl.Finish()
+
+		rcd := &ReconcileClusterDeployment{
+			client:   mocks.fakeKubeClient,
+			scheme:   scheme.Scheme,
+			pdclient: mocks.mockPDClient,
+		}
+
+		// Act (create)
+		_, err := rcd.Reconcile(reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      testClusterName,
+				Namespace: testNamespace,
+			},
+		})
+
+		// UPDATE (noalerts)
+		// can't set to empty string, it won't update.. value does not matter
+		clusterDeployment := &hivev1alpha1.ClusterDeployment{}
+		err = mocks.fakeKubeClient.Get(context.TODO(), types.NamespacedName{Namespace: testNamespace, Name: testClusterName}, clusterDeployment)
+		clusterDeployment.Labels[config.ClusterDeploymentNoalertsLabel] = "X"
+		err = mocks.fakeKubeClient.Update(context.TODO(), clusterDeployment)
+
+		err = mocks.fakeKubeClient.Get(context.TODO(), types.NamespacedName{Namespace: testNamespace, Name: testClusterName}, clusterDeployment)
+
+		// Act (delete)
+		_, err = rcd.Reconcile(reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      testClusterName,
+				Namespace: testNamespace,
+			},
+		})
+
+		// Assert
+		assert.NoError(t, err, "Unexpected Error")
+		assert.True(t, verifyNoSyncSetExists(mocks.fakeKubeClient, &SyncSetEntry{}))
+	})
+}
+
 // verifySyncSetExists verifies that a SyncSet exists that matches the supplied expected SyncSetEntry.
 func verifySyncSetExists(c client.Client, expected *SyncSetEntry) bool {
 	ss := hivev1alpha1.SyncSet{}
