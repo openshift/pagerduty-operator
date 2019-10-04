@@ -120,16 +120,6 @@ func (r *ReconcileClusterDeployment) Reconcile(request reconcile.Request) (recon
 		return reconcile.Result{}, err
 	}
 
-	// This is a temp item to clean up old finalizers
-	if utils.HasFinalizer(instance, config.OperatorFinalizerLegacy) {
-		utils.DeleteFinalizer(instance, config.OperatorFinalizerLegacy)
-		err = r.client.Update(context.TODO(), instance)
-		if err != nil {
-			return reconcile.Result{}, err
-		}
-		return reconcile.Result{}, nil
-	}
-
 	if instance.DeletionTimestamp != nil {
 		if utils.HasFinalizer(instance, config.OperatorFinalizer) {
 			return r.handleDelete(request, instance)
@@ -138,7 +128,7 @@ func (r *ReconcileClusterDeployment) Reconcile(request reconcile.Request) (recon
 	}
 
 	// Just return if this is not a managed cluster
-	if val, ok := instance.Labels["api.openshift.com/managed"]; ok {
+	if val, ok := instance.Labels[config.ClusterDeploymentManagedLabel]; ok {
 		if val != "true" {
 			r.reqLogger.Info("Is not a managed cluster")
 			return reconcile.Result{}, nil
@@ -146,6 +136,12 @@ func (r *ReconcileClusterDeployment) Reconcile(request reconcile.Request) (recon
 	} else {
 		// Managed tag is not present which implies it is not a managed cluster
 		r.reqLogger.Info("Is not a managed cluster")
+		return reconcile.Result{}, nil
+	}
+
+	// Return if alerts are disabled on the cluster
+	if _, ok := instance.Labels[config.ClusterDeploymentNoalertsLabel]; ok {
+		r.reqLogger.Info("Managed cluster with Alerts disabled", "Namespace", request.Namespace, "Name", request.Name)
 		return reconcile.Result{}, nil
 	}
 

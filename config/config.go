@@ -15,13 +15,12 @@
 package config
 
 const (
-	OperatorConfigMapName   string = "pagerduty-config"
-	OperatorName            string = "pagerduty-operator"
-	OperatorNamespace       string = "pagerduty-operator"
-	PagerDutyAPISecretName  string = "pagerduty-api-key"
-	PagerDutyAPISecretKey   string = "PAGERDUTY_API_KEY"
-	OperatorFinalizer       string = "pd.managed.openshift.io/pagerduty"
-	OperatorFinalizerLegacy string = "pd.manage.openshift.io/pagerduty"
+	OperatorConfigMapName  string = "pagerduty-config"
+	OperatorName           string = "pagerduty-operator"
+	OperatorNamespace      string = "pagerduty-operator"
+	PagerDutyAPISecretName string = "pagerduty-api-key"
+	PagerDutyAPISecretKey  string = "PAGERDUTY_API_KEY"
+	OperatorFinalizer      string = "pd.managed.openshift.io/pagerduty"
 
 	// PagerDutyUrgencyRule is the type of IncidentUrgencyRule for new incidents
 	// coming into the Service. This is for the creation of NEW SERVICES ONLY
@@ -30,4 +29,10 @@ const (
 	// * severity_based - Look to the severity on the PagerDuty Incident to map
 	//   the urgency. An unset incident severity is equivalent to critical.
 	PagerDutyUrgencyRule string = "severity_based"
+
+	// ClusterDeploymentManagedLabel is the label the clusterdeployment will have that determines
+	// if the cluster is OSD (managed) or not
+	ClusterDeploymentManagedLabel string = "api.openshift.com/managed"
+	// ClusterDeploymentNoalertsLabel is the label the clusterdeployment will have if the cluster should not send alerts
+	ClusterDeploymentNoalertsLabel string = "api.openshift.com/noalerts"
 )

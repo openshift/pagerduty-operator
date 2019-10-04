@@ -20,7 +20,6 @@ import (
 	"github.com/go-logr/logr"
 	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
 	"github.com/openshift/pagerduty-operator/config"
-
 	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
 	"github.com/openshift/pagerduty-operator/pkg/utils"
 	"k8s.io/apimachinery/pkg/api/errors"
