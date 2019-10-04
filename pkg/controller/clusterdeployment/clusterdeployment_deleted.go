@@ -22,10 +22,16 @@ import (
 	metrics "github.com/openshift/pagerduty-operator/pkg/localmetrics"
 	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
 	"github.com/openshift/pagerduty-operator/pkg/utils"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 func (r *ReconcileClusterDeployment) handleDelete(request reconcile.Request, instance *hivev1.ClusterDeployment) (reconcile.Result, error) {
+	if !utils.HasFinalizer(instance, config.OperatorFinalizer) {
+		return reconcile.Result{}, nil
+	}
+	println("handleDelete")
+
 	ClusterID := instance.Spec.ClusterName
 
 	pdData := &pd.Data{
@@ -37,14 +43,33 @@ func (r *ReconcileClusterDeployment) handleDelete(request reconcile.Request, ins
 		return reconcile.Result{}, err
 	}
 
+	println("1")
+
 	err = pdData.ParseClusterConfig(r.client, request.Namespace, request.Name)
 	if err != nil {
+		println("1 err: " + err.Error())
 		return reconcile.Result{}, err
 	}
+
+	println("2")
 
 	err = r.pdclient.DeleteService(pdData)
 	if err != nil {
 		r.reqLogger.Error(err, "Failed cleaning up pagerduty.")
+	}
+
+	// find the PD syncset and delete it
+	ssName := request.Name + config.SyncSetPostfix
+	println(ssName)
+	r.reqLogger.Info("Deleting PD SyncSet", "Namespace", request.Namespace, "Name", request.Name)
+	syncset := &hivev1.SyncSet{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Namespace: request.Namespace, Name: ssName}, syncset)
+	if err == nil {
+		err = r.client.Delete(context.TODO(), syncset)
+		if err != nil {
+			r.reqLogger.Error(err, "Error deleting SyncSet", "Namespace", request.Namespace, "Name", ssName)
+			return reconcile.Result{}, err
+		}
 	}
 
 	if utils.HasFinalizer(instance, config.OperatorFinalizer) {

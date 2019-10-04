@@ -121,28 +121,25 @@ func (r *ReconcileClusterDeployment) Reconcile(request reconcile.Request) (recon
 	}
 
 	if instance.DeletionTimestamp != nil {
-		if utils.HasFinalizer(instance, config.OperatorFinalizer) {
-			return r.handleDelete(request, instance)
-		}
-		return reconcile.Result{}, nil
+		return r.handleDelete(request, instance)
 	}
 
 	// Just return if this is not a managed cluster
 	if val, ok := instance.Labels[config.ClusterDeploymentManagedLabel]; ok {
 		if val != "true" {
 			r.reqLogger.Info("Is not a managed cluster")
-			return reconcile.Result{}, nil
+			return r.handleDelete(request, instance)
 		}
 	} else {
 		// Managed tag is not present which implies it is not a managed cluster
 		r.reqLogger.Info("Is not a managed cluster")
-		return reconcile.Result{}, nil
+		return r.handleDelete(request, instance)
 	}
 
 	// Return if alerts are disabled on the cluster
 	if _, ok := instance.Labels[config.ClusterDeploymentNoalertsLabel]; ok {
 		r.reqLogger.Info("Managed cluster with Alerts disabled", "Namespace", request.Namespace, "Name", request.Name)
-		return reconcile.Result{}, nil
+		return r.handleDelete(request, instance)
 	}
 
 	ssName := fmt.Sprintf("%v-pd-sync", instance.Name)
