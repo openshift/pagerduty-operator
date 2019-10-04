@@ -61,7 +61,6 @@ func (r *ReconcileClusterDeployment) handleDelete(request reconcile.Request, ins
 		err = r.client.Delete(context.TODO(), syncset)
 		if err != nil {
 			r.reqLogger.Error(err, "Error deleting SyncSet", "Namespace", request.Namespace, "Name", ssName)
-			return reconcile.Result{}, err
 		}
 	}
 
