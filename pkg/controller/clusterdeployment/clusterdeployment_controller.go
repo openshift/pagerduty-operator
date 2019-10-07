@@ -106,43 +106,18 @@ func (r *ReconcileClusterDeployment) Reconcile(request reconcile.Request) (recon
 	r.reqLogger = log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	r.reqLogger.Info("Reconciling ClusterDeployment")
 
-	// Fetch the ClusterDeployment instance
-	instance := &hivev1.ClusterDeployment{}
-	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			// Request object not found, could have been deleted after reconcile request.
-			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
-			// Return and don't requeue
-			return reconcile.Result{}, nil
-		}
-		// Error reading the object - requeue the request.
-		return reconcile.Result{}, err
-	}
+	processCD, instance, err := utils.CheckClusterDeployment(request, r.client, r.reqLogger)
 
 	if instance.DeletionTimestamp != nil {
 		return r.handleDelete(request, instance)
 	}
 
-	// Just return if this is not a managed cluster
-	if val, ok := instance.Labels[config.ClusterDeploymentManagedLabel]; ok {
-		if val != "true" {
-			r.reqLogger.Info("Is not a managed cluster")
-			return r.handleDelete(request, instance)
-		}
-	} else {
-		// Managed tag is not present which implies it is not a managed cluster
-		r.reqLogger.Info("Is not a managed cluster")
+	// If we don't manage this cluster: log, delete, return
+	if !processCD {
 		return r.handleDelete(request, instance)
 	}
 
-	// Return if alerts are disabled on the cluster
-	if _, ok := instance.Labels[config.ClusterDeploymentNoalertsLabel]; ok {
-		r.reqLogger.Info("Managed cluster with Alerts disabled", "Namespace", request.Namespace, "Name", request.Name)
-		return r.handleDelete(request, instance)
-	}
-
-	ssName := fmt.Sprintf("%v-pd-sync", instance.Name)
+	ssName := fmt.Sprintf("%v%v", instance.Name, config.SyncSetPostfix)
 	ss := &hivev1.SyncSet{}
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: ssName, Namespace: request.Namespace}, ss)
 

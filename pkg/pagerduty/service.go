@@ -151,7 +151,7 @@ func (data *Data) ParsePDConfig(osc client.Client) error {
 // ParseClusterConfig parses the cluster specific config map and stores the IDs in the data struct
 func (data *Data) ParseClusterConfig(osc client.Client, namespace string, name string) error {
 	pdAPIConfigMap := &corev1.ConfigMap{}
-	err := osc.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name + "-pd-config"}, pdAPIConfigMap)
+	err := osc.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name + config.ConfigMapPostfix}, pdAPIConfigMap)
 	if err != nil {
 		return err
 	}
