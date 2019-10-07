@@ -24,7 +24,6 @@ import (
 	"github.com/openshift/pagerduty-operator/pkg/utils"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -100,27 +99,6 @@ type ReconcileSyncSet struct {
 	pdclient  pd.Client
 }
 
-func (r *ReconcileSyncSet) checkClusterDeployment(request reconcile.Request) (bool, error) {
-	clusterdeployment := &hivev1.ClusterDeployment{}
-	cdName := request.Name[0 : len(request.Name)-8]
-
-	err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: request.Namespace, Name: cdName}, clusterdeployment)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			r.reqLogger.Info("No matching cluster deployment found, ignoring")
-			return false, nil
-		}
-		// Error finding the cluster deployment, requeue
-		return false, err
-	}
-
-	if clusterdeployment.DeletionTimestamp != nil {
-		return false, nil
-	}
-
-	return true, nil
-}
-
 // Reconcile reads that state of the cluster for a SyncSet object and makes changes based on the state read
 // and what is in the SyncSet.Spec
 // TODO(user): Modify this Reconcile function to implement your Controller logic.  This example creates
@@ -132,13 +110,6 @@ func (r *ReconcileSyncSet) Reconcile(request reconcile.Request) (reconcile.Resul
 	r.reqLogger = log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	r.reqLogger.Info("Reconciling SyncSet")
 
-	isCDCreated, _, err := utils.CheckClusterDeployment(request, r.client, r.reqLogger)
-
-	// If we don't manage this cluster: log, delete, return
-	if !isCDCreated {
-		return r.deleteSyncSet(request)
-	}
-
 	// Wasn't a pagerduty
 	if len(request.Name) < len(config.SyncSetPostfix) {
 		return reconcile.Result{}, nil
@@ -147,25 +118,25 @@ func (r *ReconcileSyncSet) Reconcile(request reconcile.Request) (reconcile.Resul
 		return reconcile.Result{}, nil
 	}
 
+	isCDCreated, _, err := utils.CheckClusterDeployment(request, r.client, r.reqLogger)
+
+	// If we don't manage this cluster: log, delete, return
+	if !isCDCreated {
+		return reconcile.Result{}, utils.DeleteSyncSet(request.Name, request.Namespace, r.client, r.reqLogger)
+	}
+
 	// Fetch the SyncSet instance
 	instance := &hivev1.SyncSet{}
 	err = r.client.Get(context.TODO(), request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			isCDCreated, checkerr := r.checkClusterDeployment(request)
-			if checkerr != nil {
-				return reconcile.Result{}, checkerr
-			}
-
-			if isCDCreated {
-				return r.recreateSyncSet(request)
-			}
-			// ClusterDeployment was deleted, do nothing
-			return reconcile.Result{}, nil
-
+			// the SyncSet should exist
+			return r.recreateSyncSet(request)
 		}
+		// something else went wrong
 		return reconcile.Result{}, err
 	}
 
+	// SyncSet exists, nothing to do
 	return reconcile.Result{}, nil
 }
