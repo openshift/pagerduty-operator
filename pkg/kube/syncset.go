@@ -16,6 +16,7 @@ package kube
 
 import (
 	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
+	"github.com/openshift/pagerduty-operator/config"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -23,7 +24,7 @@ import (
 
 // GenerateSyncSet returns a syncset that can be created with the oc client
 func GenerateSyncSet(namespace string, name string, pdIntegrationID string) *hivev1.SyncSet {
-	ssName := name + "-pd-sync"
+	ssName := name + config.SyncSetPostfix
 
 	return &hivev1.SyncSet{
 		ObjectMeta: metav1.ObjectMeta{

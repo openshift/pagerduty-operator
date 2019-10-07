@@ -121,7 +121,7 @@ func testSecret() *corev1.Secret {
 
 // testSyncSet returns a SyncSet for an existing testClusterDeployment to use in testing.
 func testSyncSet() *hivev1alpha1.SyncSet {
-	ss := kube.GenerateSyncSet(testNamespace, testClusterName+"-pd-sync", testIntegrationID)
+	ss := kube.GenerateSyncSet(testNamespace, testClusterName+config.SyncSetPostfix, testIntegrationID)
 	return ss
 }
 
@@ -214,7 +214,7 @@ func TestReconcileClusterDeployment(t *testing.T) {
 				testSecret(),
 			},
 			expectedSyncSets: &SyncSetEntry{
-				name:                     testClusterName + "-pd-sync",
+				name:                     testClusterName + config.SyncSetPostfix,
 				pdIntegrationID:          testIntegrationID,
 				clusterDeploymentRefName: testClusterName,
 			},
@@ -287,7 +287,7 @@ func TestReconcileClusterDeployment(t *testing.T) {
 				testPDConfigSecret(),
 			},
 			expectedSyncSets: &SyncSetEntry{
-				name:                     testClusterName + "-pd-sync",
+				name:                     testClusterName + config.SyncSetPostfix,
 				pdIntegrationID:          testIntegrationID,
 				clusterDeploymentRefName: testClusterName,
 			},

@@ -7,9 +7,11 @@ import (
 
 	"github.com/golang/mock/gomock"
 	hiveapis "github.com/openshift/hive/pkg/apis"
+	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
 	hivev1alpha1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
 	"github.com/openshift/pagerduty-operator/config"
 
+	"github.com/openshift/pagerduty-operator/pkg/kube"
 	mockpd "github.com/openshift/pagerduty-operator/pkg/pagerduty/mock"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -86,6 +88,27 @@ func testClusterDeployment() *hivev1alpha1.ClusterDeployment {
 	return &cd
 }
 
+// return a managed ClusterDeployment with noalerts laabel
+func testClusterDeploymentNoalerts() *hivev1alpha1.ClusterDeployment {
+	labelMap := map[string]string{
+		config.ClusterDeploymentManagedLabel:  "true",
+		config.ClusterDeploymentNoalertsLabel: "",
+	}
+	cd := hivev1alpha1.ClusterDeployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      testClusterName,
+			Namespace: testNamespace,
+			Labels:    labelMap,
+		},
+		Spec: hivev1alpha1.ClusterDeploymentSpec{
+			ClusterName: testClusterName,
+		},
+	}
+	cd.Status.Installed = true
+
+	return &cd
+}
+
 // return a Secret that will go in the SyncSet for the deployed cluster
 func testSecret() *corev1.Secret {
 	s := &corev1.Secret{
@@ -98,6 +121,11 @@ func testSecret() *corev1.Secret {
 		},
 	}
 	return s
+}
+
+// return a SyncSet representing an existng integration
+func testSyncSet() *hivev1.SyncSet {
+	return kube.GenerateSyncSet(testNamespace, testClusterName, testIntegrationID)
 }
 
 func TestReconcileSyncSet(t *testing.T) {
@@ -116,7 +144,7 @@ func TestReconcileSyncSet(t *testing.T) {
 				testSecret(),
 			},
 			expectedSyncSets: &SyncSetEntry{
-				name:                     testClusterName + "-pd-sync",
+				name:                     testClusterName + config.SyncSetPostfix,
 				pdIntegrationID:          testIntegrationID,
 				clusterDeploymentRefName: testClusterName,
 			},
@@ -126,13 +154,13 @@ func TestReconcileSyncSet(t *testing.T) {
 			},
 		},
 		{
-			name: "Test Recreating when integration doesn't exist in PagerDuty",
+			name: "Test [Re]creating when integration doesn't exist in PagerDuty",
 			localObjects: []runtime.Object{
 				testClusterDeployment(),
 				testSecret(),
 			},
 			expectedSyncSets: &SyncSetEntry{
-				name:                     testClusterName + "-pd-sync",
+				name:                     testClusterName + config.SyncSetPostfix,
 				pdIntegrationID:          testIntegrationID,
 				clusterDeploymentRefName: testClusterName,
 			},
@@ -147,12 +175,31 @@ func TestReconcileSyncSet(t *testing.T) {
 			localObjects: []runtime.Object{
 				testSecret(),
 			},
-			expectedSyncSets: &SyncSetEntry{
-				name:                     testClusterName + "-pd-sync",
-				pdIntegrationID:          testIntegrationID,
-				clusterDeploymentRefName: testClusterName,
+			expectedSyncSets: &SyncSetEntry{},
+			verifySyncSets:   verifyNoSyncSetExists,
+			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
 			},
-			verifySyncSets: verifyNoSyncSetExists,
+		},
+		{
+			name: "Test ignore missing SyncSet with noalerts ClusterDeployment",
+			localObjects: []runtime.Object{
+				testClusterDeploymentNoalerts(),
+				testSecret(),
+			},
+			expectedSyncSets: &SyncSetEntry{},
+			verifySyncSets:   verifyNoSyncSetExists,
+			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
+			},
+		},
+		{
+			name: "Test delete SyncSet with noalerts ClusterDeployment",
+			localObjects: []runtime.Object{
+				testClusterDeploymentNoalerts(),
+				testSyncSet(),
+				testSecret(),
+			},
+			expectedSyncSets: &SyncSetEntry{},
+			verifySyncSets:   verifyNoSyncSetExists,
 			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
 			},
 		},
@@ -174,7 +221,7 @@ func TestReconcileSyncSet(t *testing.T) {
 			// Act
 			_, err := rss.Reconcile(reconcile.Request{
 				NamespacedName: types.NamespacedName{
-					Name:      testClusterName + "-pd-sync",
+					Name:      testClusterName + config.SyncSetPostfix,
 					Namespace: testNamespace,
 				},
 			})

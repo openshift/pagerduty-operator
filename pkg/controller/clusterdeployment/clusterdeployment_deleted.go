@@ -27,6 +27,11 @@ import (
 )
 
 func (r *ReconcileClusterDeployment) handleDelete(request reconcile.Request, instance *hivev1.ClusterDeployment) (reconcile.Result, error) {
+	if instance == nil {
+		// nothing to do, bail early
+		return reconcile.Result{}, nil
+	}
+
 	if !utils.HasFinalizer(instance, config.OperatorFinalizer) {
 		return reconcile.Result{}, nil
 	}
