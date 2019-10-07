@@ -320,11 +320,8 @@ func TestReconcileClusterDeployment(t *testing.T) {
 				testNoalertsClusterDeployment(),
 				testOtherSyncSet(),
 			},
-			expectedSyncSets: &SyncSetEntry{
-				name:                     testClusterName + testOtherSyncSetPostfix,
-				clusterDeploymentRefName: testClusterName,
-			},
-			verifySyncSets: verifyNoSyncSetExists,
+			expectedSyncSets: &SyncSetEntry{name: testClusterName + testOtherSyncSetPostfix, clusterDeploymentRefName: testClusterName},
+			verifySyncSets:   verifyNoSyncSetExists,
 			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
 			},
 		},
