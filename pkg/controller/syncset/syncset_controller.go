@@ -132,11 +132,10 @@ func (r *ReconcileSyncSet) Reconcile(request reconcile.Request) (reconcile.Resul
 	r.reqLogger = log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	r.reqLogger.Info("Reconciling SyncSet")
 
-	isCDCreated, clusterDeployment, err := utils.CheckClusterDeployment(request, r.client, r.reqLogger)
+	isCDCreated, _, err := utils.CheckClusterDeployment(request, r.client, r.reqLogger)
 
 	// If we don't manage this cluster: log, delete, return
 	if !isCDCreated {
-		r.reqLogger.Info("ClusterDeployment isn't watched by this operator:  " + config.ClusterDeploymentManagedLabel + "=" + clusterDeployment.GetLabels()[config.ClusterDeploymentManagedLabel] + ", " + config.ClusterDeploymentNoalertsLabel + "=" + clusterDeployment.GetLabels()[config.ClusterDeploymentNoalertsLabel])
 		return r.deleteSyncSet(request)
 	}
 

@@ -70,6 +70,7 @@ func (r *ReconcileClusterDeployment) handleDelete(request reconcile.Request, ins
 	}
 
 	if utils.HasFinalizer(instance, config.OperatorFinalizer) {
+		r.reqLogger.Info("Deleting PD finalizer from ClusterDeployment", "Namespace", request.Namespace, "Name", request.Name)
 		utils.DeleteFinalizer(instance, config.OperatorFinalizer)
 		err = r.client.Update(context.TODO(), instance)
 		if err != nil {

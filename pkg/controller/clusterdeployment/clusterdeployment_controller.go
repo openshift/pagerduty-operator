@@ -114,7 +114,6 @@ func (r *ReconcileClusterDeployment) Reconcile(request reconcile.Request) (recon
 
 	// If we don't manage this cluster: log, delete, return
 	if !processCD {
-		r.reqLogger.Info("ClusterDeployment isn't watched by this operator:  " + config.ClusterDeploymentManagedLabel + "=" + instance.GetLabels()[config.ClusterDeploymentManagedLabel] + ", " + config.ClusterDeploymentNoalertsLabel + "=" + instance.GetLabels()[config.ClusterDeploymentNoalertsLabel])
 		return r.handleDelete(request, instance)
 	}
 

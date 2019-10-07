@@ -15,13 +15,14 @@
 package kube
 
 import (
+	"github.com/openshift/pagerduty-operator/config"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // GenerateConfigMap returns a configmap that can be created with the oc client
 func GenerateConfigMap(namespace string, name string, pdServiceID string, pdIntegrationID string) *corev1.ConfigMap {
-	cmName := name + "-pd-config"
+	cmName := name + config.ConfigMapPostfix
 
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{

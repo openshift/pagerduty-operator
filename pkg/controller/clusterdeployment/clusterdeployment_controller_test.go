@@ -95,7 +95,7 @@ func testPDConfigMap() *corev1.ConfigMap {
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
-			Name:      testClusterName + "-pd-config",
+			Name:      testClusterName + config.ConfigMapPostfix,
 		},
 		Data: map[string]string{
 			"INTEGRATION_ID": testIntegrationID,
