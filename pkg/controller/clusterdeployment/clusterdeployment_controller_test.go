@@ -23,14 +23,15 @@ import (
 )
 
 const (
-	testClusterName        = "testCluster"
-	testNamespace          = "testNamespace"
-	testIntegrationID      = "ABC123"
-	testServiceID          = "DEF456"
-	testAPIKey             = "test-pd-api-key"
-	testEscalationPolicy   = "test-escalation-policy"
-	testResolveTimeout     = "300"
-	testAcknowledgeTimeout = "300"
+	testClusterName         = "testCluster"
+	testNamespace           = "testNamespace"
+	testIntegrationID       = "ABC123"
+	testServiceID           = "DEF456"
+	testAPIKey              = "test-pd-api-key"
+	testEscalationPolicy    = "test-escalation-policy"
+	testResolveTimeout      = "300"
+	testAcknowledgeTimeout  = "300"
+	testOtherSyncSetPostfix = "-something-else"
 )
 
 type SyncSetEntry struct {
@@ -123,6 +124,23 @@ func testSecret() *corev1.Secret {
 func testSyncSet() *hivev1alpha1.SyncSet {
 	ss := kube.GenerateSyncSet(testNamespace, testClusterName+config.SyncSetPostfix, testIntegrationID)
 	return ss
+}
+
+// testOtherSyncSet returns a SyncSet that is not for PD for an existing testClusterDeployment to use in testing.
+func testOtherSyncSet() *hivev1alpha1.SyncSet {
+	return &hivev1alpha1.SyncSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      testClusterName + testOtherSyncSetPostfix,
+			Namespace: testNamespace,
+		},
+		Spec: hivev1alpha1.SyncSetSpec{
+			ClusterDeploymentRefs: []corev1.LocalObjectReference{
+				{
+					Name: testClusterName,
+				},
+			},
+		},
+	}
 }
 
 // testClusterDeployment returns a fake ClusterDeployment for an installed cluster to use in testing.
@@ -296,6 +314,20 @@ func TestReconcileClusterDeployment(t *testing.T) {
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(1)
 			},
 		},
+		{
+			name: "Test Creating with other SyncSets (managed with noalerts)",
+			localObjects: []runtime.Object{
+				testNoalertsClusterDeployment(),
+				testOtherSyncSet(),
+			},
+			expectedSyncSets: &SyncSetEntry{
+				name:                     testClusterName + testOtherSyncSetPostfix,
+				clusterDeploymentRefName: testClusterName,
+			},
+			verifySyncSets: verifyNoSyncSetExists,
+			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
+			},
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -332,6 +364,7 @@ func TestRemoveAlertsAfterCreate(t *testing.T) {
 		mocks := setupDefaultMocks(t, []runtime.Object{
 			testClusterDeployment(),
 			testSecret(),
+			testOtherSyncSet(),
 			testPDConfigSecret(),
 			testPDConfigMap(), // <-- see comment below
 		})
@@ -373,7 +406,13 @@ func TestRemoveAlertsAfterCreate(t *testing.T) {
 
 		err = mocks.fakeKubeClient.Get(context.TODO(), types.NamespacedName{Namespace: testNamespace, Name: testClusterName}, clusterDeployment)
 
-		// Act (delete)
+		// Act (delete) [2x because was seeing other SyncSet's getting deleted]
+		_, err = rcd.Reconcile(reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      testClusterName,
+				Namespace: testNamespace,
+			},
+		})
 		_, err = rcd.Reconcile(reconcile.Request{
 			NamespacedName: types.NamespacedName{
 				Name:      testClusterName,
@@ -414,12 +453,24 @@ func verifySyncSetExists(c client.Client, expected *SyncSetEntry) bool {
 
 // verifyNoSyncSetExists verifies that there is no SyncSet present that matches the supplied expected SyncSetEntry.
 func verifyNoSyncSetExists(c client.Client, expected *SyncSetEntry) bool {
-	ss := hivev1alpha1.SyncSet{}
-	err := c.Get(context.TODO(),
-		types.NamespacedName{Name: expected.name, Namespace: testNamespace},
-		&ss)
-	if errors.IsNotFound(err) {
-		return true
+	ssList := &hivev1alpha1.SyncSetList{}
+	opts := client.ListOptions{Namespace: testNamespace}
+	err := c.List(context.TODO(), &opts, ssList)
+
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// no syncsets are defined, this is OK
+			return true
+		}
 	}
-	return false
+
+	for _, ss := range ssList.Items {
+		if ss.Name != testClusterName+testOtherSyncSetPostfix {
+			// too bad, found a syncset associated with this operator
+			return false
+		}
+	}
+
+	// if we got here, it's good.  list was empty or everything passed
+	return true
 }

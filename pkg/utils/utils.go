@@ -65,6 +65,10 @@ func CheckClusterDeployment(request reconcile.Request, client client.Client, req
 		return false, clusterDeployment, nil
 	}
 
+	if !clusterDeployment.Status.Installed {
+		return false, clusterDeployment, nil
+	}
+
 	if val, ok := clusterDeployment.GetLabels()[config.ClusterDeploymentManagedLabel]; ok {
 		if val != "true" {
 			reqLogger.Info("Is not a managed cluster")
@@ -84,4 +88,38 @@ func CheckClusterDeployment(request reconcile.Request, client client.Client, req
 
 	// made it this far so it's both managed and has alerts enabled
 	return true, clusterDeployment, nil
+}
+
+// DeleteSyncSet deletes a SyncSet
+func DeleteSyncSet(name string, namespace string, client client.Client, reqLogger logr.Logger) error {
+	syncset := &hivev1.SyncSet{}
+	err := client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, syncset)
+
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// Request object not found, could have been deleted after reconcile request.
+			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
+			// Return and don't requeue
+			return nil
+		}
+		// Error finding the syncset, requeue
+		return err
+	}
+
+	// Only delete the syncset, this is just cleanup of the synced secret.
+	// The ClusterDeployment controller manages deletion of the pagerduty serivce.
+	reqLogger.Info("Deleting SyncSet", "Namespace", namespace, "Name", name)
+	err = client.Delete(context.TODO(), syncset)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// Request object not found, could have been deleted after reconcile request.
+			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
+			// Return and don't requeue
+			return nil
+		}
+		// Error finding the syncset, requeue
+		return err
+	}
+
+	return nil
 }

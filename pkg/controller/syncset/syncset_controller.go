@@ -132,19 +132,19 @@ func (r *ReconcileSyncSet) Reconcile(request reconcile.Request) (reconcile.Resul
 	r.reqLogger = log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	r.reqLogger.Info("Reconciling SyncSet")
 
-	isCDCreated, _, err := utils.CheckClusterDeployment(request, r.client, r.reqLogger)
-
-	// If we don't manage this cluster: log, delete, return
-	if !isCDCreated {
-		return r.deleteSyncSet(request)
-	}
-
 	// Wasn't a pagerduty
 	if len(request.Name) < len(config.SyncSetPostfix) {
 		return reconcile.Result{}, nil
 	}
 	if request.Name[len(request.Name)-len(config.SyncSetPostfix):len(request.Name)] != config.SyncSetPostfix {
 		return reconcile.Result{}, nil
+	}
+
+	isCDCreated, _, err := utils.CheckClusterDeployment(request, r.client, r.reqLogger)
+
+	// If we don't manage this cluster: log, delete, return
+	if !isCDCreated {
+		return r.deleteSyncSet(request)
 	}
 
 	// Fetch the SyncSet instance

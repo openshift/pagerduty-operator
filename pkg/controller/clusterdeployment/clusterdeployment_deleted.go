@@ -22,7 +22,6 @@ import (
 	metrics "github.com/openshift/pagerduty-operator/pkg/localmetrics"
 	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
 	"github.com/openshift/pagerduty-operator/pkg/utils"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -60,13 +59,10 @@ func (r *ReconcileClusterDeployment) handleDelete(request reconcile.Request, ins
 	// find the PD syncset and delete it
 	ssName := request.Name + config.SyncSetPostfix
 	r.reqLogger.Info("Deleting PD SyncSet", "Namespace", request.Namespace, "Name", request.Name)
-	syncset := &hivev1.SyncSet{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Namespace: request.Namespace, Name: ssName}, syncset)
-	if err == nil {
-		err = r.client.Delete(context.TODO(), syncset)
-		if err != nil {
-			r.reqLogger.Error(err, "Error deleting SyncSet", "Namespace", request.Namespace, "Name", ssName)
-		}
+	err = utils.DeleteSyncSet(ssName, request.Namespace, r.client, r.reqLogger)
+
+	if err != nil {
+		r.reqLogger.Error(err, "Error deleting SyncSet", "Namespace", request.Namespace, "Name", ssName)
 	}
 
 	if utils.HasFinalizer(instance, config.OperatorFinalizer) {

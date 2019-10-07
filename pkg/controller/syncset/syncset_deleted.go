@@ -21,6 +21,7 @@ import (
 	"github.com/openshift/pagerduty-operator/config"
 	"github.com/openshift/pagerduty-operator/pkg/kube"
 	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
+	"github.com/openshift/pagerduty-operator/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -91,6 +92,7 @@ func (r *ReconcileSyncSet) recreateSyncSet(request reconcile.Request) (reconcile
 func (r *ReconcileSyncSet) deleteSyncSet(request reconcile.Request) (reconcile.Result, error) {
 	syncset := &hivev1.SyncSet{}
 	err := r.client.Get(context.TODO(), request.NamespacedName, syncset)
+
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -105,7 +107,7 @@ func (r *ReconcileSyncSet) deleteSyncSet(request reconcile.Request) (reconcile.R
 	// Only delete the syncset, this is just cleanup of the synced secret.
 	// The ClusterDeployment controller manages deletion of the pagerduty serivce.
 	r.reqLogger.Info("Deleting SyncSet")
-	err = r.client.Delete(context.TODO(), syncset)
+	err = utils.DeleteSyncSet(request.Name, request.Namespace, r.client, r.reqLogger)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
