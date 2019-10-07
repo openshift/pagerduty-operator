@@ -144,7 +144,7 @@ func (r *ReconcileSyncSet) Reconcile(request reconcile.Request) (reconcile.Resul
 
 	// If we don't manage this cluster: log, delete, return
 	if !isCDCreated {
-		return r.deleteSyncSet(request)
+		return reconcile.Result{}, utils.DeleteSyncSet(request.Name, request.Namespace, r.client, r.reqLogger)
 	}
 
 	// Fetch the SyncSet instance
