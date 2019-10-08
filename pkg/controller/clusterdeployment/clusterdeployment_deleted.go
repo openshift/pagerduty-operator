@@ -54,11 +54,21 @@ func (r *ReconcileClusterDeployment) handleDelete(request reconcile.Request, ins
 	err = r.pdclient.DeleteService(pdData)
 	if err != nil {
 		r.reqLogger.Error(err, "Failed cleaning up pagerduty.")
+	} else {
+		// NOTE not deleting the configmap if we didn't delete the service with the assumption that the config can be used later for cleanup
+		// find the PD configmap and delete it
+		cmName := request.Name + config.ConfigMapPostfix
+		r.reqLogger.Info("Deleting PD ConfigMap", "Namespace", request.Namespace, "Name", cmName)
+		err = utils.DeleteConfigMap(cmName, request.Namespace, r.client, r.reqLogger)
+
+		if err != nil {
+			r.reqLogger.Error(err, "Error deleting ConfigMap", "Namespace", request.Namespace, "Name", cmName)
+		}
 	}
 
 	// find the PD syncset and delete it
 	ssName := request.Name + config.SyncSetPostfix
-	r.reqLogger.Info("Deleting PD SyncSet", "Namespace", request.Namespace, "Name", request.Name)
+	r.reqLogger.Info("Deleting PD SyncSet", "Namespace", request.Namespace, "Name", ssName)
 	err = utils.DeleteSyncSet(ssName, request.Namespace, r.client, r.reqLogger)
 
 	if err != nil {

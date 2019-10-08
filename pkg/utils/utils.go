@@ -7,6 +7,7 @@ import (
 	"github.com/go-logr/logr"
 	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
 	"github.com/openshift/pagerduty-operator/config"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -88,6 +89,38 @@ func CheckClusterDeployment(request reconcile.Request, client client.Client, req
 
 	// made it this far so it's both managed and has alerts enabled
 	return true, clusterDeployment, nil
+}
+
+// DeleteConfigMap deletes a ConfigMap
+func DeleteConfigMap(name string, namespace string, client client.Client, reqLogger logr.Logger) error {
+	configmap := &v1.ConfigMap{}
+	err := client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, configmap)
+
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// Request object not found, could have been deleted after reconcile request.
+			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
+			// Return and don't requeue
+			return nil
+		}
+		// Error finding the object, requeue
+		return err
+	}
+
+	reqLogger.Info("Deleting ConfigMap", "Namespace", namespace, "Name", name)
+	err = client.Delete(context.TODO(), configmap)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// Request object not found, could have been deleted after reconcile request.
+			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
+			// Return and don't requeue
+			return nil
+		}
+		// Error finding the object, requeue
+		return err
+	}
+
+	return nil
 }
 
 // DeleteSyncSet deletes a SyncSet
