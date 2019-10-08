@@ -108,6 +108,11 @@ func (r *ReconcileClusterDeployment) Reconcile(request reconcile.Request) (recon
 
 	processCD, instance, err := utils.CheckClusterDeployment(request, r.client, r.reqLogger)
 
+	if err != nil {
+		// something went wrong, requeue
+		return reconcile.Result{}, err
+	}
+
 	if !processCD || instance.DeletionTimestamp != nil {
 		return r.handleDelete(request, instance)
 	}
