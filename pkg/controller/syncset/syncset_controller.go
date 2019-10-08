@@ -120,6 +120,11 @@ func (r *ReconcileSyncSet) Reconcile(request reconcile.Request) (reconcile.Resul
 
 	isCDCreated, _, err := utils.CheckClusterDeployment(request, r.client, r.reqLogger)
 
+	if err != nil {
+		// something went wrong, requeue
+		return reconcile.Result{}, err
+	}
+
 	// If we don't manage this cluster: log, delete, return
 	if !isCDCreated {
 		return reconcile.Result{}, utils.DeleteSyncSet(request.Name, request.Namespace, r.client, r.reqLogger)
