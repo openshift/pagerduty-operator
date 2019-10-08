@@ -2,6 +2,7 @@ package clusterdeployment
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -365,7 +366,7 @@ func TestRemoveAlertsAfterCreate(t *testing.T) {
 			testPDConfigSecret(),
 			testPDConfigMap(), // <-- see comment below
 		})
-		// in order to test the delete, we need to crete the pd secret w/ a non-empty SERVICE_ID, which means CreateService won't be called
+		// in order to test the delete, we need to create the pd secret w/ a non-empty SERVICE_ID, which means CreateService won't be called
 
 		setupDMSMock :=
 			func(r *mockpd.MockClientMockRecorder) {
@@ -420,6 +421,7 @@ func TestRemoveAlertsAfterCreate(t *testing.T) {
 		// Assert
 		assert.NoError(t, err, "Unexpected Error")
 		assert.True(t, verifyNoSyncSetExists(mocks.fakeKubeClient, &SyncSetEntry{}))
+		assert.True(t, verifyNoConfigMapExists(mocks.fakeKubeClient))
 	})
 }
 
@@ -464,6 +466,29 @@ func verifyNoSyncSetExists(c client.Client, expected *SyncSetEntry) bool {
 	for _, ss := range ssList.Items {
 		if ss.Name != testClusterName+testOtherSyncSetPostfix {
 			// too bad, found a syncset associated with this operator
+			return false
+		}
+	}
+
+	// if we got here, it's good.  list was empty or everything passed
+	return true
+}
+
+func verifyNoConfigMapExists(c client.Client) bool {
+	cmList := &corev1.ConfigMapList{}
+	opts := client.ListOptions{Namespace: testNamespace}
+	err := c.List(context.TODO(), &opts, cmList)
+
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// no configmaps are defined, this is OK
+			return true
+		}
+	}
+
+	for _, cm := range cmList.Items {
+		if strings.HasSuffix(cm.Name, config.ConfigMapPostfix) {
+			// too bad, found a configmap associated with this operator
 			return false
 		}
 	}

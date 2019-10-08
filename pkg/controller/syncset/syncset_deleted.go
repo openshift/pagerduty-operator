@@ -21,7 +21,7 @@ import (
 	"github.com/openshift/pagerduty-operator/config"
 	"github.com/openshift/pagerduty-operator/pkg/kube"
 	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
-	corev1 "k8s.io/api/core/v1"
+	"github.com/openshift/pagerduty-operator/pkg/utils"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -65,14 +65,13 @@ func (r *ReconcileSyncSet) recreateSyncSet(request reconcile.Request) (reconcile
 	}
 
 	if recreateCM {
-		pdAPIConfigMap := &corev1.ConfigMap{}
-		err := r.client.Get(context.TODO(), types.NamespacedName{Namespace: request.Namespace, Name: cdName + config.ConfigMapPostfix}, pdAPIConfigMap)
+		cmName := cdName + config.ConfigMapPostfix
+		err = utils.DeleteConfigMap(cmName, request.Namespace, r.client, r.reqLogger)
 		if err != nil {
-			if !errors.IsNotFound(err) {
-				return reconcile.Result{}, err
-			}
+			// couldn't find the config map, requeue
+			return reconcile.Result{}, err
 		}
-		r.client.Delete(context.TODO(), pdAPIConfigMap)
+
 		newCM := kube.GenerateConfigMap(request.Namespace, cdName, pdData.ServiceID, pdData.IntegrationID)
 		if err := r.client.Create(context.TODO(), newCM); err != nil {
 			if errors.IsAlreadyExists(err) {
