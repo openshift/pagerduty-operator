@@ -23,6 +23,7 @@ import (
 
 	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
 	"github.com/openshift/operator-custom-metrics/pkg/metrics"
+	operatorconfig "github.com/openshift/pagerduty-operator/config"
 	"github.com/openshift/pagerduty-operator/pkg/apis"
 	"github.com/openshift/pagerduty-operator/pkg/controller"
 	"github.com/openshift/pagerduty-operator/pkg/localmetrics"
@@ -131,6 +132,7 @@ func main() {
 	metricsServer := metrics.NewBuilder().WithPort(metricsPort).WithPath(metricsPath).
 		WithCollectors(localmetrics.MetricsList).
 		WithRoute().
+		WithServiceName(operatorconfig.OperatorName).
 		GetConfig()
 
 	// Configure metrics if it errors log the error but continue
