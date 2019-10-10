@@ -257,6 +257,17 @@ func TestReconcileClusterDeployment(t *testing.T) {
 			},
 		},
 		{
+			name: "Test Deleting with missing ConfigMap",
+			localObjects: []runtime.Object{
+				deletedClusterDeployment(),
+				testPDConfigSecret(),
+			},
+			expectedSyncSets: &SyncSetEntry{},
+			verifySyncSets:   verifyNoSyncSetExists,
+			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
+			},
+		},
+		{
 			name: "Test Creating (unmanaged with label)",
 			localObjects: []runtime.Object{
 				unmanagedClusterDeployment(),

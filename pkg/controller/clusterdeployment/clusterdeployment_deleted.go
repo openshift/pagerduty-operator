@@ -42,27 +42,32 @@ func (r *ReconcileClusterDeployment) handleDelete(request reconcile.Request, ins
 		BaseDomain: instance.Spec.BaseDomain,
 	}
 	err := pdData.ParsePDConfig(r.client)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
+	// if there is an error, no configuration (configmap or secret) was found.
+	// we are deleting.
+	// if we block deletion because of missing config we will block cluster deletion.
+	// if we do not block we could leave a dangling service in PD.
+	// without the config we cannot fix the dangling service.
+	// THEREFORE: do not fail if we can't find PD config, just continue
+	if err == nil {
+		err = pdData.ParseClusterConfig(r.client, request.Namespace, request.Name)
 
-	err = pdData.ParseClusterConfig(r.client, request.Namespace, request.Name)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
+		if err == nil {
+			// no errors, delete!
 
-	err = r.pdclient.DeleteService(pdData)
-	if err != nil {
-		r.reqLogger.Error(err, "Failed cleaning up pagerduty.")
-	} else {
-		// NOTE not deleting the configmap if we didn't delete the service with the assumption that the config can be used later for cleanup
-		// find the PD configmap and delete it
-		cmName := request.Name + config.ConfigMapPostfix
-		r.reqLogger.Info("Deleting PD ConfigMap", "Namespace", request.Namespace, "Name", cmName)
-		err = utils.DeleteConfigMap(cmName, request.Namespace, r.client, r.reqLogger)
+			err = r.pdclient.DeleteService(pdData)
+			if err != nil {
+				r.reqLogger.Error(err, "Failed cleaning up pagerduty.")
+			} else {
+				// NOTE not deleting the configmap if we didn't delete the service with the assumption that the config can be used later for cleanup
+				// find the PD configmap and delete it
+				cmName := request.Name + config.ConfigMapPostfix
+				r.reqLogger.Info("Deleting PD ConfigMap", "Namespace", request.Namespace, "Name", cmName)
+				err = utils.DeleteConfigMap(cmName, request.Namespace, r.client, r.reqLogger)
 
-		if err != nil {
-			r.reqLogger.Error(err, "Error deleting ConfigMap", "Namespace", request.Namespace, "Name", cmName)
+				if err != nil {
+					r.reqLogger.Error(err, "Error deleting ConfigMap", "Namespace", request.Namespace, "Name", cmName)
+				}
+			}
 		}
 	}
 
