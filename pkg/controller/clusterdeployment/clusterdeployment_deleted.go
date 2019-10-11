@@ -22,6 +22,7 @@ import (
 	metrics "github.com/openshift/pagerduty-operator/pkg/localmetrics"
 	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
 	"github.com/openshift/pagerduty-operator/pkg/utils"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -42,27 +43,57 @@ func (r *ReconcileClusterDeployment) handleDelete(request reconcile.Request, ins
 		BaseDomain: instance.Spec.BaseDomain,
 	}
 	err := pdData.ParsePDConfig(r.client)
+	deletePDService := true
+
 	if err != nil {
-		return reconcile.Result{}, err
+		if !errors.IsNotFound(err) {
+			// some error other than not found, requeue
+			return reconcile.Result{}, err
+		}
+		/*
+			The PD config was not found.
+
+			If the error is a missing PD Config we must not fail or requeue.
+			If we are deleting (we're in handleDelete) and we cannot find the PD config
+			it will never be created.  We cannot recover so just skip the PD service
+			deletion.
+		*/
+		deletePDService = false
 	}
 
-	err = pdData.ParseClusterConfig(r.client, request.Namespace, request.Name)
-	if err != nil {
-		return reconcile.Result{}, err
-	}
-
-	err = r.pdclient.DeleteService(pdData)
-	if err != nil {
-		r.reqLogger.Error(err, "Failed cleaning up pagerduty.")
-	} else {
-		// NOTE not deleting the configmap if we didn't delete the service with the assumption that the config can be used later for cleanup
-		// find the PD configmap and delete it
-		cmName := request.Name + config.ConfigMapPostfix
-		r.reqLogger.Info("Deleting PD ConfigMap", "Namespace", request.Namespace, "Name", cmName)
-		err = utils.DeleteConfigMap(cmName, request.Namespace, r.client, r.reqLogger)
+	if deletePDService {
+		err = pdData.ParseClusterConfig(r.client, request.Namespace, request.Name)
 
 		if err != nil {
-			r.reqLogger.Error(err, "Error deleting ConfigMap", "Namespace", request.Namespace, "Name", cmName)
+			if !errors.IsNotFound(err) {
+				// some error other than not found, requeue
+				return reconcile.Result{}, err
+			}
+			/*
+				Something was not found if we are here.
+
+				The missing object will never be created as we're in the handleDelete function.
+				Skip service deletion in this case and continue with deletion.
+			*/
+			deletePDService = false
+		}
+	}
+
+	if deletePDService {
+		// we have everything necessary to attempt deletion of the PD service
+		err = r.pdclient.DeleteService(pdData)
+		if err != nil {
+			r.reqLogger.Error(err, "Failed cleaning up pagerduty.")
+		} else {
+			// NOTE not deleting the configmap if we didn't delete the service with the assumption that the config can be used later for cleanup
+			// find the PD configmap and delete it
+			cmName := request.Name + config.ConfigMapPostfix
+			r.reqLogger.Info("Deleting PD ConfigMap", "Namespace", request.Namespace, "Name", cmName)
+			err = utils.DeleteConfigMap(cmName, request.Namespace, r.client, r.reqLogger)
+
+			if err != nil {
+				r.reqLogger.Error(err, "Error deleting ConfigMap", "Namespace", request.Namespace, "Name", cmName)
+			}
 		}
 	}
 
