@@ -19,11 +19,10 @@ import (
 	"github.com/openshift/pagerduty-operator/config"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 )
 
 // GenerateSyncSet returns a syncset that can be created with the oc client
-func GenerateSyncSet(namespace string, name string, pdIntegrationID string) *hivev1.SyncSet {
+func GenerateSyncSet(namespace string, name string, secret *corev1.Secret) *hivev1.SyncSet {
 	ssName := name + config.SyncSetPostfix
 
 	return &hivev1.SyncSet{
@@ -39,25 +38,41 @@ func GenerateSyncSet(namespace string, name string, pdIntegrationID string) *hiv
 			},
 			SyncSetCommonSpec: hivev1.SyncSetCommonSpec{
 				ResourceApplyMode: "sync",
-				Resources: []runtime.RawExtension{
+				SecretReferences: []hivev1.SecretReference{
 					{
-						Object: &corev1.Secret{
-							Type: "Opaque",
-							TypeMeta: metav1.TypeMeta{
-								Kind:       "Secret",
-								APIVersion: "v1",
-							},
-							ObjectMeta: metav1.ObjectMeta{
-								Name:      "pd-secret",
-								Namespace: "openshift-monitoring",
-							},
-							Data: map[string][]byte{
-								"PAGERDUTY_KEY": []byte(pdIntegrationID),
-							},
+						Source: corev1.ObjectReference{
+							Kind:      secret.Kind,
+							Namespace: secret.Namespace,
+							Name:      secret.Name,
+						},
+						Target: corev1.ObjectReference{
+							Kind:      secret.Kind,
+							Namespace: "openshift-monitoring",
+							Name:      config.PagerDutySecretName,
 						},
 					},
 				},
 			},
 		},
 	}
+}
+
+// GeneratePdSecret returns a secret that can be created with the oc client
+func GeneratePdSecret(namespace string, name string, pdIntegrationKey string) *corev1.Secret {
+	secret := &corev1.Secret{
+		Type: "Opaque",
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Data: map[string][]byte{
+			"PAGERDUTY_KEY": []byte(pdIntegrationKey),
+		},
+	}
+
+	return secret
 }

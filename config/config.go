@@ -22,6 +22,7 @@ const (
 	PagerDutyAPISecretKey  string = "PAGERDUTY_API_KEY"
 	OperatorFinalizer      string = "pd.managed.openshift.io/pagerduty"
 	SyncSetPostfix         string = "-pd-sync"
+	PagerDutySecretName    string = "pd-secret"
 	ConfigMapPostfix       string = "-pd-config"
 
 	// PagerDutyUrgencyRule is the type of IncidentUrgencyRule for new incidents

@@ -26,9 +26,10 @@ import (
 )
 
 const (
-	testClusterName   = "testCluster"
-	testNamespace     = "testNamespace"
-	testIntegrationID = "ABC123"
+	testClusterName          = "testCluster"
+	testNamespace            = "testNamespace"
+	testIntegrationID        = "ABC123"
+	testsecretReferencesNmae = "pd-secret"
 )
 
 type SyncSetEntry struct {
@@ -125,7 +126,8 @@ func testSecret() *corev1.Secret {
 
 // return a SyncSet representing an existng integration
 func testSyncSet() *hivev1.SyncSet {
-	return kube.GenerateSyncSet(testNamespace, testClusterName, testIntegrationID)
+	s := testSecret()
+	return kube.GenerateSyncSet(testNamespace, testClusterName, s)
 }
 
 func TestReconcileSyncSet(t *testing.T) {
@@ -249,12 +251,12 @@ func verifySyncSetExists(c client.Client, expected *SyncSetEntry) bool {
 	if expected.clusterDeploymentRefName != ss.Spec.ClusterDeploymentRefs[0].Name {
 		return false
 	}
-	secret := rawToSecret(ss.Spec.Resources[0])
-	if secret == nil {
+	secretReferences := ss.Spec.SecretReferences[0].Source.Name
+	if secretReferences == "" {
 		return false
 	}
 
-	return string(secret.Data["PAGERDUTY_KEY"]) == expected.pdIntegrationID
+	return string(secretReferences) == testsecretReferencesNmae
 }
 
 func verifyNoSyncSetExists(c client.Client, expected *SyncSetEntry) bool {

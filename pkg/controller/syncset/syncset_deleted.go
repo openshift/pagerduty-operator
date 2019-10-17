@@ -22,8 +22,10 @@ import (
 	"github.com/openshift/pagerduty-operator/pkg/kube"
 	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
 	"github.com/openshift/pagerduty-operator/pkg/utils"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -59,9 +61,32 @@ func (r *ReconcileSyncSet) recreateSyncSet(request reconcile.Request) (reconcile
 		recreateCM = true
 	}
 
-	newSS := kube.GenerateSyncSet(request.Namespace, clusterdeployment.Name, pdIntegrationKey)
-	if err := r.client.Create(context.TODO(), newSS); err != nil {
-		return reconcile.Result{}, err
+	//check if the secret is already there , if already there , do nothing
+	secret := &corev1.Secret{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: config.PagerDutySecretName, Namespace: request.Namespace}, secret)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			secret = kube.GeneratePdSecret(request.Namespace, config.PagerDutySecretName, pdIntegrationKey)
+			//add SetControllerReference
+			if err = controllerutil.SetControllerReference(clusterdeployment, secret, r.scheme); err != nil {
+				r.reqLogger.Error(err, "Error setting controller reference on secret")
+				return reconcile.Result{}, err
+			}
+			if err = r.client.Create(context.TODO(), secret); err != nil {
+				return reconcile.Result{}, err
+			}
+		}
+	}
+
+	newSS := &hivev1.SyncSet{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: request.Name + config.SyncSetPostfix, Namespace: request.Namespace}, newSS)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			newSS = kube.GenerateSyncSet(request.Namespace, clusterdeployment.Name, secret)
+			if err := r.client.Create(context.TODO(), newSS); err != nil {
+				return reconcile.Result{}, err
+			}
+		}
 	}
 
 	if recreateCM {
