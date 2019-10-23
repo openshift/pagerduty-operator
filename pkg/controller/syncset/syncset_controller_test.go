@@ -29,7 +29,7 @@ const (
 	testClusterName          = "testCluster"
 	testNamespace            = "testNamespace"
 	testIntegrationID        = "ABC123"
-	testsecretReferencesNmae = "pd-secret"
+	testsecretReferencesName = "pd-secret"
 )
 
 type SyncSetEntry struct {
@@ -256,7 +256,7 @@ func verifySyncSetExists(c client.Client, expected *SyncSetEntry) bool {
 		return false
 	}
 
-	return string(secretReferences) == testsecretReferencesNmae
+	return string(secretReferences) == testsecretReferencesName
 }
 
 func verifyNoSyncSetExists(c client.Client, expected *SyncSetEntry) bool {

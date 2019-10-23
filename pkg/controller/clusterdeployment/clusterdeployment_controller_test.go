@@ -33,7 +33,7 @@ const (
 	testResolveTimeout       = "300"
 	testAcknowledgeTimeout   = "300"
 	testOtherSyncSetPostfix  = "-something-else"
-	testsecretReferencesNmae = "pd-secret"
+	testsecretReferencesName = "pd-secret"
 )
 
 type SyncSetEntry struct {
@@ -459,7 +459,7 @@ func verifySyncSetExists(c client.Client, expected *SyncSetEntry) bool {
 	if secretReferences == "" {
 		return false
 	}
-	return string(secretReferences) == testsecretReferencesNmae
+	return string(secretReferences) == testsecretReferencesName
 }
 
 // verifyNoSyncSetExists verifies that there is no SyncSet present that matches the supplied expected SyncSetEntry.
