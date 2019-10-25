@@ -10,12 +10,12 @@
   version = "v0.47.0"
 
 [[projects]]
-  digest = "1:8c7a6728ebc0ac19969cf778e76b91b548964e187d8e33327d39f5cda0272546"
+  digest = "1:74d07b7c8671590ed6ba8e95a13c33691d16ce1b43c5a8f8c34948e39cbc93cc"
   name = "github.com/PagerDuty/go-pagerduty"
   packages = ["."]
   pruneopts = "NT"
-  revision = "b4a4067bdbde86de1d3fdf15c3c01e76bee9127c"
-  version = "1.0.4"
+  revision = "72899523d9a424e865eae080f25453f865ff91c7"
+  version = "v1.1.2"
 
 [[projects]]
   digest = "1:0a111edd8693fd977f42a0c4f199a0efb13c20aec9da99ad8830c7bb6a87e8d6"
@@ -207,6 +207,19 @@
   pruneopts = "NT"
   revision = "4030bb1f1f0c35b30ca7009e9ebd06849dd45306"
   version = "v1.0.0"
+
+[[projects]]
+  digest = "1:2ddc4fb22e0f7c7f6ce615f8b453aeb1c7d0eec746c1a5a62244363e1a836462"
+  name = "github.com/google/go-cmp"
+  packages = [
+    "cmp",
+    "cmp/internal/diff",
+    "cmp/internal/function",
+    "cmp/internal/value",
+  ]
+  pruneopts = "NT"
+  revision = "3af367b6b30c263d47e8895973edcca9a49cf029"
+  version = "v0.2.0"
 
 [[projects]]
   digest = "1:a63cff6b5d8b95638bfe300385d93b2a6d9d687734b863da8e09dc834510a690"
@@ -508,9 +521,20 @@
   version = "v1.0.5"
 
 [[projects]]
+  digest = "1:60a46e2410edbf02b419f833372dd1d24d7aa1b916a990a7370e792fada1eadd"
+  name = "github.com/stretchr/objx"
+  packages = ["."]
+  pruneopts = "NT"
+  revision = "477a77ecc69700c7cdeb1fa9e129548e1c1c393c"
+  version = "v0.1.1"
+
+[[projects]]
   digest = "1:b1eb7870c859801cf1b3d92ce7326dda6abb90e5ff4d6bcee3d0c54e8d6acfec"
   name = "github.com/stretchr/testify"
-  packages = ["assert"]
+  packages = [
+    "assert",
+    "mock",
+  ]
   pruneopts = "NT"
   revision = "221dbe5ed46703ee255b1da0dec05086f5035f62"
   version = "v1.4.0"
@@ -684,6 +708,20 @@
   pruneopts = "NT"
   revision = "f221b8435cfb71e54062f6c6e99e9ade30b124d5"
   version = "v2.2.4"
+
+[[projects]]
+  digest = "1:0f325e173d86b9324ba53c9bd713104678063e3c3f552dc35cf9af16dc375ab2"
+  name = "gotest.tools"
+  packages = [
+    "assert",
+    "assert/cmp",
+    "internal/difflib",
+    "internal/format",
+    "internal/source",
+  ]
+  pruneopts = "NT"
+  revision = "1083505acf35a0bd8a696b26837e1fb3187a7a83"
+  version = "v2.3.0"
 
 [[projects]]
   digest = "1:6fa82ea248029bbbdddade20c06ab177ff6e485e5e45e48b045707415b7efd34"
@@ -1005,7 +1043,7 @@
     "github.com/golang/mock/gomock",
     "github.com/openshift/api/route/v1",
     "github.com/openshift/hive/pkg/apis",
-    "github.com/openshift/hive/pkg/apis/hive/v1alpha1",
+    "github.com/openshift/hive/pkg/apis/hive/v1",
     "github.com/openshift/operator-custom-metrics/pkg/metrics",
     "github.com/operator-framework/operator-sdk/pkg/leader",
     "github.com/operator-framework/operator-sdk/pkg/log/zap",
@@ -1013,6 +1051,8 @@
     "github.com/prometheus/client_golang/prometheus",
     "github.com/spf13/pflag",
     "github.com/stretchr/testify/assert",
+    "github.com/stretchr/testify/mock",
+    "gotest.tools/assert",
     "k8s.io/api/core/v1",
     "k8s.io/apimachinery/pkg/api/errors",
     "k8s.io/apimachinery/pkg/apis/meta/v1",

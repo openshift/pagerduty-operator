@@ -59,7 +59,7 @@ func (r *ReconcileClusterDeployment) handleCreate(request reconcile.Request, ins
 	err := pdData.ParseClusterConfig(r.client, request.Namespace, request.Name)
 	if err != nil {
 		var createErr error
-		pdIntegrationKey, createErr = r.pdclient.CreateService(pdData)
+		_, createErr = r.pdclient.CreateService(pdData)
 		if createErr != nil {
 			localmetrics.UpdateMetricPagerDutyCreateFailure(1, ClusterID)
 			return reconcile.Result{}, createErr
