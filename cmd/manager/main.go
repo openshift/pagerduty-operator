@@ -58,6 +58,12 @@ func printVersion() {
 }
 
 func main() {
+	if err := start(); err != nil {
+		panic(err)
+	}
+}
+
+func start() error {
 	// Add the zap logger flag set to the CLI. The flag set must
 	// be added before calling pflag.Parse().
 	pflag.CommandLine.AddFlagSet(zap.FlagSet())
@@ -68,6 +74,7 @@ func main() {
 
 	pflag.Parse()
 
+	stopCh := signals.SetupSignalHandler()
 	// Use a zap logr.Logger implementation. If none of the zap
 	// flags are configured (or if the zap flag set is not being
 	// used), this defaults to a production zap logger.
@@ -128,6 +135,10 @@ func main() {
 		log.Error(err, "")
 		os.Exit(1)
 	}
+	// start cache and wait for sync
+	cache := mgr.GetCache()
+	go cache.Start(stopCh)
+	cache.WaitForCacheSync(stopCh)
 
 	metricsServer := metrics.NewBuilder().WithPort(metricsPort).WithPath(metricsPath).
 		WithCollectors(localmetrics.MetricsList).
@@ -136,7 +147,6 @@ func main() {
 		GetConfig()
 
 	// Configure metrics if it errors log the error but continue
-
 	if err := metrics.ConfigureMetrics(context.TODO(), *metricsServer); err != nil {
 		log.Error(err, "Failed to configure Metrics")
 		os.Exit(1)
@@ -144,14 +154,13 @@ func main() {
 
 	client := mgr.GetClient()
 	pdAPISecret := &corev1.Secret{}
-	err = client.Get(context.TODO(), types.NamespacedName{Namespace: "pagerduty-operator", Name: "pagerduty-api-key"}, pdAPISecret)
-	var APIKey string
-
-	if err == nil {
-		APIKey = string(pdAPISecret.Data["PAGERDUTY_API_KEY"])
-	} else {
+	err = client.Get(context.TODO(), types.NamespacedName{Namespace: operatorconfig.OperatorNamespace, Name: operatorconfig.PagerDutyAPISecretName}, pdAPISecret)
+	if err != nil {
 		log.Error(err, "Failed to get secret")
+		return err
 	}
+	var APIKey string
+	APIKey = string(pdAPISecret.Data[operatorconfig.PagerDutyAPISecretKey])
 
 	timer := prometheus.NewTimer(localmetrics.MetricPagerDutyHeartbeat)
 	go localmetrics.UpdateAPIMetrics(APIKey, timer)
@@ -159,8 +168,5 @@ func main() {
 	log.Info("Starting the Cmd.")
 
 	// Start the Cmd
-	if err := mgr.Start(signals.SetupSignalHandler()); err != nil {
-		log.Error(err, "Manager exited non-zero")
-		os.Exit(1)
-	}
+	return mgr.Start(stopCh)
 }
