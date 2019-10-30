@@ -73,23 +73,33 @@ func (r *ReconcileClusterDeployment) handleCreate(request reconcile.Request, ins
 	}
 
 	//add secret part
-	sc := &corev1.Secret{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: config.PagerDutySecretName, Namespace: instance.Namespace}, sc)
 	secret := kube.GeneratePdSecret(instance.Namespace, config.PagerDutySecretName, pdIntegrationKey)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			r.reqLogger.Info("creating pd secret")
-			//add reference
-			if err = controllerutil.SetControllerReference(instance, secret, r.scheme); err != nil {
-				r.reqLogger.Error(err, "Error setting controller reference on secret")
+	r.reqLogger.Info("creating pd secret")
+	//add reference
+	if err = controllerutil.SetControllerReference(instance, secret, r.scheme); err != nil {
+		r.reqLogger.Error(err, "Error setting controller reference on secret")
+		return reconcile.Result{}, err
+	}
+	if err = r.client.Create(context.TODO(), secret); err != nil {
+		if !errors.IsAlreadyExists(err) {
+			return reconcile.Result{}, err
+		}
+
+		r.reqLogger.Info("the pd secret exist, check if  pdIntegrationKey is changed or not")
+		sc := &corev1.Secret{}
+		err = r.client.Get(context.TODO(), types.NamespacedName{Name: secret.Name, Namespace: request.Namespace}, sc)
+		if err != nil {
+			return reconcile.Result{}, nil
+		}
+		if string(sc.Data["PAGERDUTY_KEY"]) != pdIntegrationKey {
+			r.reqLogger.Info("pdIntegrationKey is changed, delete the secret first")
+			if err = r.client.Delete(context.TODO(), secret); err != nil {
+				log.Info("failed to delete existing pd secret")
 				return reconcile.Result{}, err
 			}
-
+			r.reqLogger.Info("creating pd secret")
 			if err = r.client.Create(context.TODO(), secret); err != nil {
-				log.Info("start create a the secret ")
-				if !errors.IsAlreadyExists(err) {
-					return reconcile.Result{}, err
-				}
+				return reconcile.Result{}, err
 			}
 		}
 	}
