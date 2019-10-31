@@ -49,6 +49,10 @@ var (
 	metricsPort = "8080"
 	metricsPath = "/metrics"
 )
+
+// Set const to analyze to determine operator-sdk up local
+const envSDK string = "OSDK_FORCE_RUN_MODE"
+
 var log = logf.Log.WithName("cmd")
 
 func printVersion() {
@@ -146,10 +150,15 @@ func start() error {
 		WithServiceName(operatorconfig.OperatorName).
 		GetConfig()
 
-	// Configure metrics if it errors log the error but continue
-	if err := metrics.ConfigureMetrics(context.TODO(), *metricsServer); err != nil {
-		log.Error(err, "Failed to configure Metrics")
-		os.Exit(1)
+	// detect if operator-sdk up local is run
+	if os.Getenv(envSDK) == "local" {
+		log.Info("Skipping metrics configuration; not running in a cluster.")
+	} else {
+		// Configure metrics. If it errors, log the error and exit.
+		if err := metrics.ConfigureMetrics(context.TODO(), *metricsServer); err != nil {
+			log.Error(err, "Failed to configure Metrics")
+			os.Exit(1)
+		}
 	}
 
 	client := mgr.GetClient()
