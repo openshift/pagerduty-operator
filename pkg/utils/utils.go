@@ -66,7 +66,7 @@ func CheckClusterDeployment(request reconcile.Request, client client.Client, req
 		return false, clusterDeployment, nil
 	}
 
-	if !clusterDeployment.Status.Installed {
+	if !clusterDeployment.Spec.Installed {
 		return false, clusterDeployment, nil
 	}
 

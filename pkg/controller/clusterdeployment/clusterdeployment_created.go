@@ -29,7 +29,7 @@ import (
 )
 
 func (r *ReconcileClusterDeployment) handleCreate(request reconcile.Request, instance *hivev1.ClusterDeployment) (reconcile.Result, error) {
-	if !instance.Status.Installed {
+	if !instance.Spec.Installed {
 		// Cluster isn't installed yet, return
 		return reconcile.Result{}, nil
 	}

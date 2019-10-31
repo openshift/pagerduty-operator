@@ -83,7 +83,7 @@ func testClusterDeployment() *hivev1alpha1.ClusterDeployment {
 			ClusterName: testClusterName,
 		},
 	}
-	cd.Status.Installed = true
+	cd.Spec.Installed = true
 
 	return &cd
 }
@@ -104,7 +104,7 @@ func testClusterDeploymentNoalerts() *hivev1alpha1.ClusterDeployment {
 			ClusterName: testClusterName,
 		},
 	}
-	cd.Status.Installed = true
+	cd.Spec.Installed = true
 
 	return &cd
 }

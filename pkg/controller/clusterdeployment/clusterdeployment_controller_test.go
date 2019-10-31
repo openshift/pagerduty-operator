@@ -157,7 +157,7 @@ func testClusterDeployment() *hivev1alpha1.ClusterDeployment {
 			ClusterName: testClusterName,
 		},
 	}
-	cd.Status.Installed = true
+	cd.Spec.Installed = true
 
 	return &cd
 }
@@ -178,7 +178,7 @@ func testNoalertsClusterDeployment() *hivev1alpha1.ClusterDeployment {
 			ClusterName: testClusterName,
 		},
 	}
-	cd.Status.Installed = true
+	cd.Spec.Installed = true
 
 	return &cd
 }
@@ -208,10 +208,10 @@ func unlabelledClusterDeployment() *hivev1alpha1.ClusterDeployment {
 	return cd
 }
 
-// uninstalledClusterDeployment returns a ClusterDeployment with Status.installed == false to use in testing.
+// uninstalledClusterDeployment returns a ClusterDeployment with Spec.Installed == false to use in testing.
 func uninstalledClusterDeployment() *hivev1alpha1.ClusterDeployment {
 	cd := testClusterDeployment()
-	cd.Status.Installed = false
+	cd.Spec.Installed = false
 
 	return cd
 }
