@@ -84,10 +84,10 @@ func testPDConfigSecret() *corev1.Secret {
 			Name:      config.PagerDutyAPISecretName,
 		},
 		Data: map[string][]byte{
-			"PAGERDUTY_API_KEY":   []byte(testAPIKey),
-			"ESCALATION_POLICY":   []byte(testEscalationPolicy),
-			"RESOLVE_TIMEOUT":     []byte(testResolveTimeout),
-			"ACKNOWLEDGE_TIMEOUT": []byte(testAcknowledgeTimeout),
+			config.PagerDutyAPISecretKey: []byte(testAPIKey),
+			"ESCALATION_POLICY":          []byte(testEscalationPolicy),
+			"RESOLVE_TIMEOUT":            []byte(testResolveTimeout),
+			"ACKNOWLEDGE_TIMEOUT":        []byte(testAcknowledgeTimeout),
 		},
 	}
 	return s
