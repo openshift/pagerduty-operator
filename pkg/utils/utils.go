@@ -156,3 +156,35 @@ func DeleteSyncSet(name string, namespace string, client client.Client, reqLogge
 
 	return nil
 }
+
+// DeleteSecret deletes a Secret
+func DeleteSecret(name string, namespace string, client client.Client, reqLogger logr.Logger) error {
+	secret := &v1.Secret{}
+	err := client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, secret)
+
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// Request object not found, could have been deleted after reconcile request.
+			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
+			// Return and don't requeue
+			return nil
+		}
+		// Error finding the secret, requeue
+		return err
+	}
+
+	reqLogger.Info("Deleting Secret", "Namespace", namespace, "Name", name)
+	err = client.Delete(context.TODO(), secret)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// Request object not found, could have been deleted after reconcile request.
+			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
+			// Return and don't requeue
+			return nil
+		}
+		// Error finding the secret, requeue
+		return err
+	}
+
+	return nil
+}

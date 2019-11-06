@@ -107,12 +107,12 @@ type Data struct {
 func (data *Data) ParsePDConfig(osc client.Client) error {
 
 	pdAPISecret := &corev1.Secret{}
-	err := osc.Get(context.TODO(), types.NamespacedName{Namespace: "pagerduty-operator", Name: "pagerduty-api-key"}, pdAPISecret)
+	err := osc.Get(context.TODO(), types.NamespacedName{Namespace: config.OperatorNamespace, Name: config.PagerDutyAPISecretName}, pdAPISecret)
 	if err != nil {
 		return err
 	}
 
-	data.APIKey, err = getSecretKey(pdAPISecret.Data, "PAGERDUTY_API_KEY")
+	data.APIKey, err = getSecretKey(pdAPISecret.Data, config.PagerDutyAPISecretKey)
 	if err != nil {
 		return err
 	}

@@ -17,13 +17,17 @@ package clusterdeployment
 import (
 	"context"
 
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
+
 	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
 	"github.com/openshift/pagerduty-operator/config"
 	"github.com/openshift/pagerduty-operator/pkg/kube"
-	localmetrics "github.com/openshift/pagerduty-operator/pkg/localmetrics"
+	"github.com/openshift/pagerduty-operator/pkg/localmetrics"
 	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
 	"github.com/openshift/pagerduty-operator/pkg/utils"
-	"k8s.io/apimachinery/pkg/api/errors"
+
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -68,21 +72,55 @@ func (r *ReconcileClusterDeployment) handleCreate(request reconcile.Request, ins
 		return reconcile.Result{}, err
 	}
 
-	r.reqLogger.Info("Creating syncset")
-	newSS := kube.GenerateSyncSet(request.Namespace, request.Name, pdIntegrationKey)
-	if err = controllerutil.SetControllerReference(instance, newSS, r.scheme); err != nil {
-		r.reqLogger.Error(err, "Error setting controller reference on syncset")
+	//add secret part
+	secret := kube.GeneratePdSecret(instance.Namespace, config.PagerDutySecretName, pdIntegrationKey)
+	r.reqLogger.Info("creating pd secret")
+	//add reference
+	if err = controllerutil.SetControllerReference(instance, secret, r.scheme); err != nil {
+		r.reqLogger.Error(err, "Error setting controller reference on secret")
 		return reconcile.Result{}, err
 	}
-	if err := r.client.Create(context.TODO(), newSS); err != nil {
-		if errors.IsAlreadyExists(err) {
-			// SyncSet already exists, we should just update it
-			if updateErr := r.client.Update(context.TODO(), newSS); updateErr != nil {
-				return reconcile.Result{}, err
-			}
+	if err = r.client.Create(context.TODO(), secret); err != nil {
+		if !errors.IsAlreadyExists(err) {
+			return reconcile.Result{}, err
+		}
+
+		r.reqLogger.Info("the pd secret exist, check if  pdIntegrationKey is changed or not")
+		sc := &corev1.Secret{}
+		err = r.client.Get(context.TODO(), types.NamespacedName{Name: secret.Name, Namespace: request.Namespace}, sc)
+		if err != nil {
 			return reconcile.Result{}, nil
 		}
-		return reconcile.Result{}, err
+		if string(sc.Data["PAGERDUTY_KEY"]) != pdIntegrationKey {
+			r.reqLogger.Info("pdIntegrationKey is changed, delete the secret first")
+			if err = r.client.Delete(context.TODO(), secret); err != nil {
+				log.Info("failed to delete existing pd secret")
+				return reconcile.Result{}, err
+			}
+			r.reqLogger.Info("creating pd secret")
+			if err = r.client.Create(context.TODO(), secret); err != nil {
+				return reconcile.Result{}, err
+			}
+		}
+	}
+
+	r.reqLogger.Info("Creating syncset")
+	ss := &hivev1.SyncSet{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: request.Name + config.SyncSetPostfix, Namespace: instance.Namespace}, ss)
+	if err != nil {
+		r.reqLogger.Info("error finding the old syncset")
+		if !errors.IsNotFound(err) {
+			return reconcile.Result{}, err
+		}
+		r.reqLogger.Info("syncset not found , create a new one on this ")
+		ss = kube.GenerateSyncSet(request.Namespace, request.Name, secret)
+		if err = controllerutil.SetControllerReference(instance, ss, r.scheme); err != nil {
+			r.reqLogger.Error(err, "Error setting controller reference on syncset")
+			return reconcile.Result{}, err
+		}
+		if err := r.client.Create(context.TODO(), ss); err != nil {
+			return reconcile.Result{}, err
+		}
 	}
 
 	r.reqLogger.Info("Creating configmap")

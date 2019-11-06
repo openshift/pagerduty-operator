@@ -24,15 +24,16 @@ import (
 )
 
 const (
-	testClusterName         = "testCluster"
-	testNamespace           = "testNamespace"
-	testIntegrationID       = "ABC123"
-	testServiceID           = "DEF456"
-	testAPIKey              = "test-pd-api-key"
-	testEscalationPolicy    = "test-escalation-policy"
-	testResolveTimeout      = "300"
-	testAcknowledgeTimeout  = "300"
-	testOtherSyncSetPostfix = "-something-else"
+	testClusterName          = "testCluster"
+	testNamespace            = "testNamespace"
+	testIntegrationID        = "ABC123"
+	testServiceID            = "DEF456"
+	testAPIKey               = "test-pd-api-key"
+	testEscalationPolicy     = "test-escalation-policy"
+	testResolveTimeout       = "300"
+	testAcknowledgeTimeout   = "300"
+	testOtherSyncSetPostfix  = "-something-else"
+	testsecretReferencesName = "pd-secret"
 )
 
 type SyncSetEntry struct {
@@ -83,10 +84,10 @@ func testPDConfigSecret() *corev1.Secret {
 			Name:      config.PagerDutyAPISecretName,
 		},
 		Data: map[string][]byte{
-			"PAGERDUTY_API_KEY":   []byte(testAPIKey),
-			"ESCALATION_POLICY":   []byte(testEscalationPolicy),
-			"RESOLVE_TIMEOUT":     []byte(testResolveTimeout),
-			"ACKNOWLEDGE_TIMEOUT": []byte(testAcknowledgeTimeout),
+			config.PagerDutyAPISecretKey: []byte(testAPIKey),
+			"ESCALATION_POLICY":          []byte(testEscalationPolicy),
+			"RESOLVE_TIMEOUT":            []byte(testResolveTimeout),
+			"ACKNOWLEDGE_TIMEOUT":        []byte(testAcknowledgeTimeout),
 		},
 	}
 	return s
@@ -123,7 +124,8 @@ func testSecret() *corev1.Secret {
 
 // testSyncSet returns a SyncSet for an existing testClusterDeployment to use in testing.
 func testSyncSet() *hivev1alpha1.SyncSet {
-	ss := kube.GenerateSyncSet(testNamespace, testClusterName+config.SyncSetPostfix, testIntegrationID)
+	secret := kube.GeneratePdSecret(testNamespace, config.PagerDutySecretName, testIntegrationID)
+	ss := kube.GenerateSyncSet(testNamespace, testClusterName+config.SyncSetPostfix, secret)
 	return ss
 }
 
@@ -453,12 +455,11 @@ func verifySyncSetExists(c client.Client, expected *SyncSetEntry) bool {
 	if expected.clusterDeploymentRefName != ss.Spec.ClusterDeploymentRefs[0].Name {
 		return false
 	}
-	secret := rawToSecret(ss.Spec.Resources[0])
-	if secret == nil {
+	secretReferences := ss.Spec.SecretReferences[0].Source.Name
+	if secretReferences == "" {
 		return false
 	}
-
-	return string(secret.Data["PAGERDUTY_KEY"]) == expected.pdIntegrationID
+	return string(secretReferences) == testsecretReferencesName
 }
 
 // verifyNoSyncSetExists verifies that there is no SyncSet present that matches the supplied expected SyncSetEntry.

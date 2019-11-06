@@ -96,6 +96,12 @@ func (r *ReconcileClusterDeployment) handleDelete(request reconcile.Request, ins
 			}
 		}
 	}
+	// find the pd secret and delete id
+	r.reqLogger.Info("Deleting PD secret", "Namespace", request.Namespace, "Name", config.PagerDutySecretName)
+	err = utils.DeleteSecret(config.PagerDutySecretName, request.Namespace, r.client, r.reqLogger)
+	if err != nil {
+		r.reqLogger.Error(err, "Error deleting Secret", "Namespace", request.Namespace, "Name", config.PagerDutySecretName)
+	}
 
 	// find the PD syncset and delete it
 	ssName := request.Name + config.SyncSetPostfix
