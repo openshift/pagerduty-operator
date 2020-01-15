@@ -93,7 +93,7 @@ func testClusterDeployment() *hivev1alpha1.ClusterDeployment {
 func testClusterDeploymentNoalerts() *hivev1alpha1.ClusterDeployment {
 	labelMap := map[string]string{
 		config.ClusterDeploymentManagedLabel:  "true",
-		config.ClusterDeploymentNoalertsLabel: "",
+		config.ClusterDeploymentNoalertsLabel: "true",
 	}
 	cd := hivev1alpha1.ClusterDeployment{
 		ObjectMeta: metav1.ObjectMeta{
