@@ -168,7 +168,7 @@ func testClusterDeployment() *hivev1alpha1.ClusterDeployment {
 func testNoalertsClusterDeployment() *hivev1alpha1.ClusterDeployment {
 	labelMap := map[string]string{
 		config.ClusterDeploymentManagedLabel:  "true",
-		config.ClusterDeploymentNoalertsLabel: "",
+		config.ClusterDeploymentNoalertsLabel: "true",
 	}
 	cd := hivev1alpha1.ClusterDeployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -412,7 +412,7 @@ func TestRemoveAlertsAfterCreate(t *testing.T) {
 		// can't set to empty string, it won't update.. value does not matter
 		clusterDeployment := &hivev1alpha1.ClusterDeployment{}
 		err = mocks.fakeKubeClient.Get(context.TODO(), types.NamespacedName{Namespace: testNamespace, Name: testClusterName}, clusterDeployment)
-		clusterDeployment.Labels[config.ClusterDeploymentNoalertsLabel] = "X"
+		clusterDeployment.Labels[config.ClusterDeploymentNoalertsLabel] = "true"
 		err = mocks.fakeKubeClient.Update(context.TODO(), clusterDeployment)
 
 		err = mocks.fakeKubeClient.Get(context.TODO(), types.NamespacedName{Namespace: testNamespace, Name: testClusterName}, clusterDeployment)

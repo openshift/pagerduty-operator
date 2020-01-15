@@ -82,9 +82,11 @@ func CheckClusterDeployment(request reconcile.Request, client client.Client, req
 	}
 
 	// Return if alerts are disabled on the cluster
-	if _, ok := clusterDeployment.GetLabels()[config.ClusterDeploymentNoalertsLabel]; ok {
-		reqLogger.Info("Managed cluster with Alerts disabled", "Namespace", request.Namespace, "Name", request.Name)
-		return false, clusterDeployment, nil
+	if val, ok := clusterDeployment.GetLabels()[config.ClusterDeploymentNoalertsLabel]; ok {
+		if val == "true" {
+			reqLogger.Info("Managed cluster with Alerts disabled", "Namespace", request.Namespace, "Name", request.Name)
+			return false, clusterDeployment, nil
+		}
 	}
 
 	// made it this far so it's both managed and has alerts enabled
