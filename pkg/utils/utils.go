@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
-	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
+	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1"
 	"github.com/openshift/pagerduty-operator/config"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"

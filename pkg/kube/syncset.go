@@ -15,7 +15,7 @@
 package kube
 
 import (
-	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
+	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1"
 	"github.com/openshift/pagerduty-operator/config"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,15 +38,13 @@ func GenerateSyncSet(namespace string, name string, secret *corev1.Secret) *hive
 			},
 			SyncSetCommonSpec: hivev1.SyncSetCommonSpec{
 				ResourceApplyMode: "sync",
-				SecretReferences: []hivev1.SecretReference{
+				Secrets: []hivev1.SecretMapping{
 					{
-						Source: corev1.ObjectReference{
-							Kind:      secret.Kind,
+						SourceRef: hivev1.SecretReference{
 							Namespace: secret.Namespace,
 							Name:      secret.Name,
 						},
-						Target: corev1.ObjectReference{
-							Kind:      secret.Kind,
+						TargetRef: hivev1.SecretReference{
 							Namespace: "openshift-monitoring",
 							Name:      config.PagerDutySecretName,
 						},
