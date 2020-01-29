@@ -7,8 +7,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	hiveapis "github.com/openshift/hive/pkg/apis"
-	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
-	hivev1alpha1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
+	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1"
 	"github.com/openshift/pagerduty-operator/config"
 
 	"github.com/openshift/pagerduty-operator/pkg/kube"
@@ -72,15 +71,15 @@ func setupDefaultMocks(t *testing.T, localObjects []runtime.Object) *mocks {
 }
 
 // return a managed ClusterDeployment
-func testClusterDeployment() *hivev1alpha1.ClusterDeployment {
+func testClusterDeployment() *hivev1.ClusterDeployment {
 	labelMap := map[string]string{config.ClusterDeploymentManagedLabel: "true"}
-	cd := hivev1alpha1.ClusterDeployment{
+	cd := hivev1.ClusterDeployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      testClusterName,
 			Namespace: testNamespace,
 			Labels:    labelMap,
 		},
-		Spec: hivev1alpha1.ClusterDeploymentSpec{
+		Spec: hivev1.ClusterDeploymentSpec{
 			ClusterName: testClusterName,
 		},
 	}
@@ -90,18 +89,18 @@ func testClusterDeployment() *hivev1alpha1.ClusterDeployment {
 }
 
 // return a managed ClusterDeployment with noalerts laabel
-func testClusterDeploymentNoalerts() *hivev1alpha1.ClusterDeployment {
+func testClusterDeploymentNoalerts() *hivev1.ClusterDeployment {
 	labelMap := map[string]string{
 		config.ClusterDeploymentManagedLabel:  "true",
 		config.ClusterDeploymentNoalertsLabel: "true",
 	}
-	cd := hivev1alpha1.ClusterDeployment{
+	cd := hivev1.ClusterDeployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      testClusterName,
 			Namespace: testNamespace,
 			Labels:    labelMap,
 		},
-		Spec: hivev1alpha1.ClusterDeploymentSpec{
+		Spec: hivev1.ClusterDeploymentSpec{
 			ClusterName: testClusterName,
 		},
 	}
@@ -236,7 +235,7 @@ func TestReconcileSyncSet(t *testing.T) {
 }
 
 func verifySyncSetExists(c client.Client, expected *SyncSetEntry) bool {
-	ss := hivev1alpha1.SyncSet{}
+	ss := hivev1.SyncSet{}
 	err := c.Get(context.TODO(),
 		types.NamespacedName{Name: expected.name, Namespace: testNamespace},
 		&ss)
@@ -251,7 +250,7 @@ func verifySyncSetExists(c client.Client, expected *SyncSetEntry) bool {
 	if expected.clusterDeploymentRefName != ss.Spec.ClusterDeploymentRefs[0].Name {
 		return false
 	}
-	secretReferences := ss.Spec.SecretReferences[0].Source.Name
+	secretReferences := ss.Spec.SyncSetCommonSpec.Secrets[0].SourceRef.Name
 	if secretReferences == "" {
 		return false
 	}
@@ -260,7 +259,7 @@ func verifySyncSetExists(c client.Client, expected *SyncSetEntry) bool {
 }
 
 func verifyNoSyncSetExists(c client.Client, expected *SyncSetEntry) bool {
-	ss := hivev1alpha1.SyncSet{}
+	ss := hivev1.SyncSet{}
 	err := c.Get(context.TODO(),
 		types.NamespacedName{Name: expected.name, Namespace: testNamespace},
 		&ss)
