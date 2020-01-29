@@ -21,7 +21,7 @@ import (
 	"os"
 	"runtime"
 
-	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
+	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1"
 	"github.com/openshift/operator-custom-metrics/pkg/metrics"
 	operatorconfig "github.com/openshift/pagerduty-operator/config"
 	"github.com/openshift/pagerduty-operator/pkg/apis"
