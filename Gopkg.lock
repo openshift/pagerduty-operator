@@ -353,17 +353,23 @@
   revision = "c226dcab667ea57774c81b73102f08bff5c2d518"
 
 [[projects]]
-  digest = "1:9ec093f5a3984d62708e299f1dceef709ab155180dd84d425a18cc7f543129c5"
+  branch = "v1"
+  digest = "1:37346582850a0db28926a74240232cc7be5fb0605aeb986b1f417eb027a4b061"
   name = "github.com/openshift/hive"
   packages = [
     "pkg/apis",
+    "pkg/apis/hive/v1",
+    "pkg/apis/hive/v1/aws",
+    "pkg/apis/hive/v1/azure",
+    "pkg/apis/hive/v1/baremetal",
+    "pkg/apis/hive/v1/gcp",
     "pkg/apis/hive/v1alpha1",
     "pkg/apis/hive/v1alpha1/aws",
     "pkg/apis/hive/v1alpha1/azure",
     "pkg/apis/hive/v1alpha1/gcp",
   ]
   pruneopts = "NT"
-  revision = "1c37153bc9a1aae16dc1a40a90328a2e2a13d1ab"
+  revision = "99c7cccc769326bf85f98c8e56d779e21acd07ca"
 
 [[projects]]
   digest = "1:c67dd573eb0c047dc1036884e264e69dd44b9b07bab1482ea1cd7cb760e91599"

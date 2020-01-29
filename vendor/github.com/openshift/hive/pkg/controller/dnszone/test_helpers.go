@@ -11,12 +11,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	fakekubeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
+	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1"
+	awsclient "github.com/openshift/hive/pkg/awsclient"
+	gcpclient "github.com/openshift/hive/pkg/gcpclient"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/golang/mock/gomock"
 	mockaws "github.com/openshift/hive/pkg/awsclient/mock"
-	"github.com/stretchr/testify/assert"
+	mockgcp "github.com/openshift/hive/pkg/gcpclient/mock"
 )
 
 var (
@@ -37,10 +39,9 @@ var (
 			Spec: hivev1.DNSZoneSpec{
 				Zone: "blah.example.com",
 				AWS: &hivev1.AWSDNSZoneSpec{
-					AccountSecret: corev1.LocalObjectReference{
-						Name: "some secret",
+					CredentialsSecretRef: corev1.LocalObjectReference{
+						Name: "somesecret",
 					},
-					Region: "us-east-1",
 					AdditionalTags: []hivev1.AWSResourceTag{
 						{
 							Key:   "foo",
@@ -57,11 +58,29 @@ var (
 		}
 	}
 
-	validDNSEndpoint = func() *hivev1.DNSEndpoint {
-		ep := &hivev1.DNSEndpoint{}
-		ep.Namespace = "ns"
-		ep.Name = "dnszoneobject-ns"
-		return ep
+	validAWSSecret = func() *corev1.Secret {
+		return &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "somesecret",
+				Namespace: "ns",
+			},
+			Data: map[string][]byte{
+				"aws_access_key_id":     []byte("notrealaccesskey"),
+				"aws_secret_access_key": []byte("notrealsecretaccesskey"),
+			},
+		}
+	}
+
+	validGCPSecret = func() *corev1.Secret {
+		return &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "somesecret",
+				Namespace: "ns",
+			},
+			Data: map[string][]byte{
+				"osServiceAccount.json": []byte("notrealsecrettoken"),
+			},
+		}
 	}
 
 	validDNSZoneWithLinkToParent = func() *hivev1.DNSZone {
@@ -111,16 +130,7 @@ type mocks struct {
 	fakeKubeClient client.Client
 	mockCtrl       *gomock.Controller
 	mockAWSClient  *mockaws.MockClient
-}
-
-// assertErrorNilOrMessage allows for comparing an error against a string.
-// if string == "" the error must equal nil.
-func assertErrorNilOrMessage(t *testing.T, theError error, errString string) {
-	if errString == "" {
-		assert.Nil(t, theError)
-	} else {
-		assert.EqualError(t, theError, errString)
-	}
+	mockGCPClient  *mockgcp.MockClient
 }
 
 // setupDefaultMocks is an easy way to setup all of the default mocks
@@ -131,16 +141,24 @@ func setupDefaultMocks(t *testing.T) *mocks {
 	}
 
 	mocks.mockAWSClient = mockaws.NewMockClient(mocks.mockCtrl)
+	mocks.mockGCPClient = mockgcp.NewMockClient(mocks.mockCtrl)
 
 	return mocks
+}
+
+func fakeAWSClientBuilder(mockAWSClient *mockaws.MockClient) awsClientBuilderType {
+	return func(secret *corev1.Secret, region string) (awsclient.Client, error) {
+		return mockAWSClient, nil
+	}
+}
+
+func fakeGCPClientBuilder(mockGCPClient *mockgcp.MockClient) gcpClientBuilderType {
+	return func(secret *corev1.Secret) (gcpclient.Client, error) {
+		return mockGCPClient, nil
+	}
 }
 
 // setFakeDNSZoneInKube is an easy way to register a dns zone object with kube.
 func setFakeDNSZoneInKube(mocks *mocks, dnsZone *hivev1.DNSZone) error {
 	return mocks.fakeKubeClient.Create(context.TODO(), dnsZone)
-}
-
-// setFakeDNSEndpointInKube creates a fake DNSEndpoint
-func setFakeDNSEndpointInKube(mocks *mocks, endpoint *hivev1.DNSEndpoint) error {
-	return mocks.fakeKubeClient.Create(context.TODO(), endpoint)
 }

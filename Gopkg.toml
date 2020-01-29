@@ -89,4 +89,4 @@ required = [
 
 [[constraint]]
   name = "github.com/openshift/hive"
-  revision = "1c37153bc9a1aae16dc1a40a90328a2e2a13d1ab"
+  branch = "v1"
