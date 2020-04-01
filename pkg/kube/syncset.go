@@ -37,7 +37,7 @@ func GenerateSyncSet(namespace string, name string, secret *corev1.Secret) *hive
 				},
 			},
 			SyncSetCommonSpec: hivev1.SyncSetCommonSpec{
-				ResourceApplyMode: "sync",
+				ResourceApplyMode: "Sync",
 				Secrets: []hivev1.SecretMapping{
 					{
 						SourceRef: hivev1.SecretReference{
