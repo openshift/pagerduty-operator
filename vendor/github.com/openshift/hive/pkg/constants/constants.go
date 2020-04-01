@@ -2,7 +2,7 @@ package constants
 
 import (
 	apihelpers "github.com/openshift/hive/pkg/apis/helpers"
-	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
+	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1"
 )
 
 const (
@@ -30,10 +30,6 @@ const (
 	// ClusterDeploymentNameLabel is the label that is used to identify the installer pod of a particular cluster deployment
 	ClusterDeploymentNameLabel = "hive.openshift.io/cluster-deployment-name"
 
-	// InstallFailureTestAnnotation is a ClusterDeployment label that can be used to trigger a failed
-	// installation during the bootstrapping phase.
-	InstallFailureTestAnnotation = "hive.openshift.io/install-failure-test"
-
 	// GlobalPullSecret is the environment variable for controllers to get the global pull secret
 	GlobalPullSecret = "GLOBAL_PULL_SECRET"
 
@@ -45,6 +41,15 @@ const (
 
 	// SyncsetPauseAnnotation is a annotation used by clusterDeployment, if it's true, then we will disable syncing to a specific cluster
 	SyncsetPauseAnnotation = "hive.openshift.io/syncset-pause"
+
+	// ManagedDomainsFileEnvVar if present, points to a simple text
+	// file that includes a valid managed domain per line. Cluster deployments
+	// requesting that their domains be managed must have a base domain
+	// that is a direct child of one of the valid domains.
+	ManagedDomainsFileEnvVar = "MANAGED_DOMAINS_FILE"
+
+	// GCPCredentialsName is the name of the GCP credentials file or secret key.
+	GCPCredentialsName = "osServiceAccount.json"
 )
 
 // GetMergedPullSecretName returns name for merged pull secret name per cluster deployment

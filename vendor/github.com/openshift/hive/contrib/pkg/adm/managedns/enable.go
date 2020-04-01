@@ -2,10 +2,12 @@ package managedns
 
 import (
 	"context"
+	"fmt"
 	"os/user"
 	"path/filepath"
 	"time"
 
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
@@ -19,8 +21,10 @@ import (
 
 	contributils "github.com/openshift/hive/contrib/pkg/utils"
 	awsutils "github.com/openshift/hive/contrib/pkg/utils/aws"
+	gcputils "github.com/openshift/hive/contrib/pkg/utils/gcp"
 	"github.com/openshift/hive/pkg/apis"
-	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1alpha1"
+	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1"
+	"github.com/openshift/hive/pkg/constants"
 	"github.com/openshift/hive/pkg/resource"
 )
 
@@ -34,9 +38,9 @@ managed domains, create a credentials secret for your cloud provider, and link i
 the ExternalDNS section of HiveConfig.
 `
 const (
-	cloudAWS                   = "aws"
-	hiveNamespace              = "hive"
-	manageDNSCredentialsSecret = "manage-dns-creds"
+	cloudAWS      = "aws"
+	cloudGCP      = "gcp"
+	hiveNamespace = "hive"
 )
 
 // Options is the set of options to generate and apply a new cluster deployment
@@ -115,23 +119,42 @@ func (o *Options) Run(dynClient client.Client, args []string) error {
 		log.WithError(err).Fatal("error looking up HiveConfig 'hive'")
 	}
 
-	hc.Spec.ManagedDomains = args
+	dnsConf := hivev1.ManageDNSConfig{
+		Domains: args,
+	}
 
-	if o.Cloud == cloudAWS {
+	var credsSecret *corev1.Secret
+
+	switch o.Cloud {
+	case cloudAWS:
 		// Apply a secret for credentials to manage the root domain:
-		credsSecret, err := o.generateAWSCredentialsSecret()
+		credsSecret, err = o.generateAWSCredentialsSecret()
 		if err != nil {
 			log.WithError(err).Fatal("error generating manageDNS credentials secret")
 		}
-		log.Infof("created Route53 credentials secret: %s", credsSecret.Name)
-		credsSecret.Namespace = hiveNamespace
-		rh.ApplyRuntimeObject(credsSecret, scheme.Scheme)
-
-		hc.Spec.ExternalDNS = &hivev1.ExternalDNSConfig{
-			AWS: &hivev1.ExternalDNSAWSConfig{
-				Credentials: corev1.LocalObjectReference{Name: manageDNSCredentialsSecret},
-			},
+		dnsConf.AWS = &hivev1.ManageDNSAWSConfig{
+			CredentialsSecretRef: corev1.LocalObjectReference{Name: credsSecret.Name},
 		}
+	case cloudGCP:
+		// Apply a secret for credentials to manage the root domain:
+		credsSecret, err = o.generateGCPCredentialsSecret()
+		if err != nil {
+			log.WithError(err).Fatal("error generating manageDNS credentials secret")
+		}
+		dnsConf.GCP = &hivev1.ManageDNSGCPConfig{
+			CredentialsSecretRef: corev1.LocalObjectReference{Name: credsSecret.Name},
+		}
+	default:
+		log.WithField("cloud", o.Cloud).Fatal("unsupported cloud")
+	}
+
+	log.Debug("adding new ManagedDomain config to existing HiveConfig")
+	hc.Spec.ManagedDomains = append(hc.Spec.ManagedDomains, dnsConf)
+
+	log.Infof("created cloud credentials secret: %s", credsSecret.Name)
+	credsSecret.Namespace = hiveNamespace
+	if _, err := rh.ApplyRuntimeObject(credsSecret, scheme.Scheme); err != nil {
+		log.WithError(err).Fatal("failed to save generated secret")
 	}
 
 	err = dynClient.Update(context.Background(), hc)
@@ -189,7 +212,7 @@ func (o *Options) generateAWSCredentialsSecret() (*corev1.Secret, error) {
 			APIVersion: corev1.SchemeGroupVersion.String(),
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      manageDNSCredentialsSecret,
+			Name:      fmt.Sprintf("aws-dns-creds-%s", uuid.New().String()[:5]),
 			Namespace: hiveNamespace,
 		},
 		Type: corev1.SecretTypeOpaque,
@@ -200,6 +223,26 @@ func (o *Options) generateAWSCredentialsSecret() (*corev1.Secret, error) {
 	}, nil
 }
 
+func (o *Options) generateGCPCredentialsSecret() (*corev1.Secret, error) {
+	saFileContents, err := gcputils.GetCreds(o.CredsFile)
+	if err != nil {
+		return nil, err
+	}
+	return &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: corev1.SchemeGroupVersion.String(),
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("gcp-dns-creds-%s", uuid.New().String()[:5]),
+			Namespace: hiveNamespace,
+		},
+		Type: corev1.SecretTypeOpaque,
+		Data: map[string][]byte{
+			constants.GCPCredentialsName: saFileContents,
+		},
+	}, nil
+}
 func (o *Options) getResourceHelper() (*resource.Helper, error) {
 	cfg, err := config.GetConfig()
 	if err != nil {

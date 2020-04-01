@@ -7,9 +7,9 @@ import (
 
 // HiveConfigSpec defines the desired state of Hive
 type HiveConfigSpec struct {
-	// ManagedDomains is the list of DNS domains that are managed by the Hive cluster
+	// ManagedDomains is the list of DNS domains that are allowed to be used by the 'managedDNS' feature.
 	// When specifying 'managedDNS: true' in a ClusterDeployment, the ClusterDeployment's
-	// baseDomain should be a direct child of one of these domains, otherwise the
+	// baseDomain must be a direct child of one of these domains, otherwise the
 	// ClusterDeployment creation will result in a validation error.
 	// +optional
 	ManagedDomains []string `json:"managedDomains,omitempty"`
@@ -83,13 +83,13 @@ type FailedProvisionConfig struct {
 // environment.
 type ExternalDNSConfig struct {
 
-	// Image is a reference to the image that will run the external-dns controller.
-	// If not specified, a default image will be used.
-	Image string `json:"image,omitempty"`
-
 	// AWS contains AWS-specific settings for external DNS
 	// +optional
 	AWS *ExternalDNSAWSConfig `json:"aws,omitempty"`
+
+	// GCP contains GCP-specific settings for external DNS
+	// +optional
+	GCP *ExternalDNSGCPConfig `json:"gcp,omitempty"`
 
 	// As other cloud providers are supported, additional fields will be
 	// added for each of those cloud providers. Only a single cloud provider
@@ -102,6 +102,17 @@ type ExternalDNSAWSConfig struct {
 	// AWS Route53. It will need permission to manage entries in each of the
 	// managed domains for this cluster.
 	// Secret should have AWS keys named 'aws_access_key_id' and 'aws_secret_access_key'.
+	// +optional
+	Credentials corev1.LocalObjectReference `json:"credentials,omitempty"`
+}
+
+// ExternalDNSGCPConfig contains GCP-specific settings for external DNS
+type ExternalDNSGCPConfig struct {
+	// Credentials references a secret that will be used to authenticate with
+	// GCP DNS. It will need permission to manage entries in each of the
+	// managed domains for this cluster.
+	// Secret should have a key names 'osServiceAccount.json'.
+	// The credentials must specify the project to use.
 	// +optional
 	Credentials corev1.LocalObjectReference `json:"credentials,omitempty"`
 }
@@ -128,8 +139,4 @@ type HiveConfigList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []HiveConfig `json:"items"`
-}
-
-func init() {
-	SchemeBuilder.Register(&HiveConfig{}, &HiveConfigList{})
 }
