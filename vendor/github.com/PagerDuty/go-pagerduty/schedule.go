@@ -84,7 +84,7 @@ func (c *Client) ListSchedules(o ListSchedulesOptions) (*ListSchedulesResponse, 
 func (c *Client) CreateSchedule(s Schedule) (*Schedule, error) {
 	data := make(map[string]Schedule)
 	data["schedule"] = s
-	resp, err := c.post("/schedules", data)
+	resp, err := c.post("/schedules", data, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +107,7 @@ func (c *Client) PreviewSchedule(s Schedule, o PreviewScheduleOptions) error {
 	}
 	var data map[string]Schedule
 	data["schedule"] = s
-	_, e := c.post("/schedules/preview?"+v.Encode(), data)
+	_, e := c.post("/schedules/preview?"+v.Encode(), data, nil)
 	return e
 }
 
@@ -163,6 +163,12 @@ type ListOverridesOptions struct {
 	Overflow bool   `url:"overflow,omitempty"`
 }
 
+// ListOverridesResponse is the data structure returned from calling the ListOverrides API endpoint.
+type ListOverridesResponse struct {
+	APIListObject
+	Overrides []Override `json:"overrides,omitempty"`
+}
+
 // Overrides are any schedule layers from the override layer.
 type Override struct {
 	ID    string    `json:"id,omitempty"`
@@ -172,7 +178,7 @@ type Override struct {
 }
 
 // ListOverrides lists overrides for a given time range.
-func (c *Client) ListOverrides(id string, o ListOverridesOptions) ([]Override, error) {
+func (c *Client) ListOverrides(id string, o ListOverridesOptions) (*ListOverridesResponse, error) {
 	v, err := query.Values(o)
 	if err != nil {
 		return nil, err
@@ -181,22 +187,15 @@ func (c *Client) ListOverrides(id string, o ListOverridesOptions) ([]Override, e
 	if err != nil {
 		return nil, err
 	}
-	var result map[string][]Override
-	if err := c.decodeJSON(resp, &result); err != nil {
-		return nil, err
-	}
-	overrides, ok := result["overrides"]
-	if !ok {
-		return nil, fmt.Errorf("JSON response does not have overrides field")
-	}
-	return overrides, nil
+	var result ListOverridesResponse
+	return &result, c.decodeJSON(resp, &result)
 }
 
 // CreateOverride creates an override for a specific user covering the specified time range.
 func (c *Client) CreateOverride(id string, o Override) (*Override, error) {
 	data := make(map[string]Override)
 	data["override"] = o
-	resp, err := c.post("/schedules/"+id+"/overrides", data)
+	resp, err := c.post("/schedules/"+id+"/overrides", data, nil)
 	if err != nil {
 		return nil, err
 	}

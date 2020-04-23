@@ -23,6 +23,8 @@ import (
 
 	"github.com/openshift/pagerduty-operator/config"
 
+	"time"
+
 	pdApi "github.com/PagerDuty/go-pagerduty"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -67,7 +69,7 @@ func convertStrToUint(value string) (uint, error) {
 	return retVal, nil
 }
 
-//Client is a wrapper interface for the svcClient to allow for easier testing
+//Client is a wrapper interface for the SvcClient to allow for easier testing
 type Client interface {
 	GetService(data *Data) (*pdApi.Service, error)
 	GetIntegrationKey(data *Data) (string, error)
@@ -75,17 +77,36 @@ type Client interface {
 	DeleteService(data *Data) error
 }
 
-//svcClient wraps pdApi.Client
-type svcClient struct {
-	APIKey   string
-	pdClient *pdApi.Client
+type PdClient interface {
+	GetService(string, *pdApi.GetServiceOptions) (*pdApi.Service, error)
+	GetEscalationPolicy(string, *pdApi.GetEscalationPolicyOptions) (*pdApi.EscalationPolicy, error)
+	GetIntegration(string, string, pdApi.GetIntegrationOptions) (*pdApi.Integration, error)
+	CreateService(service pdApi.Service) (*pdApi.Service, error)
+	DeleteService(id string) error
+	CreateIntegration(serviceID string, integration pdApi.Integration) (*pdApi.Integration, error)
+	ListServices(pdApi.ListServiceOptions) (*pdApi.ListServiceResponse, error)
+	ListIncidents(pdApi.ListIncidentsOptions) (*pdApi.ListIncidentsResponse, error)
+	ListIncidentAlerts(incidentId string) (*pdApi.ListAlertsResponse, error)
+}
+
+type ManageEventFunc func(pdApi.V2Event) (*pdApi.V2EventResponse, error)
+type DelayFunc func(time.Duration)
+
+//SvcClient wraps pdApi.Client
+type SvcClient struct {
+	APIKey      string
+	PdClient    PdClient
+	ManageEvent ManageEventFunc
+	Delay       DelayFunc
 }
 
 //NewClient creates out client wrapper object for the actual pdApi.Client we use.
 func NewClient(APIKey string) Client {
-	return &svcClient{
-		APIKey:   APIKey,
-		pdClient: pdApi.NewClient(APIKey),
+	return &SvcClient{
+		APIKey:      APIKey,
+		PdClient:    pdApi.NewClient(APIKey),
+		ManageEvent: pdApi.ManageEvent,
+		Delay:       time.Sleep,
 	}
 }
 
@@ -170,8 +191,8 @@ func (data *Data) ParseClusterConfig(osc client.Client, namespace string, name s
 }
 
 // GetService searches the PD API for an already existing service
-func (c *svcClient) GetService(data *Data) (*pdApi.Service, error) {
-	service, err := c.pdClient.GetService(data.ServiceID, nil)
+func (c *SvcClient) GetService(data *Data) (*pdApi.Service, error) {
+	service, err := c.PdClient.GetService(data.ServiceID, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -180,8 +201,8 @@ func (c *svcClient) GetService(data *Data) (*pdApi.Service, error) {
 }
 
 // GetIntegrationKey searches the PD API for an already existing service and returns the first integration key
-func (c *svcClient) GetIntegrationKey(data *Data) (string, error) {
-	integration, err := c.pdClient.GetIntegration(data.ServiceID, data.IntegrationID, pdApi.GetIntegrationOptions{})
+func (c *SvcClient) GetIntegrationKey(data *Data) (string, error) {
+	integration, err := c.PdClient.GetIntegration(data.ServiceID, data.IntegrationID, pdApi.GetIntegrationOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -190,9 +211,9 @@ func (c *svcClient) GetIntegrationKey(data *Data) (string, error) {
 }
 
 // CreateService creates a service in pagerduty for the specified clusterid and returns the service key
-func (c *svcClient) CreateService(data *Data) (string, error) {
+func (c *SvcClient) CreateService(data *Data) (string, error) {
 
-	escalationPolicy, err := c.pdClient.GetEscalationPolicy(string(data.escalationPolicyID), nil)
+	escalationPolicy, err := c.PdClient.GetEscalationPolicy(string(data.escalationPolicyID), nil)
 	if err != nil {
 		return "", errors.New("Escalation policy not found in PagerDuty")
 	}
@@ -211,14 +232,14 @@ func (c *svcClient) CreateService(data *Data) (string, error) {
 	}
 
 	var newSvc *pdApi.Service
-	newSvc, err = c.pdClient.CreateService(clusterService)
+	newSvc, err = c.PdClient.CreateService(clusterService)
 	if err != nil {
 		if !strings.Contains(err.Error(), "Name has already been taken") {
 			return "", err
 		}
 		lso := pdApi.ListServiceOptions{}
 		lso.Query = clusterService.Name
-		currentSvcs, newerr := c.pdClient.ListServices(lso)
+		currentSvcs, newerr := c.PdClient.ListServices(lso)
 		if newerr != nil {
 			return "", err
 		}
@@ -238,22 +259,109 @@ func (c *svcClient) CreateService(data *Data) (string, error) {
 	}
 	data.ServiceID = newSvc.ID
 
-	clusterIntegration := pdApi.Integration{
-		Name: "V4 Alertmanager",
-		Type: "events_api_v2_inbound_integration",
-	}
-
-	newInt, err := c.pdClient.CreateIntegration(newSvc.ID, clusterIntegration)
+	data.IntegrationID, err = c.createIntegration(newSvc.ID, "V4 Alertmanager", "events_api_v2_inbound_integration")
 	if err != nil {
 		return "", err
 	}
-	data.IntegrationID = newInt.ID
 
-	return data.IntegrationID, nil
+	return data.IntegrationID, err
+}
+func (c *SvcClient) createIntegration(serviceId, name, integrationType string) (string, error) {
+	newIntegration := pdApi.Integration{
+		Name: name,
+		Type: integrationType,
+	}
+
+	newInt, err := c.PdClient.CreateIntegration(serviceId, newIntegration)
+	if err != nil {
+		return "", err
+	}
+	return newInt.ID, nil
 }
 
 // DeleteService will get a service from the PD api and delete it
-func (c *svcClient) DeleteService(data *Data) error {
-	err := c.pdClient.DeleteService(data.ServiceID)
+func (c *SvcClient) DeleteService(data *Data) error {
+	err := c.resolvePendingIncidents(data)
+	if err != nil {
+		return err
+	}
+
+	err = c.waitForIncidentsToResolve(data, 10*time.Second)
+	if err != nil {
+		return err
+	}
+
+	return c.PdClient.DeleteService(data.ServiceID)
+}
+
+func (c *SvcClient) resolvePendingIncidents(data *Data) error {
+
+	incidents, err := c.getIncidents(data)
+	if err != nil {
+		return err
+	}
+
+	if len(incidents) > 0 {
+		serviceKey, err := c.GetIntegrationKey(data)
+		if err != nil {
+			return err
+		}
+
+		for _, incident := range incidents {
+			alerts, err := c.PdClient.ListIncidentAlerts(incident.Id)
+			if err != nil {
+				return err
+			}
+			for _, alert := range alerts.Alerts {
+				err = c.resolveIncident(serviceKey, alert.AlertKey)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func (c *SvcClient) getIncidents(data *Data) ([]pdApi.Incident, error) {
+	listServiceIncidentOptions := pdApi.ListIncidentsOptions{}
+	listServiceIncidentOptions.ServiceIDs = []string{data.ServiceID}
+
+	incidentsRes, err := c.PdClient.ListIncidents(listServiceIncidentOptions)
+	if err != nil {
+		return []pdApi.Incident{}, err
+	}
+	return incidentsRes.Incidents, err
+}
+
+func (c *SvcClient) waitForIncidentsToResolve(data *Data, maxWait time.Duration) (err error) {
+	waitStep := 2 * time.Second
+	incidents, err := c.getIncidents(data)
+
+OUTER:
+	for i := 0; time.Duration(i)*waitStep < maxWait; i++ {
+		for _, incident := range incidents {
+			if incident.AlertCounts.Triggered > 0 {
+				c.Delay(waitStep)
+				incidents, err = c.getIncidents(data)
+				continue OUTER
+			}
+		}
+		break
+	}
+	return
+}
+
+func (c *SvcClient) resolveIncident(serviceKey, incidentKey string) error {
+	event := pdApi.V2Event{}
+	event.Payload = &pdApi.V2Payload{}
+	event.RoutingKey = serviceKey
+	event.Action = "resolve"
+	event.DedupKey = incidentKey
+	event.Payload.Summary = "Cluster does not exist anymore"
+	event.Payload.Source = "pagerduty-operator"
+	event.Payload.Severity = "info"
+	_, err := c.ManageEvent(event)
 	return err
 }

@@ -5,7 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"runtime"
+	"time"
 )
 
 const (
@@ -36,21 +39,67 @@ type APIReference struct {
 	Type string `json:"type,omitempty"`
 }
 
+type APIDetails struct {
+	Type    string `json:"type,omitempty"`
+	Details string `json:"details,omitempty"`
+}
+
 type errorObject struct {
 	Code    int         `json:"code,omitempty"`
 	Message string      `json:"message,omitempty"`
 	Errors  interface{} `json:"errors,omitempty"`
 }
 
+func newDefaultHTTPClient() *http.Client {
+	return &http.Client{
+		Transport: &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			DialContext: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).DialContext,
+			MaxIdleConns:          10,
+			IdleConnTimeout:       60 * time.Second,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+			MaxIdleConnsPerHost:   runtime.GOMAXPROCS(0) + 1,
+		},
+	}
+}
+
+// HTTPClient is an interface which declares the functionality we need from an
+// HTTP client. This is to allow consumers to provide their own HTTP client as
+// needed, without restricting them to only using *http.Client.
+type HTTPClient interface {
+	Do(*http.Request) (*http.Response, error)
+}
+
+// defaultHTTPClient is our own default HTTP client. We use this, instead of
+// http.DefaultClient, to avoid other packages tweaks to http.DefaultClient
+// causing issues with our HTTP calls. This also allows us to tweak the
+// transport values to be more resilient without making changes to the
+// http.DefaultClient.
+//
+// Keep this unexported so consumers of the package can't make changes to it.
+var defaultHTTPClient HTTPClient = newDefaultHTTPClient()
+
 // Client wraps http client
 type Client struct {
-	authToken string
+	authToken   string
+	apiEndpoint string
+
+	// HTTPClient is the HTTP client used for making requests against the
+	// PagerDuty API. You can use either *http.Client here, or your own
+	// implementation.
+	HTTPClient HTTPClient
 }
 
 // NewClient creates an API client
 func NewClient(authToken string) *Client {
 	return &Client{
-		authToken: authToken,
+		authToken:   authToken,
+		apiEndpoint: apiEndpoint,
+		HTTPClient:  defaultHTTPClient,
 	}
 }
 
@@ -70,12 +119,12 @@ func (c *Client) put(path string, payload interface{}, headers *map[string]strin
 	return c.do("PUT", path, nil, headers)
 }
 
-func (c *Client) post(path string, payload interface{}) (*http.Response, error) {
+func (c *Client) post(path string, payload interface{}, headers *map[string]string) (*http.Response, error) {
 	data, err := json.Marshal(payload)
 	if err != nil {
 		return nil, err
 	}
-	return c.do("POST", path, bytes.NewBuffer(data), nil)
+	return c.do("POST", path, bytes.NewBuffer(data), headers)
 }
 
 func (c *Client) get(path string) (*http.Response, error) {
@@ -83,7 +132,7 @@ func (c *Client) get(path string) (*http.Response, error) {
 }
 
 func (c *Client) do(method, path string, body io.Reader, headers *map[string]string) (*http.Response, error) {
-	endpoint := apiEndpoint + path
+	endpoint := c.apiEndpoint + path
 	req, _ := http.NewRequest(method, endpoint, body)
 	req.Header.Set("Accept", "application/vnd.pagerduty+json;version=2")
 	if headers != nil {
@@ -91,10 +140,11 @@ func (c *Client) do(method, path string, body io.Reader, headers *map[string]str
 			req.Header.Set(k, v)
 		}
 	}
+	req.Header.Set("User-Agent", "go-pagerduty/"+Version)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Token token="+c.authToken)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := c.HTTPClient.Do(req)
 	return c.checkResponse(resp, err)
 }
 
@@ -129,4 +179,39 @@ func (c *Client) getErrorFromResponse(resp *http.Response) (*errorObject, error)
 		return nil, fmt.Errorf("JSON response does not have error field")
 	}
 	return &s, nil
+}
+
+// responseHandler is capable of parsing a response. At a minimum it must
+// extract the page information for the current page. It can also execute
+// additional necessary handling; for example, if a closure, it has access
+// to the scope in which it was defined, and can be used to append data to
+// a specific slice. The responseHandler is responsible for closing the response.
+type responseHandler func(response *http.Response) (APIListObject, error)
+
+func (c *Client) pagedGet(basePath string, handler responseHandler) error {
+	// Indicates whether there are still additional pages associated with request.
+	var stillMore bool
+
+	// Offset to set for the next page request.
+	var nextOffset uint
+
+	// While there are more pages, keep adjusting the offset to get all results.
+	for stillMore, nextOffset = true, 0; stillMore; {
+		response, err := c.do("GET", fmt.Sprintf("%s?offset=%d", basePath, nextOffset), nil, nil)
+		if err != nil {
+			return err
+		}
+
+		// Call handler to extract page information and execute additional necessary handling.
+		pageInfo, err := handler(response)
+		if err != nil {
+			return err
+		}
+
+		// Bump the offset as necessary and set whether more results exist.
+		nextOffset = pageInfo.Offset + pageInfo.Limit
+		stillMore = pageInfo.More
+	}
+
+	return nil
 }

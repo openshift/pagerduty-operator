@@ -169,6 +169,7 @@ func TestReconcileSyncSet(t *testing.T) {
 			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
 				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(1)
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, errors.New("Integration not found")).Times(1)
+				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(1)
 			},
 		},
 		{

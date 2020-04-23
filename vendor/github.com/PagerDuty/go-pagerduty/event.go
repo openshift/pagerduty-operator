@@ -26,23 +26,34 @@ type EventResponse struct {
 	Status      string `json:"status"`
 	Message     string `json:"message"`
 	IncidentKey string `json:"incident_key"`
+	HttpStatus  int
 }
 
-// CreateEvent sends PagerDuty an event to report, acknowledge, or resolve a problem.
+// CreateEvent sends PagerDuty an event to trigger, acknowledge, or resolve a
+// problem. If you need to provide a custom HTTP client, please use
+// CreateEventWithHTTPClient.
 func CreateEvent(e Event) (*EventResponse, error) {
+	return CreateEventWithHTTPClient(e, defaultHTTPClient)
+}
+
+// CreateEventWithHTTPClient sends PagerDuty an event to trigger, acknowledge,
+// or resolve a problem. This function accepts a custom HTTP Client, if the
+// default one used by this package doesn't fit your needs. If you don't need a
+// custom HTTP client, please use CreateEvent instead.
+func CreateEventWithHTTPClient(e Event, client HTTPClient) (*EventResponse, error) {
 	data, err := json.Marshal(e)
 	if err != nil {
 		return nil, err
 	}
 	req, _ := http.NewRequest("POST", eventEndPoint, bytes.NewBuffer(data))
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return &EventResponse{HttpStatus: resp.StatusCode}, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("HTTP Status Code: %d", resp.StatusCode)
+		return &EventResponse{HttpStatus: resp.StatusCode}, fmt.Errorf("HTTP Status Code: %d", resp.StatusCode)
 	}
 	var eventResponse EventResponse
 	if err := json.NewDecoder(resp.Body).Decode(&eventResponse); err != nil {
