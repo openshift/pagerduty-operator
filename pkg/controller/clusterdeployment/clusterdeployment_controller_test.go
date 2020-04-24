@@ -38,8 +38,12 @@ const (
 
 type SyncSetEntry struct {
 	name                     string
-	pdIntegrationID          string
 	clusterDeploymentRefName string
+}
+
+type SecretEntry struct {
+	name         string
+	pagerdutyKey string
 }
 
 type mocks struct {
@@ -113,7 +117,7 @@ func testSecret() *corev1.Secret {
 	s := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "pd-secret",
-			Namespace: "openshift-monitoring",
+			Namespace: testNamespace,
 		},
 		Data: map[string][]byte{
 			"PAGERDUTY_KEY": []byte(testIntegrationID),
@@ -224,7 +228,9 @@ func TestReconcileClusterDeployment(t *testing.T) {
 		name             string
 		localObjects     []runtime.Object
 		expectedSyncSets *SyncSetEntry
+		expectedSecrets  *SecretEntry
 		verifySyncSets   func(client.Client, *SyncSetEntry) bool
+		verifySecrets    func(client.Client, *SecretEntry) bool
 		setupPDMock      func(*mockpd.MockClientMockRecorder)
 	}{
 
@@ -232,14 +238,18 @@ func TestReconcileClusterDeployment(t *testing.T) {
 			name: "Test Creating",
 			localObjects: []runtime.Object{
 				testClusterDeployment(),
-				testSecret(),
+				testPDConfigSecret(),
 			},
 			expectedSyncSets: &SyncSetEntry{
-				name:                     testClusterName + config.SyncSetPostfix,
-				pdIntegrationID:          testIntegrationID,
+				name: testClusterName + config.SyncSetPostfix,
 				clusterDeploymentRefName: testClusterName,
 			},
+			expectedSecrets: &SecretEntry{
+				name:         testsecretReferencesName,
+				pagerdutyKey: testIntegrationID,
+			},
 			verifySyncSets: verifySyncSetExists,
+			verifySecrets:  verifySecretExists,
 			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
 				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(1)
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(1)
@@ -253,7 +263,9 @@ func TestReconcileClusterDeployment(t *testing.T) {
 				testPDConfigMap(),
 			},
 			expectedSyncSets: &SyncSetEntry{},
+			expectedSecrets:  &SecretEntry{},
 			verifySyncSets:   verifyNoSyncSetExists,
+			verifySecrets:    verifyNoSecretExists,
 			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
 				r.DeleteService(gomock.Any()).Return(nil).Times(1)
 			},
@@ -265,7 +277,9 @@ func TestReconcileClusterDeployment(t *testing.T) {
 				testPDConfigSecret(),
 			},
 			expectedSyncSets: &SyncSetEntry{},
+			expectedSecrets:  &SecretEntry{},
 			verifySyncSets:   verifyNoSyncSetExists,
+			verifySecrets:    verifyNoSecretExists,
 			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
 			},
 		},
@@ -275,7 +289,9 @@ func TestReconcileClusterDeployment(t *testing.T) {
 				unmanagedClusterDeployment(),
 			},
 			expectedSyncSets: &SyncSetEntry{},
+			expectedSecrets:  &SecretEntry{},
 			verifySyncSets:   verifyNoSyncSetExists,
+			verifySecrets:    verifyNoSecretExists,
 			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
 			},
 		},
@@ -285,7 +301,9 @@ func TestReconcileClusterDeployment(t *testing.T) {
 				unlabelledClusterDeployment(),
 			},
 			expectedSyncSets: &SyncSetEntry{},
+			expectedSecrets:  &SecretEntry{},
 			verifySyncSets:   verifyNoSyncSetExists,
+			verifySecrets:    verifyNoSecretExists,
 			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
 			},
 		},
@@ -295,7 +313,9 @@ func TestReconcileClusterDeployment(t *testing.T) {
 				testNoalertsClusterDeployment(),
 			},
 			expectedSyncSets: &SyncSetEntry{},
+			expectedSecrets:  &SecretEntry{},
 			verifySyncSets:   verifyNoSyncSetExists,
+			verifySecrets:    verifyNoSecretExists,
 			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
 			},
 		},
@@ -305,7 +325,9 @@ func TestReconcileClusterDeployment(t *testing.T) {
 				uninstalledClusterDeployment(),
 			},
 			expectedSyncSets: &SyncSetEntry{},
+			expectedSecrets:  &SecretEntry{},
 			verifySyncSets:   verifyNoSyncSetExists,
+			verifySecrets:    verifyNoSecretExists,
 			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
 			},
 		},
@@ -319,11 +341,15 @@ func TestReconcileClusterDeployment(t *testing.T) {
 				testPDConfigSecret(),
 			},
 			expectedSyncSets: &SyncSetEntry{
-				name:                     testClusterName + config.SyncSetPostfix,
-				pdIntegrationID:          testIntegrationID,
+				name: testClusterName + config.SyncSetPostfix,
 				clusterDeploymentRefName: testClusterName,
 			},
+			expectedSecrets: &SecretEntry{
+				name:         testsecretReferencesName,
+				pagerdutyKey: testIntegrationID,
+			},
 			verifySyncSets: verifySyncSetExists,
+			verifySecrets:  verifySecretExists,
 			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(1)
 			},
@@ -335,7 +361,9 @@ func TestReconcileClusterDeployment(t *testing.T) {
 				testOtherSyncSet(),
 			},
 			expectedSyncSets: &SyncSetEntry{name: testClusterName + testOtherSyncSetPostfix, clusterDeploymentRefName: testClusterName},
+			expectedSecrets:  &SecretEntry{},
 			verifySyncSets:   verifyNoSyncSetExists,
+			verifySecrets:    verifyNoSecretExists,
 			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
 			},
 		},
@@ -365,6 +393,7 @@ func TestReconcileClusterDeployment(t *testing.T) {
 			// Assert
 			assert.NoError(t, err, "Unexpected Error")
 			assert.True(t, test.verifySyncSets(mocks.fakeKubeClient, test.expectedSyncSets))
+			assert.True(t, test.verifySecrets(mocks.fakeKubeClient, test.expectedSecrets))
 		})
 	}
 }
@@ -381,7 +410,7 @@ func TestRemoveAlertsAfterCreate(t *testing.T) {
 		})
 		// in order to test the delete, we need to create the pd secret w/ a non-empty SERVICE_ID, which means CreateService won't be called
 
-		setupDMSMock :=
+		setupPDMock :=
 			func(r *mockpd.MockClientMockRecorder) {
 				// create (without calling PD)
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(1)
@@ -390,7 +419,7 @@ func TestRemoveAlertsAfterCreate(t *testing.T) {
 				r.DeleteService(gomock.Any()).Return(nil).Times(1)
 			}
 
-		setupDMSMock(mocks.mockPDClient.EXPECT())
+		setupPDMock(mocks.mockPDClient.EXPECT())
 
 		defer mocks.mockCtrl.Finish()
 
@@ -435,6 +464,69 @@ func TestRemoveAlertsAfterCreate(t *testing.T) {
 		assert.NoError(t, err, "Unexpected Error")
 		assert.True(t, verifyNoSyncSetExists(mocks.fakeKubeClient, &SyncSetEntry{}))
 		assert.True(t, verifyNoConfigMapExists(mocks.fakeKubeClient))
+	})
+}
+
+//TestDeleteSecret tests that the reconcile process when the pd-secret is being deleted
+func TestDeleteSecret(t *testing.T) {
+	t.Run("Test Delete Secret", func(t *testing.T) {
+		// Arrange
+		mocks := setupDefaultMocks(t, []runtime.Object{
+			testClusterDeployment(),
+			testPDConfigSecret(),
+		})
+
+		expectedSyncSets := &SyncSetEntry{
+			name: testClusterName + config.SyncSetPostfix,
+			clusterDeploymentRefName: testClusterName,
+		}
+
+		expectedSecrets := &SecretEntry{
+			name:         testsecretReferencesName,
+			pagerdutyKey: testIntegrationID,
+		}
+
+		setupPDMock :=
+			func(r *mockpd.MockClientMockRecorder) {
+				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(2)
+				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(2)
+			}
+
+		setupPDMock(mocks.mockPDClient.EXPECT())
+
+		defer mocks.mockCtrl.Finish()
+
+		rcd := &ReconcileClusterDeployment{
+			client:   mocks.fakeKubeClient,
+			scheme:   scheme.Scheme,
+			pdclient: mocks.mockPDClient,
+		}
+
+		// Act (create)
+		_, err := rcd.Reconcile(reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      testClusterName,
+				Namespace: testNamespace,
+			},
+		})
+
+		// Remove the secret which is referred by the syncset
+		secret := &corev1.Secret{}
+		err = mocks.fakeKubeClient.Get(context.TODO(), types.NamespacedName{Namespace: testNamespace, Name: testsecretReferencesName}, secret)
+		err = mocks.fakeKubeClient.Delete(context.TODO(), secret)
+
+		// Act (reconcile again)
+		_, err = rcd.Reconcile(reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      testClusterName,
+				Namespace: testNamespace,
+			},
+		})
+
+		// Assert
+		assert.NoError(t, err, "Unexpected Error")
+		assert.True(t, verifySyncSetExists(mocks.fakeKubeClient, expectedSyncSets))
+		assert.True(t, verifySecretExists(mocks.fakeKubeClient, expectedSecrets))
 	})
 }
 
@@ -506,5 +598,48 @@ func verifyNoConfigMapExists(c client.Client) bool {
 	}
 
 	// if we got here, it's good.  list was empty or everything passed
+	return true
+}
+
+// verifySecretExists verifies that the secret which referenced by the SyncSet exists in the test namespace
+func verifySecretExists(c client.Client, expected *SecretEntry) bool {
+	secret := corev1.Secret{}
+	err := c.Get(context.TODO(),
+		types.NamespacedName{Name: expected.name, Namespace: testNamespace},
+		&secret)
+
+	if err != nil {
+		return false
+	}
+
+	if expected.name != secret.Name {
+		return false
+	}
+
+	if expected.pagerdutyKey != string(secret.Data["PAGERDUTY_KEY"]) {
+		return false
+	}
+
+	return true
+}
+
+// verifyNoSecretExists verifies that the secret which referred by SyncSet does not exist
+func verifyNoSecretExists(c client.Client, expected *SecretEntry) bool {
+	secretList := &corev1.SecretList{}
+	opts := client.ListOptions{Namespace: testNamespace}
+	err := c.List(context.TODO(), &opts, secretList)
+
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return true
+		}
+	}
+
+	for _, secret := range secretList.Items {
+		if secret.Name == testsecretReferencesName {
+			return false
+		}
+	}
+
 	return true
 }

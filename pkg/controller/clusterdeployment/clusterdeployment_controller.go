@@ -133,8 +133,10 @@ func (r *ReconcileClusterDeployment) Reconcile(request reconcile.Request) (recon
 		}
 	}
 
+	scName := config.PagerDutySecretName
 	sc := &corev1.Secret{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: ssName, Namespace: request.Namespace}, sc)
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: scName, Namespace: request.Namespace}, sc)
+
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return r.handleCreate(request, instance)
