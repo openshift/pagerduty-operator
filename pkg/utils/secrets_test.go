@@ -1,9 +1,20 @@
 package utils
 
 import (
+	"context"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	fakekubeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+)
+
+const (
+	testSecretName = "testSecret"
+	testNamespace  = "testNamespace"
+	testDataKey    = "testKey"
+	testDataValue  = "testValue"
 )
 
 func TestCheckSums(t *testing.T) {
@@ -26,4 +37,54 @@ func TestCheckSums(t *testing.T) {
 			assert.NotEqual(t, resultHash1, resultHash2)
 		})
 	}
+}
+
+func testSecret() *corev1.Secret {
+	sc := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      testSecretName,
+			Namespace: testNamespace,
+		},
+		Data: map[string][]byte{
+			testDataKey: []byte(testDataValue),
+		},
+	}
+	return sc
+}
+
+func testSecretNoData() *corev1.Secret {
+	sc := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      testSecretName,
+			Namespace: testNamespace,
+		},
+		Data: map[string][]byte{},
+	}
+	return sc
+}
+
+func TestLoadSecretData(t *testing.T) {
+	t.Run("Secret with datakey", func(t *testing.T) {
+		client := fakekubeclient.NewFakeClient()
+		sc := testSecret()
+		_ = client.Create(context.TODO(), sc)
+
+		result, _ := LoadSecretData(client, testSecretName, testNamespace, testDataKey)
+
+		if result != testDataValue {
+			t.Fail()
+		}
+	})
+
+	t.Run("Secret without datakey", func(t *testing.T) {
+		client := fakekubeclient.NewFakeClient()
+		sc := testSecretNoData()
+		_ = client.Create(context.TODO(), sc)
+
+		result, _ := LoadSecretData(client, testSecretName, testNamespace, testDataKey)
+
+		if result != "" {
+			t.Fail()
+		}
+	})
 }
