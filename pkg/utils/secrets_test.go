@@ -64,27 +64,46 @@ func testSecretNoData() *corev1.Secret {
 }
 
 func TestLoadSecretData(t *testing.T) {
-	t.Run("Secret with datakey", func(t *testing.T) {
-		client := fakekubeclient.NewFakeClient()
-		sc := testSecret()
-		_ = client.Create(context.TODO(), sc)
+	tests := []struct {
+		name        string
+		secret      *corev1.Secret
+		dataValue   string
+		expectError bool
+		expectEqual bool
+	}{
+		{
+			name:        "Test secret with dataKey",
+			secret:      testSecret(),
+			dataValue:   testDataValue,
+			expectError: false,
+			expectEqual: true,
+		},
+		{
+			name:        "Test secret without dataKey",
+			secret:      testSecretNoData(),
+			dataValue:   "",
+			expectError: true,
+			expectEqual: true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			client := fakekubeclient.NewFakeClient()
+			sc := test.secret
+			if err := client.Create(context.TODO(), sc); err != nil {
+				t.Fatalf("Failed to create the test secret: %v", err)
+			}
 
-		result, _ := LoadSecretData(client, testSecretName, testNamespace, testDataKey)
+			result, err := LoadSecretData(client, testSecretName, testNamespace, testDataKey)
+			if err != nil && !test.expectError {
+				t.Errorf("Unexpected error: %v", err)
+			}
 
-		if result != testDataValue {
-			t.Fail()
-		}
-	})
-
-	t.Run("Secret without datakey", func(t *testing.T) {
-		client := fakekubeclient.NewFakeClient()
-		sc := testSecretNoData()
-		_ = client.Create(context.TODO(), sc)
-
-		result, _ := LoadSecretData(client, testSecretName, testNamespace, testDataKey)
-
-		if result != "" {
-			t.Fail()
-		}
-	})
+			if test.expectEqual {
+				assert.Equal(t, result, test.dataValue)
+			} else {
+				assert.NotEqual(t, result, test.dataValue)
+			}
+		})
+	}
 }
