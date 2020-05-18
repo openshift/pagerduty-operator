@@ -1,6 +1,7 @@
-FROM registry.svc.ci.openshift.org/openshift/release:golang-1.10 AS builder
+FROM registry.svc.ci.openshift.org/openshift/release:golang-1.13 AS builder
 COPY . /go/src/github.com/openshift/pagerduty-operator
 WORKDIR /go/src/github.com/openshift/pagerduty-operator
+ENV GOFLAGS=""
 RUN make gobuild
 
 FROM registry.svc.ci.openshift.org/openshift/origin-v4.0:base
