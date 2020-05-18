@@ -241,7 +241,7 @@ func TestReconcileClusterDeployment(t *testing.T) {
 				testPDConfigSecret(),
 			},
 			expectedSyncSets: &SyncSetEntry{
-				name: testClusterName + config.SyncSetPostfix,
+				name:                     testClusterName + config.SyncSetPostfix,
 				clusterDeploymentRefName: testClusterName,
 			},
 			expectedSecrets: &SecretEntry{
@@ -341,7 +341,7 @@ func TestReconcileClusterDeployment(t *testing.T) {
 				testPDConfigSecret(),
 			},
 			expectedSyncSets: &SyncSetEntry{
-				name: testClusterName + config.SyncSetPostfix,
+				name:                     testClusterName + config.SyncSetPostfix,
 				clusterDeploymentRefName: testClusterName,
 			},
 			expectedSecrets: &SecretEntry{
@@ -477,7 +477,7 @@ func TestDeleteSecret(t *testing.T) {
 		})
 
 		expectedSyncSets := &SyncSetEntry{
-			name: testClusterName + config.SyncSetPostfix,
+			name:                     testClusterName + config.SyncSetPostfix,
 			clusterDeploymentRefName: testClusterName,
 		}
 
