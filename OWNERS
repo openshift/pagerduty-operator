@@ -1,15 +1,9 @@
-approvers:
-- drewandersonnz
-- c-e-brumm
-- jharrington22
-- rogbas
-- jewzaam
-- mwoodson
-- wshearn
 reviewers:
-- jewzaam
-- mwoodson
-- wshearn
-- jharrington22
 - blrm
-- dofinn
+- jewzaam
+- wshearn
+approvers:
+- jewzaam
+- wshearn
+maintainers:
+- jewzaam
