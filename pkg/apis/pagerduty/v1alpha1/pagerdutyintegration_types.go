@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -13,6 +14,34 @@ type PagerDutyIntegrationSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 	// Add custom validation using kubebuilder tags: https://book.kubebuilder.io/beyond_basics/generating_crd.html
+
+	// Time in seconds that an incident changes to the Triggered State after
+	// being Acknowledged. Value must not be negative. Omitting or setting
+	// this field to 0 will disable the feature.
+	// +kubebuilder:validation:Minimum=0
+	AcknowledgeTimeout uint `json:"acknowledgeTimeout,omitempty"`
+
+	// ID of an existing Escalation Policy in PagerDuty.
+	EscalationPolicy string `json:"escalationPolicy"`
+
+	// Time in seconds that an incident is automatically resolved if left
+	// open for that long. Value must not be negative. Omitting or setting
+	// this field to 0 will disable the feature.
+	// +kubebuilder:validation:Minimum=0
+	ResolveTimeout uint `json:"resolveTimeout,omitempty"`
+
+	// Prefix to set on the PagerDuty Service name.
+	ServicePrefix string `json:"servicePrefix"`
+
+	// Reference to the secret containing PAGERDUTY_API_KEY.
+	PagerdutyApiKeySecretRef corev1.SecretReference `json:"pagerdutyApiKeySecretRef"`
+
+	// A label selector used to find which clusterdeployment CRs receive a
+	// PD integration based on this configuration.
+	ClusterDeploymentSelector metav1.LabelSelector `json:"clusterDeploymentSelector"`
+
+	// Name and namespace in the target cluster where the secret is synced.
+	TargetSecretRef corev1.SecretReference `json:"targetSecretRef"`
 }
 
 // PagerDutyIntegrationStatus defines the observed state of PagerDutyIntegration

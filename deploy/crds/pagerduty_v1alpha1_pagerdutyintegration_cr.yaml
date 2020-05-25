@@ -3,5 +3,16 @@ kind: PagerDutyIntegration
 metadata:
   name: example-pagerdutyintegration
 spec:
-  # Add fields here
-  size: 3
+  acknowledgeTimeout: 21600
+  resolveTimeout: 0
+  escalationPolicy: PA12345X
+  servicePrefix: test
+  pagerdutyApiKeySecretRef:
+    name: pagerduty-api-key
+    namespace: pagerduty-operator
+  clusterDeploymentSelector:
+    matchLabels:
+        api.openshift.com/test: "true"
+  targetSecretRef:
+    name: test-pd-secret
+    namespace: test-monitoring
