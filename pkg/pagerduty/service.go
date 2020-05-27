@@ -44,7 +44,7 @@ func getConfigMapKey(data map[string]string, key string) (string, error) {
 	return retString, nil
 }
 
-func getSecretKey(data map[string][]byte, key string) (string, error) {
+func GetSecretKey(data map[string][]byte, key string) (string, error) {
 	if _, ok := data[key]; !ok {
 		errorStr := fmt.Sprintf("%v does not exist", key)
 		return "", errors.New(errorStr)
@@ -112,61 +112,16 @@ func NewClient(APIKey string) Client {
 
 // Data describes the data that is needed for PagerDuty api calls
 type Data struct {
-	escalationPolicyID string
-	autoResolveTimeout uint
-	acknowledgeTimeOut uint
-	servicePrefix      string
+	EscalationPolicyID string
+	AutoResolveTimeout uint
+	AcknowledgeTimeOut uint
+	ServicePrefix      string
 	APIKey             string
 	ClusterID          string
 	BaseDomain         string
 
 	ServiceID     string
 	IntegrationID string
-}
-
-// ParsePDConfig parses the PD secret and stores it in the struct
-func (data *Data) ParsePDConfig(osc client.Client) error {
-
-	pdAPISecret := &corev1.Secret{}
-	err := osc.Get(context.TODO(), types.NamespacedName{Namespace: config.OperatorNamespace, Name: config.PagerDutyAPISecretName}, pdAPISecret)
-	if err != nil {
-		return err
-	}
-
-	data.APIKey, err = getSecretKey(pdAPISecret.Data, config.PagerDutyAPISecretKey)
-	if err != nil {
-		return err
-	}
-
-	data.escalationPolicyID, err = getSecretKey(pdAPISecret.Data, "ESCALATION_POLICY")
-	if err != nil {
-		return err
-	}
-
-	autoResolveTimeoutStr, err := getSecretKey(pdAPISecret.Data, "RESOLVE_TIMEOUT")
-	if err != nil {
-		return err
-	}
-	data.autoResolveTimeout, err = convertStrToUint(autoResolveTimeoutStr)
-	if err != nil {
-		return err
-	}
-
-	acknowledgeTimeStr, err := getSecretKey(pdAPISecret.Data, "ACKNOWLEDGE_TIMEOUT")
-	if err != nil {
-		return err
-	}
-	data.acknowledgeTimeOut, err = convertStrToUint(acknowledgeTimeStr)
-	if err != nil {
-		return err
-	}
-
-	data.servicePrefix, err = getSecretKey(pdAPISecret.Data, "SERVICE_PREFIX")
-	if err != nil {
-		data.servicePrefix = "osd"
-	}
-
-	return nil
 }
 
 // ParseClusterConfig parses the cluster specific config map and stores the IDs in the data struct
@@ -213,17 +168,17 @@ func (c *SvcClient) GetIntegrationKey(data *Data) (string, error) {
 // CreateService creates a service in pagerduty for the specified clusterid and returns the service key
 func (c *SvcClient) CreateService(data *Data) (string, error) {
 
-	escalationPolicy, err := c.PdClient.GetEscalationPolicy(string(data.escalationPolicyID), nil)
+	escalationPolicy, err := c.PdClient.GetEscalationPolicy(string(data.EscalationPolicyID), nil)
 	if err != nil {
 		return "", errors.New("Escalation policy not found in PagerDuty")
 	}
 
 	clusterService := pdApi.Service{
-		Name:                   data.servicePrefix + "-" + data.ClusterID + "." + data.BaseDomain + "-hive-cluster",
+		Name:                   data.ServicePrefix + "-" + data.ClusterID + "." + data.BaseDomain + "-hive-cluster",
 		Description:            data.ClusterID + " - A managed hive created cluster",
 		EscalationPolicy:       *escalationPolicy,
-		AutoResolveTimeout:     &data.autoResolveTimeout,
-		AcknowledgementTimeout: &data.acknowledgeTimeOut,
+		AutoResolveTimeout:     &data.AutoResolveTimeout,
+		AcknowledgementTimeout: &data.AcknowledgeTimeOut,
 		AlertCreation:          "create_alerts_and_incidents",
 		IncidentUrgencyRule: &pdApi.IncidentUrgencyRule{
 			Type:    "constant",
