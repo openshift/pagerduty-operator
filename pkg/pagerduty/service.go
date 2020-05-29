@@ -125,9 +125,9 @@ type Data struct {
 }
 
 // ParseClusterConfig parses the cluster specific config map and stores the IDs in the data struct
-func (data *Data) ParseClusterConfig(osc client.Client, namespace string, name string) error {
+func (data *Data) ParseClusterConfig(osc client.Client, namespace string, cmName string) error {
 	pdAPIConfigMap := &corev1.ConfigMap{}
-	err := osc.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name + config.ConfigMapPostfix}, pdAPIConfigMap)
+	err := osc.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: cmName}, pdAPIConfigMap)
 	if err != nil {
 		return err
 	}

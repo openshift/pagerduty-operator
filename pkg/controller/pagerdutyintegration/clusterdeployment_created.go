@@ -34,16 +34,28 @@ import (
 )
 
 func (r *ReconcilePagerDutyIntegration) handleCreate(pdi *pagerdutyv1alpha1.PagerDutyIntegration, cd *hivev1.ClusterDeployment) (reconcile.Result, error) {
+	var (
+		// secretName is the name of the Secret deployed to the target
+		// cluster, and also the name of the SyncSet that causes it to
+		// be deployed.
+		secretName string = config.Name(pdi.Spec.ServicePrefix, cd.Name, config.SecretSuffix)
+
+		// configMapName is the name of the ConfigMap containing the
+		// SERVICE_ID and INTEGRATION_ID
+		configMapName string = config.Name(pdi.Spec.ServicePrefix, cd.Name, config.ConfigMapSuffix)
+
+		// There can be more than one PagerDutyIntegration that causes
+		// creation of resources for a ClusterDeployment, and each one
+		// will need a finalizer here. We add a suffix of the CR
+		// name to distinguish them.
+		finalizer string = "pd.managed.openshift.io/" + pdi.Name
+	)
+
 	if !cd.Spec.Installed {
 		// Cluster isn't installed yet, return
 		return reconcile.Result{}, nil
 	}
 
-	// There can be more than one PagerDutyIntegration that causes
-	// creation of resources for a ClusterDeployment, and each one
-	// will need a finalizer here. We can add a suffix of the CR
-	// name to distinguish them.
-	finalizer := "pd.managed.openshift.io/" + pdi.Name
 	if utils.HasFinalizer(cd, finalizer) == false {
 		utils.AddFinalizer(cd, finalizer)
 		err := r.client.Update(context.TODO(), cd)
@@ -85,7 +97,7 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdi *pagerdutyv1alpha1.Page
 	// To prevent scoping issues in the err check below.
 	var pdIntegrationKey string
 
-	err = pdData.ParseClusterConfig(r.client, cd.Namespace, cd.Name)
+	err = pdData.ParseClusterConfig(r.client, cd.Namespace, configMapName)
 	if err != nil {
 		var createErr error
 		_, createErr = r.pdclient.CreateService(pdData)
@@ -102,7 +114,6 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdi *pagerdutyv1alpha1.Page
 	}
 
 	//add secret part
-	secretName := pdi.Spec.ServicePrefix + cd.Name + "-pd-secret"
 	secret := kube.GeneratePdSecret(cd.Namespace, secretName, pdIntegrationKey)
 	r.reqLogger.Info("creating pd secret")
 	//add reference
@@ -135,16 +146,15 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdi *pagerdutyv1alpha1.Page
 	}
 
 	r.reqLogger.Info("Creating syncset")
-	ssName := pdi.Spec.ServicePrefix + cd.Name
 	ss := &hivev1.SyncSet{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: ssName + config.SyncSetPostfix, Namespace: cd.Namespace}, ss)
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: secretName, Namespace: cd.Namespace}, ss)
 	if err != nil {
 		r.reqLogger.Info("error finding the old syncset")
 		if !errors.IsNotFound(err) {
 			return reconcile.Result{}, err
 		}
 		r.reqLogger.Info("syncset not found , create a new one on this ")
-		ss = kube.GenerateSyncSet(cd.Namespace, ssName, secret)
+		ss = kube.GenerateSyncSet(cd.Namespace, secretName, secret)
 		if err = controllerutil.SetControllerReference(cd, ss, r.scheme); err != nil {
 			r.reqLogger.Error(err, "Error setting controller reference on syncset")
 			return reconcile.Result{}, err
@@ -155,8 +165,7 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdi *pagerdutyv1alpha1.Page
 	}
 
 	r.reqLogger.Info("Creating configmap")
-	cmName := pdi.Spec.ServicePrefix + cd.Name
-	newCM := kube.GenerateConfigMap(cd.Namespace, cmName, pdData.ServiceID, pdData.IntegrationID)
+	newCM := kube.GenerateConfigMap(cd.Namespace, configMapName, pdData.ServiceID, pdData.IntegrationID)
 	if err = controllerutil.SetControllerReference(cd, newCM, r.scheme); err != nil {
 		r.reqLogger.Error(err, "Error setting controller reference on configmap")
 		return reconcile.Result{}, err

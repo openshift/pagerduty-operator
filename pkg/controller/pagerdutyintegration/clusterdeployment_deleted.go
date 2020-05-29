@@ -30,12 +30,28 @@ import (
 )
 
 func (r *ReconcilePagerDutyIntegration) handleDelete(pdi *pagerdutyv1alpha1.PagerDutyIntegration, cd *hivev1.ClusterDeployment) (reconcile.Result, error) {
+	var (
+		// secretName is the name of the Secret deployed to the target
+		// cluster, and also the name of the SyncSet that causes it to
+		// be deployed.
+		secretName string = config.Name(pdi.Spec.ServicePrefix, cd.Name, config.SecretSuffix)
+
+		// configMapName is the name of the ConfigMap containing the
+		// SERVICE_ID and INTEGRATION_ID
+		configMapName string = config.Name(pdi.Spec.ServicePrefix, cd.Name, config.ConfigMapSuffix)
+
+		// There can be more than one PagerDutyIntegration that causes
+		// creation of resources for a ClusterDeployment, and each one
+		// will need a finalizer here. We add a suffix of the CR
+		// name to distinguish them.
+		finalizer string = "pd.managed.openshift.io/" + pdi.Name
+	)
+
 	if cd == nil {
 		// nothing to do, bail early
 		return reconcile.Result{}, nil
 	}
 
-	finalizer := "pd.managed.openshift.io/" + pdi.Name
 	if !utils.HasFinalizer(cd, finalizer) {
 		return reconcile.Result{}, nil
 	}
@@ -85,7 +101,7 @@ func (r *ReconcilePagerDutyIntegration) handleDelete(pdi *pagerdutyv1alpha1.Page
 	}
 
 	if deletePDService {
-		err = pdData.ParseClusterConfig(r.client, cd.Namespace, cd.Name)
+		err = pdData.ParseClusterConfig(r.client, cd.Namespace, configMapName)
 
 		if err != nil {
 			if !errors.IsNotFound(err) {
@@ -112,17 +128,15 @@ func (r *ReconcilePagerDutyIntegration) handleDelete(pdi *pagerdutyv1alpha1.Page
 			// the service with the assumption that the config can
 			// be used later for cleanup find the PD configmap and
 			// delete it
-			cmName := pdi.Spec.ServicePrefix + cd.Name + config.ConfigMapPostfix
-			r.reqLogger.Info("Deleting PD ConfigMap", "Namespace", cd.Namespace, "Name", cmName)
-			err = utils.DeleteConfigMap(cmName, cd.Namespace, r.client, r.reqLogger)
+			r.reqLogger.Info("Deleting PD ConfigMap", "Namespace", cd.Namespace, "Name", configMapName)
+			err = utils.DeleteConfigMap(configMapName, cd.Namespace, r.client, r.reqLogger)
 
 			if err != nil {
-				r.reqLogger.Error(err, "Error deleting ConfigMap", "Namespace", cd.Namespace, "Name", cmName)
+				r.reqLogger.Error(err, "Error deleting ConfigMap", "Namespace", cd.Namespace, "Name", configMapName)
 			}
 		}
 	}
 	// find the pd secret and delete id
-	secretName := pdi.Spec.ServicePrefix + cd.Name + "-pd-secret"
 	r.reqLogger.Info("Deleting PD secret", "Namespace", cd.Namespace, "Name", secretName)
 	err = utils.DeleteSecret(secretName, cd.Namespace, r.client, r.reqLogger)
 	if err != nil {
@@ -130,12 +144,11 @@ func (r *ReconcilePagerDutyIntegration) handleDelete(pdi *pagerdutyv1alpha1.Page
 	}
 
 	// find the PD syncset and delete it
-	ssName := pdi.Spec.ServicePrefix + cd.Name + config.SyncSetPostfix
-	r.reqLogger.Info("Deleting PD SyncSet", "Namespace", cd.Namespace, "Name", ssName)
-	err = utils.DeleteSyncSet(ssName, cd.Namespace, r.client, r.reqLogger)
+	r.reqLogger.Info("Deleting PD SyncSet", "Namespace", cd.Namespace, "Name", secretName)
+	err = utils.DeleteSyncSet(secretName, cd.Namespace, r.client, r.reqLogger)
 
 	if err != nil {
-		r.reqLogger.Error(err, "Error deleting SyncSet", "Namespace", cd.Namespace, "Name", ssName)
+		r.reqLogger.Error(err, "Error deleting SyncSet", "Namespace", cd.Namespace, "Name", secretName)
 	}
 
 	if utils.HasFinalizer(cd, finalizer) {
