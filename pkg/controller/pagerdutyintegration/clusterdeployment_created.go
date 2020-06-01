@@ -30,10 +30,9 @@ import (
 	"github.com/openshift/pagerduty-operator/pkg/utils"
 
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-func (r *ReconcilePagerDutyIntegration) handleCreate(pdi *pagerdutyv1alpha1.PagerDutyIntegration, cd *hivev1.ClusterDeployment) (reconcile.Result, error) {
+func (r *ReconcilePagerDutyIntegration) handleCreate(pdi *pagerdutyv1alpha1.PagerDutyIntegration, cd *hivev1.ClusterDeployment) error {
 	var (
 		// secretName is the name of the Secret deployed to the target
 		// cluster, and also the name of the SyncSet that causes it to
@@ -53,14 +52,14 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdi *pagerdutyv1alpha1.Page
 
 	if !cd.Spec.Installed {
 		// Cluster isn't installed yet, return
-		return reconcile.Result{}, nil
+		return nil
 	}
 
 	if utils.HasFinalizer(cd, finalizer) == false {
 		utils.AddFinalizer(cd, finalizer)
 		err := r.client.Update(context.TODO(), cd)
 		if err != nil {
-			return reconcile.Result{}, err
+			return err
 		}
 	}
 
@@ -76,12 +75,12 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdi *pagerdutyv1alpha1.Page
 		pdAPISecret,
 	)
 	if err != nil {
-		return reconcile.Result{}, err
+		return err
 	}
 
 	apiKey, err := pd.GetSecretKey(pdAPISecret.Data, config.PagerDutyAPISecretKey)
 	if err != nil {
-		return reconcile.Result{}, err
+		return err
 	}
 
 	pdData := &pd.Data{
@@ -103,14 +102,14 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdi *pagerdutyv1alpha1.Page
 		_, createErr = r.pdclient.CreateService(pdData)
 		if createErr != nil {
 			localmetrics.UpdateMetricPagerDutyCreateFailure(1, ClusterID)
-			return reconcile.Result{}, createErr
+			return createErr
 		}
 	}
 	localmetrics.UpdateMetricPagerDutyCreateFailure(0, ClusterID)
 
 	pdIntegrationKey, err = r.pdclient.GetIntegrationKey(pdData)
 	if err != nil {
-		return reconcile.Result{}, err
+		return err
 	}
 
 	//add secret part
@@ -119,28 +118,28 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdi *pagerdutyv1alpha1.Page
 	//add reference
 	if err = controllerutil.SetControllerReference(cd, secret, r.scheme); err != nil {
 		r.reqLogger.Error(err, "Error setting controller reference on secret")
-		return reconcile.Result{}, err
+		return err
 	}
 	if err = r.client.Create(context.TODO(), secret); err != nil {
 		if !errors.IsAlreadyExists(err) {
-			return reconcile.Result{}, err
+			return err
 		}
 
 		r.reqLogger.Info("the pd secret exist, check if pdIntegrationKey is changed or not")
 		sc := &corev1.Secret{}
 		err = r.client.Get(context.TODO(), types.NamespacedName{Name: secret.Name, Namespace: cd.Namespace}, sc)
 		if err != nil {
-			return reconcile.Result{}, nil
+			return nil
 		}
 		if string(sc.Data["PAGERDUTY_KEY"]) != pdIntegrationKey {
 			r.reqLogger.Info("pdIntegrationKey is changed, delete the secret first")
 			if err = r.client.Delete(context.TODO(), secret); err != nil {
 				log.Info("failed to delete existing pd secret")
-				return reconcile.Result{}, err
+				return err
 			}
 			r.reqLogger.Info("creating pd secret")
 			if err = r.client.Create(context.TODO(), secret); err != nil {
-				return reconcile.Result{}, err
+				return err
 			}
 		}
 	}
@@ -151,16 +150,16 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdi *pagerdutyv1alpha1.Page
 	if err != nil {
 		r.reqLogger.Info("error finding the old syncset")
 		if !errors.IsNotFound(err) {
-			return reconcile.Result{}, err
+			return err
 		}
 		r.reqLogger.Info("syncset not found , create a new one on this ")
 		ss = kube.GenerateSyncSet(cd.Namespace, secretName, secret)
 		if err = controllerutil.SetControllerReference(cd, ss, r.scheme); err != nil {
 			r.reqLogger.Error(err, "Error setting controller reference on syncset")
-			return reconcile.Result{}, err
+			return err
 		}
 		if err := r.client.Create(context.TODO(), ss); err != nil {
-			return reconcile.Result{}, err
+			return err
 		}
 	}
 
@@ -168,17 +167,17 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdi *pagerdutyv1alpha1.Page
 	newCM := kube.GenerateConfigMap(cd.Namespace, configMapName, pdData.ServiceID, pdData.IntegrationID)
 	if err = controllerutil.SetControllerReference(cd, newCM, r.scheme); err != nil {
 		r.reqLogger.Error(err, "Error setting controller reference on configmap")
-		return reconcile.Result{}, err
+		return err
 	}
 	if err := r.client.Create(context.TODO(), newCM); err != nil {
 		if errors.IsAlreadyExists(err) {
 			if updateErr := r.client.Update(context.TODO(), newCM); updateErr != nil {
-				return reconcile.Result{}, err
+				return err
 			}
-			return reconcile.Result{}, nil
+			return nil
 		}
-		return reconcile.Result{}, err
+		return err
 	}
 
-	return reconcile.Result{}, nil
+	return nil
 }

@@ -187,7 +187,7 @@ func (r *ReconcilePagerDutyIntegration) Reconcile(request reconcile.Request) (re
 	if pdi.DeletionTimestamp != nil {
 		if utils.HasFinalizer(pdi, config.OperatorFinalizer) {
 			for _, cd := range matchingClusterDeployments.Items {
-				_, err := r.handleDelete(pdi, &cd)
+				err := r.handleDelete(pdi, &cd)
 				if err != nil {
 					return reconcile.Result{}, err
 				}
@@ -212,12 +212,12 @@ func (r *ReconcilePagerDutyIntegration) Reconcile(request reconcile.Request) (re
 
 	for _, cd := range matchingClusterDeployments.Items {
 		if cd.DeletionTimestamp != nil {
-			_, err := r.handleDelete(pdi, &cd)
+			err := r.handleDelete(pdi, &cd)
 			if err != nil {
 				return reconcile.Result{}, err
 			}
 		} else {
-			_, err := r.handleCreate(pdi, &cd)
+			err := r.handleCreate(pdi, &cd)
 			if err != nil {
 				return reconcile.Result{}, err
 			}

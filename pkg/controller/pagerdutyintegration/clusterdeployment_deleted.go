@@ -26,10 +26,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-func (r *ReconcilePagerDutyIntegration) handleDelete(pdi *pagerdutyv1alpha1.PagerDutyIntegration, cd *hivev1.ClusterDeployment) (reconcile.Result, error) {
+func (r *ReconcilePagerDutyIntegration) handleDelete(pdi *pagerdutyv1alpha1.PagerDutyIntegration, cd *hivev1.ClusterDeployment) error {
 	var (
 		// secretName is the name of the Secret deployed to the target
 		// cluster, and also the name of the SyncSet that causes it to
@@ -49,11 +48,11 @@ func (r *ReconcilePagerDutyIntegration) handleDelete(pdi *pagerdutyv1alpha1.Page
 
 	if cd == nil {
 		// nothing to do, bail early
-		return reconcile.Result{}, nil
+		return nil
 	}
 
 	if !utils.HasFinalizer(cd, finalizer) {
-		return reconcile.Result{}, nil
+		return nil
 	}
 
 	ClusterID := cd.Spec.ClusterName
@@ -72,7 +71,7 @@ func (r *ReconcilePagerDutyIntegration) handleDelete(pdi *pagerdutyv1alpha1.Page
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			// some error other than not found, requeue
-			return reconcile.Result{}, err
+			return err
 		}
 		/*
 			The PD config was not found.
@@ -87,7 +86,7 @@ func (r *ReconcilePagerDutyIntegration) handleDelete(pdi *pagerdutyv1alpha1.Page
 
 	apiKey, err := pd.GetSecretKey(pdAPISecret.Data, config.PagerDutyAPISecretKey)
 	if err != nil {
-		return reconcile.Result{}, err
+		return err
 	}
 
 	pdData := &pd.Data{
@@ -106,7 +105,7 @@ func (r *ReconcilePagerDutyIntegration) handleDelete(pdi *pagerdutyv1alpha1.Page
 		if err != nil {
 			if !errors.IsNotFound(err) {
 				// some error other than not found, requeue
-				return reconcile.Result{}, err
+				return err
 			}
 			/*
 				Something was not found if we are here.
@@ -157,10 +156,10 @@ func (r *ReconcilePagerDutyIntegration) handleDelete(pdi *pagerdutyv1alpha1.Page
 		err = r.client.Update(context.TODO(), cd)
 		if err != nil {
 			metrics.UpdateMetricPagerDutyDeleteFailure(1, ClusterID)
-			return reconcile.Result{}, err
+			return err
 		}
 	}
 	metrics.UpdateMetricPagerDutyDeleteFailure(0, ClusterID)
 
-	return reconcile.Result{}, nil
+	return nil
 }
