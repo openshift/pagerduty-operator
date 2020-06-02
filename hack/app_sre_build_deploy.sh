@@ -14,5 +14,9 @@ IMG="${BASE_IMG}:latest"
 
 GIT_HASH=$(git rev-parse --short=7 HEAD)
 
+if [[ -z $IMAGE_REPOSITORY ]]; then
+  IMAGE_REPOSITORY=app-sre
+fi
+
 # build and push the operator and catalog images
-make build skopeo-push build-catalog-image
+make IMAGE_REPOSITORY=$IMAGE_REPOSITORY build skopeo-push build-catalog-image
