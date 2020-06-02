@@ -26,4 +26,4 @@ exit 0
 BASE_IMG="pagerduty-operator"
 IMG="${BASE_IMG}:latest"
 
-IMG="$IMG" make build
+make build

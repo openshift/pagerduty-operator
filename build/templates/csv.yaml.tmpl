@@ -1,24 +1,24 @@
 apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
-  name: pagerduty-operator-1.0.0
-  namespace: placeholder
+  name: #OPERATOR_NAME#-v#OPERATOR_VERSION#
+  namespace: #OPERATOR_NAMESPACE#
   annotations:
     categories: A list of comma separated categories that your operator falls under.
     certified: "false"
-    description: Pagerduty Operator. 
-    containerImage: quay.io/app-sre/pagerduty-operator:latest
-    createdAt: "2019-04-10T17:34:33Z"
-    support: Wesley Hearn
+    description: OpenShift cluster provisioning and management at scale.
+    containerImage: #OPERATOR_IMAGE#
+    createdAt: "$TIME"
+    support: OSD SRE
 spec:
-  displayName: pagerduty-operator
-  description: Pagerduty Operator.
+  displayName: #OPERATOR_NAME#
+  description: SRE operator - #OPERATOR_NAME#
   keywords:
   - kubernetes
   - openshift
   - multi-cluster
   - cluster
-  version: 1.0.0
+  version: #OPERATOR_VERSION#
   provider:
     name: Red Hat, Inc
   maturity: alpha
@@ -34,9 +34,8 @@ spec:
   install:
     strategy: deployment
     spec:
-      clusterPermissions:
-      - serviceAccountName: pagerduty-operator
+      clusterPermissions: []
         # Rules will be added here by the generate-operator-bundle.py script.
-      deployments:
-      - name: pagerduty-operator
+      deployments: []
         # Deployment spec will be added here by the generate-operator-bundle.py script.
+
