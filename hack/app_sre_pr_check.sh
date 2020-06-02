@@ -26,4 +26,4 @@ exit 0
 BASE_IMG="pagerduty-operator"
 IMG="${BASE_IMG}:latest"
 
-BUILD_CMD="docker build" IMG="$IMG" make docker-build
+IMG="$IMG" make build
