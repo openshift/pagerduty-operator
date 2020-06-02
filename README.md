@@ -77,7 +77,7 @@ Continue to `Create ClusterDeployment`.
 Build local code modifications and push image to your own quay.io account.
 
 ```terminal
-$ make docker-build
+$ make build
 [...]
 Successfully tagged quay.io/<userid>/pagerduty-operator:v0.1.129-057ffd29
 
