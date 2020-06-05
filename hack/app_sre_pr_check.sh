@@ -10,7 +10,7 @@ YAML_DIRS=( "${CURRENT_DIR}/../deploy/crds" "${CURRENT_DIR}/../manifests" )
 for DIR in $YAML_DIRS 
 do 
 	if [[ -d $DIR ]]; then
-		python "$CURRENT_DIR"/validate_yaml.py $CRD_DIR
+		python "$CURRENT_DIR"/validate_yaml.py $DIR
 
 		if [ "$?" != "0" ]; then
 		    exit 1
