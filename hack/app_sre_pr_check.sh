@@ -5,22 +5,16 @@
 set -exv
 
 CURRENT_DIR=$(dirname "$0")
-YAML_DIRS=( "${CURRENT_DIR}/../deploy/crds" "${CURRENT_DIR}/../manifests" )
+REPO_ROOT=$(git rev-parse --show-toplevel)
+YAML_FILES=$(git ls-tree --full-tree -r --name-only HEAD | egrep '\.ya?ml$')
 
-for DIR in $YAML_DIRS 
+for YAML_FILE in $YAML_FILES
 do 
-	if [[ -d $DIR ]]; then
-		python "$CURRENT_DIR"/validate_yaml.py $DIR
-
-		if [ "$?" != "0" ]; then
-		    exit 1
-		fi
-
-	else
-		echo "WARNING: No yaml for validation in directiory $DIR"
-	fi
+	# `-e` will fail the script if one of these is bad
+	python "$CURRENT_DIR"/validate_yaml.py $REPO_ROOT/$YAML_FILE
 done 
 
+# TODO: ??
 exit 0
 
 BASE_IMG="pagerduty-operator"
