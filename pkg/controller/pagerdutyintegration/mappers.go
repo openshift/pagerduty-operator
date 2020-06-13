@@ -34,7 +34,7 @@ type clusterDeploymentToPagerDutyIntegrationsMapper struct {
 
 func (m clusterDeploymentToPagerDutyIntegrationsMapper) Map(mo handler.MapObject) []reconcile.Request {
 	pdiList := &pagerdutyv1alpha1.PagerDutyIntegrationList{}
-	err := m.Client.List(context.TODO(), &client.ListOptions{}, pdiList)
+	err := m.Client.List(context.TODO(), pdiList, &client.ListOptions{})
 	if err != nil {
 		return []reconcile.Request{}
 	}
@@ -77,7 +77,7 @@ func (m ownedByClusterDeploymentToPagerDutyIntegrationsMapper) Map(mo handler.Ma
 	}
 
 	pdiList := &pagerdutyv1alpha1.PagerDutyIntegrationList{}
-	err := m.Client.List(context.TODO(), &client.ListOptions{}, pdiList)
+	err := m.Client.List(context.TODO(), pdiList, &client.ListOptions{})
 	if err != nil {
 		return []reconcile.Request{}
 	}

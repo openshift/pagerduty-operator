@@ -212,8 +212,9 @@ func (r *ReconcilePagerDutyIntegration) Reconcile(request reconcile.Request) (re
 
 	// TODO: Remove all of this migration code in a future release.
 	// Start migration
+	const MigrationAnnotation string = "pd.openshift.io/legacy"
 	for _, cd := range matchingClusterDeployments.Items {
-		if pdi.Annotations["pd.openshift.io/legacy"] != "" {
+		if pdi.Annotations[MigrationAnnotation] != "" {
 			err := r.handleMigrate(pdi, &cd)
 			if err != nil {
 				r.reqLogger.Error(
@@ -226,8 +227,8 @@ func (r *ReconcilePagerDutyIntegration) Reconcile(request reconcile.Request) (re
 			}
 		}
 	}
-	if pdi.Annotations["pd.openshift.io/legacy"] != "" {
-		delete(pdi.Annotations, "pd.openshift.io/legacy")
+	if pdi.Annotations[MigrationAnnotation] != "" {
+		delete(pdi.Annotations, MigrationAnnotation)
 		err = r.client.Update(context.TODO(), pdi)
 		if err != nil {
 			return reconcile.Result{}, err
@@ -236,7 +237,7 @@ func (r *ReconcilePagerDutyIntegration) Reconcile(request reconcile.Request) (re
 	// End migration
 
 	for _, cd := range matchingClusterDeployments.Items {
-		if cd.DeletionTimestamp != nil {
+		if cd.DeletionTimestamp != nil || cd.Labels[config.ClusterDeploymentNoalertsLabel] == "true" {
 			err := r.handleDelete(pdi, &cd)
 			if err != nil {
 				return reconcile.Result{}, err
@@ -253,22 +254,13 @@ func (r *ReconcilePagerDutyIntegration) Reconcile(request reconcile.Request) (re
 }
 
 func (r *ReconcilePagerDutyIntegration) getMatchingClusterDeployments(pdi *pagerdutyv1alpha1.PagerDutyIntegration) (*hivev1.ClusterDeploymentList, error) {
-
-	// TODO: not sure if this should be here or in the CRs?
-	// Don't match any ClusterDeployments that have noalerts label set
-	labelSelector := pdi.Spec.ClusterDeploymentSelector.DeepCopy()
-	labelSelector.MatchExpressions = append(labelSelector.MatchExpressions, metav1.LabelSelectorRequirement{
-		Key:      config.ClusterDeploymentNoalertsLabel,
-		Operator: metav1.LabelSelectorOpNotIn,
-		Values:   []string{"true"},
-	})
-	selector, err := metav1.LabelSelectorAsSelector(labelSelector)
+	selector, err := metav1.LabelSelectorAsSelector(&pdi.Spec.ClusterDeploymentSelector)
 	if err != nil {
 		return nil, err
 	}
 
 	matchingClusterDeployments := &hivev1.ClusterDeploymentList{}
 	listOpts := &client.ListOptions{LabelSelector: selector}
-	err = r.client.List(context.TODO(), listOpts, matchingClusterDeployments)
+	err = r.client.List(context.TODO(), matchingClusterDeployments, listOpts)
 	return matchingClusterDeployments, err
 }

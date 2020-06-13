@@ -113,7 +113,7 @@ func (r *ReconcilePagerDutyIntegration) handleMigrate(pdi *pagerdutyv1alpha1.Pag
 		return fmt.Errorf("Couldn't create new Secret: %w", err)
 	}
 
-	newSyncSet := kube.GenerateSyncSet(cd.Namespace, secretName, newSecret)
+	newSyncSet := kube.GenerateSyncSet(cd.Namespace, cd.Name, newSecret)
 	if err = controllerutil.SetControllerReference(cd, newSyncSet, r.scheme); err != nil {
 		return fmt.Errorf("Couldn't set controller reference on SyncSet: %w", err)
 	}

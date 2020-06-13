@@ -21,7 +21,7 @@ import (
 )
 
 // GenerateSyncSet returns a syncset that can be created with the oc client
-func GenerateSyncSet(namespace string, name string, secret *corev1.Secret) *hivev1.SyncSet {
+func GenerateSyncSet(namespace string, clusterDeploymentName string, secret *corev1.Secret) *hivev1.SyncSet {
 	return &hivev1.SyncSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      secret.Name,
@@ -30,7 +30,7 @@ func GenerateSyncSet(namespace string, name string, secret *corev1.Secret) *hive
 		Spec: hivev1.SyncSetSpec{
 			ClusterDeploymentRefs: []corev1.LocalObjectReference{
 				{
-					Name: name,
+					Name: clusterDeploymentName,
 				},
 			},
 			SyncSetCommonSpec: hivev1.SyncSetCommonSpec{
