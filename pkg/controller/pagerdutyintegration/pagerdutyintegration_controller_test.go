@@ -587,6 +587,133 @@ func TestDeleteSecret(t *testing.T) {
 	})
 }
 
+func TestMigration(t *testing.T) {
+	t.Run("Test Managed Cluster that later sets noalerts label", func(t *testing.T) {
+		// Arrange
+		mocks := setupDefaultMocks(t, []runtime.Object{
+			testClusterDeployment(),
+			testPDConfigSecret(),
+			testMigratoryPagerDutyIntegration(),
+			testLegacyPDConfigMap(),
+			testLegacySecret(),
+			testLegacySyncSet(),
+		})
+
+		setupPDMock := func(r *mockpd.MockClientMockRecorder) {
+			// create (without calling PD)
+			r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(1)
+
+		}
+		setupPDMock(mocks.mockPDClient.EXPECT())
+
+		defer mocks.mockCtrl.Finish()
+
+		rpdi := &ReconcilePagerDutyIntegration{
+			client:   mocks.fakeKubeClient,
+			scheme:   scheme.Scheme,
+			pdclient: mocks.mockPDClient,
+		}
+
+		// Act
+		_, err := rpdi.Reconcile(reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      testPagerDutyIntegrationName,
+				Namespace: config.OperatorNamespace,
+			},
+		})
+
+		// Assert
+		assert.NoError(t, err, "Unexpected Error")
+		assert.True(t, verifySyncSetExists(mocks.fakeKubeClient, &SyncSetEntry{
+			name:                     config.Name(testServicePrefix, testClusterName, config.SecretSuffix),
+			clusterDeploymentRefName: testClusterName,
+		}))
+		assert.True(t, verifySecretExists(mocks.fakeKubeClient, &SecretEntry{
+			name:         config.Name(testServicePrefix, testClusterName, config.SecretSuffix),
+			pagerdutyKey: testIntegrationID,
+		}))
+		assert.True(t, verifySyncSetExists(mocks.fakeKubeClient, &SyncSetEntry{
+			name:                     testClusterName + "-pd-sync",
+			clusterDeploymentRefName: testClusterName,
+		}) == false)
+		assert.True(t, verifySecretExists(mocks.fakeKubeClient, &SecretEntry{
+			name:         "pd-secret",
+			pagerdutyKey: testIntegrationID,
+		}) == false)
+
+		pdi := &pagerdutyv1alpha1.PagerDutyIntegration{}
+		err = mocks.fakeKubeClient.Get(
+			context.TODO(),
+			types.NamespacedName{Name: testPagerDutyIntegrationName, Namespace: config.OperatorNamespace},
+			pdi,
+		)
+		assert.NotContains(t, pdi.Annotations, "pd.openshift.io/legacy")
+	})
+}
+
+func testMigratoryPagerDutyIntegration() *pagerdutyv1alpha1.PagerDutyIntegration {
+	pdi := testPagerDutyIntegration()
+	pdi.Annotations = map[string]string{"pd.openshift.io/legacy": "true"}
+	return pdi
+}
+
+// testPDConfigMap returns a fake configmap for a deployed cluster for testing.
+func testLegacyPDConfigMap() *corev1.ConfigMap {
+	return &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: testNamespace,
+			Name:      testClusterName + config.ConfigMapSuffix,
+		},
+		Data: map[string]string{
+			"INTEGRATION_ID": testIntegrationID,
+			"SERVICE_ID":     testServiceID,
+		},
+	}
+}
+
+// testSecret returns a Secret that will go in the SyncSet for a deployed cluster to use in testing.
+func testLegacySecret() *corev1.Secret {
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "pd-secret",
+			Namespace: testNamespace,
+		},
+		Data: map[string][]byte{
+			"PAGERDUTY_KEY": []byte(testIntegrationID),
+		},
+	}
+}
+
+// testSyncSet returns a SyncSet for an existing testClusterDeployment to use in testing.
+func testLegacySyncSet() *hivev1.SyncSet {
+	return &hivev1.SyncSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      testClusterName + "-pd-sync",
+			Namespace: testNamespace,
+		},
+		Spec: hivev1.SyncSetSpec{
+			ClusterDeploymentRefs: []corev1.LocalObjectReference{{
+				Name: testClusterName,
+			}},
+			SyncSetCommonSpec: hivev1.SyncSetCommonSpec{
+				ResourceApplyMode: "Sync",
+				Secrets: []hivev1.SecretMapping{
+					{
+						SourceRef: hivev1.SecretReference{
+							Namespace: testNamespace,
+							Name:      "pd-secret",
+						},
+						TargetRef: hivev1.SecretReference{
+							Namespace: "openshift-monitoring",
+							Name:      "pagerduty-api-key",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 // verifySyncSetExists verifies that a SyncSet exists that matches the supplied expected SyncSetEntry.
 func verifySyncSetExists(c client.Client, expected *SyncSetEntry) bool {
 	ss := hivev1.SyncSet{}
