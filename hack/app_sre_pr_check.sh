@@ -14,9 +14,6 @@ do
 	python "$CURRENT_DIR"/validate_yaml.py $REPO_ROOT/$YAML_FILE
 done 
 
-# TODO: ??
-exit 0
-
 BASE_IMG="pagerduty-operator"
 IMG="${BASE_IMG}:latest"
 
