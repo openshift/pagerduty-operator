@@ -7,7 +7,7 @@ This operator runs on [Hive](https://github.com/openshift/hive) and watches for 
 
 ## How the PagerDuty Operator works
 
-* The PagerDutyIntegration controller watches for changes to PagerDutyIntegration CRs, and also for changes to appropriately labelled ClusterDeployment CRs (and ConfigMap/Secret/SyncSet resources owned by such a ClusterDeployment).
+* The PagerDutyIntegration controller watches for changes to PagerDutyIntegration CRs, and also for changes to appropriately labeled ClusterDeployment CRs (and ConfigMap/Secret/SyncSet resources owned by such a ClusterDeployment).
 * For each PagerDutyIntegration CR, it will get a list of matching ClusterDeployments that have the `spec.installed` field set to true and don't have the `api.openshift.com/noalerts` label set.
 * For each of these ClusterDeployments, PagerDuty creates a secret which contains the integration key required to communicate with PagerDuty Web application.
 * The PagerDuty operator then creates [syncset](https://github.com/openshift/hive/blob/master/config/crds/hive_v1_syncset.yaml) with the relevant information for hive to send the PagerDuty secret to the newly provisioned cluster .
@@ -118,8 +118,8 @@ $ oc apply -f path/to/modified/operator.yaml
 ### Create PagerDutyIntegration
 
 There's an example at
-`deploy/crds/pagerduty_v1alpha1_pagerdutyintegration_cr.yaml` that you can edit
-and apply to your cluster.
+`deploy/examples/pagerduty_v1alpha1_pagerdutyintegration_cr.yaml` that
+you can edit and apply to your cluster.
 
 You'll need to use a valid escalation policy ID from your PagerDuty account. You
 can get this by clicking on your policy at

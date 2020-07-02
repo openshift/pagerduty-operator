@@ -5,16 +5,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // PagerDutyIntegrationSpec defines the desired state of PagerDutyIntegration
 // +k8s:openapi-gen=true
 type PagerDutyIntegrationSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
-	// Add custom validation using kubebuilder tags: https://book.kubebuilder.io/beyond_basics/generating_crd.html
-
 	// Time in seconds that an incident changes to the Triggered State after
 	// being Acknowledged. Value must not be negative. Omitting or setting
 	// this field to 0 will disable the feature.
@@ -46,11 +39,7 @@ type PagerDutyIntegrationSpec struct {
 
 // PagerDutyIntegrationStatus defines the observed state of PagerDutyIntegration
 // +k8s:openapi-gen=true
-type PagerDutyIntegrationStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
-	// Add custom validation using kubebuilder tags: https://book.kubebuilder.io/beyond_basics/generating_crd.html
-}
+type PagerDutyIntegrationStatus struct{}
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 

@@ -43,7 +43,7 @@ func (m clusterDeploymentToPagerDutyIntegrationsMapper) Map(mo handler.MapObject
 	for _, pdi := range pdiList.Items {
 		selector, err := metav1.LabelSelectorAsSelector(&pdi.Spec.ClusterDeploymentSelector)
 		if err != nil {
-			return []reconcile.Request{}
+			continue
 		}
 		if selector.Matches(labels.Set(mo.Meta.GetLabels())) {
 			requests = append(requests, reconcile.Request{
@@ -67,9 +67,10 @@ func (m ownedByClusterDeploymentToPagerDutyIntegrationsMapper) Map(mo handler.Ma
 		if or.APIVersion == hivev1.SchemeGroupVersion.String() && strings.ToLower(or.Kind) == "clusterdeployment" {
 			cd := &hivev1.ClusterDeployment{}
 			err := m.Client.Get(context.TODO(), client.ObjectKey{Name: or.Name, Namespace: mo.Meta.GetNamespace()}, cd)
-			if err == nil {
-				relevantClusterDeployments = append(relevantClusterDeployments, cd)
+			if err != nil {
+				continue
 			}
+			relevantClusterDeployments = append(relevantClusterDeployments, cd)
 		}
 	}
 	if len(relevantClusterDeployments) == 0 {
@@ -86,7 +87,7 @@ func (m ownedByClusterDeploymentToPagerDutyIntegrationsMapper) Map(mo handler.Ma
 	for _, pdi := range pdiList.Items {
 		selector, err := metav1.LabelSelectorAsSelector(&pdi.Spec.ClusterDeploymentSelector)
 		if err != nil {
-			return []reconcile.Request{}
+			continue
 		}
 
 		for _, cd := range relevantClusterDeployments {

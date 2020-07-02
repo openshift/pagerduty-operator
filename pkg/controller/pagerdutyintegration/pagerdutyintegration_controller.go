@@ -173,15 +173,15 @@ func (r *ReconcilePagerDutyIntegration) Reconcile(request reconcile.Request) (re
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
-			return reconcile.Result{}, nil
+			return r.doNotRequeue()
 		}
 		// Error reading the object - requeue the request.
-		return reconcile.Result{}, err
+		return r.requeueOnErr(err)
 	}
 
 	matchingClusterDeployments, err := r.getMatchingClusterDeployments(pdi)
 	if err != nil {
-		return reconcile.Result{}, err
+		return r.requeueOnErr(err)
 	}
 
 	if pdi.DeletionTimestamp != nil {
@@ -189,24 +189,24 @@ func (r *ReconcilePagerDutyIntegration) Reconcile(request reconcile.Request) (re
 			for _, cd := range matchingClusterDeployments.Items {
 				err := r.handleDelete(pdi, &cd)
 				if err != nil {
-					return reconcile.Result{}, err
+					return r.requeueOnErr(err)
 				}
 			}
 
 			utils.DeleteFinalizer(pdi, config.OperatorFinalizer)
 			err = r.client.Update(context.TODO(), pdi)
 			if err != nil {
-				return reconcile.Result{}, err
+				return r.requeueOnErr(err)
 			}
 		}
-		return reconcile.Result{}, nil
+		return r.doNotRequeue()
 	}
 
 	if !utils.HasFinalizer(pdi, config.OperatorFinalizer) {
 		utils.AddFinalizer(pdi, config.OperatorFinalizer)
 		err := r.client.Update(context.TODO(), pdi)
 		if err != nil {
-			return reconcile.Result{}, err
+			return r.requeueOnErr(err)
 		}
 	}
 
@@ -223,7 +223,7 @@ func (r *ReconcilePagerDutyIntegration) Reconcile(request reconcile.Request) (re
 					"ClusterDeployment.Name", cd.Name, "ClusterDeployment.Namespace", cd.Namespace,
 					"PagerDutyIntegration.Name", pdi.Name, "PagerDutyIntegration.Namespace", pdi.Namespace,
 				)
-				return reconcile.Result{}, err
+				return r.requeueOnErr(err)
 			}
 		}
 	}
@@ -231,7 +231,7 @@ func (r *ReconcilePagerDutyIntegration) Reconcile(request reconcile.Request) (re
 		delete(pdi.Annotations, MigrationAnnotation)
 		err = r.client.Update(context.TODO(), pdi)
 		if err != nil {
-			return reconcile.Result{}, err
+			return r.requeueOnErr(err)
 		}
 	}
 	// End migration
@@ -240,17 +240,17 @@ func (r *ReconcilePagerDutyIntegration) Reconcile(request reconcile.Request) (re
 		if cd.DeletionTimestamp != nil || cd.Labels[config.ClusterDeploymentNoalertsLabel] == "true" {
 			err := r.handleDelete(pdi, &cd)
 			if err != nil {
-				return reconcile.Result{}, err
+				return r.requeueOnErr(err)
 			}
 		} else {
 			err := r.handleCreate(pdi, &cd)
 			if err != nil {
-				return reconcile.Result{}, err
+				return r.requeueOnErr(err)
 			}
 		}
 	}
 
-	return reconcile.Result{}, nil
+	return r.doNotRequeue()
 }
 
 func (r *ReconcilePagerDutyIntegration) getMatchingClusterDeployments(pdi *pagerdutyv1alpha1.PagerDutyIntegration) (*hivev1.ClusterDeploymentList, error) {
@@ -263,4 +263,11 @@ func (r *ReconcilePagerDutyIntegration) getMatchingClusterDeployments(pdi *pager
 	listOpts := &client.ListOptions{LabelSelector: selector}
 	err = r.client.List(context.TODO(), matchingClusterDeployments, listOpts)
 	return matchingClusterDeployments, err
+}
+func (r *ReconcilePagerDutyIntegration) doNotRequeue() (reconcile.Result, error) {
+	return reconcile.Result{}, nil
+}
+
+func (r *ReconcilePagerDutyIntegration) requeueOnErr(err error) (reconcile.Result, error) {
+	return reconcile.Result{}, err
 }
