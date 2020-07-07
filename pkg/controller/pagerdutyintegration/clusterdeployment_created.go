@@ -57,10 +57,7 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdi *pagerdutyv1alpha1.Page
 
 	if utils.HasFinalizer(cd, finalizer) == false {
 		utils.AddFinalizer(cd, finalizer)
-		err := r.client.Update(context.TODO(), cd)
-		if err != nil {
-			return err
-		}
+		return r.client.Update(context.TODO(), cd)
 	}
 
 	ClusterID := cd.Spec.ClusterName

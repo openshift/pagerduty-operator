@@ -434,8 +434,14 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				pdclient: mocks.mockPDClient,
 			}
 
-			// Act
+			// Act [2x as first exits early after setting finalizer]
 			_, err := rpdi.Reconcile(reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      testPagerDutyIntegrationName,
+					Namespace: config.OperatorNamespace,
+				},
+			})
+			_, err = rpdi.Reconcile(reconcile.Request{
 				NamespacedName: types.NamespacedName{
 					Name:      testPagerDutyIntegrationName,
 					Namespace: config.OperatorNamespace,
@@ -482,8 +488,14 @@ func TestRemoveAlertsAfterCreate(t *testing.T) {
 			pdclient: mocks.mockPDClient,
 		}
 
-		// Act (create)
+		// Act (create) [2x as first exits early after setting finalizer]
 		_, err := rpdi.Reconcile(reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      testPagerDutyIntegrationName,
+				Namespace: config.OperatorNamespace,
+			},
+		})
+		_, err = rpdi.Reconcile(reconcile.Request{
 			NamespacedName: types.NamespacedName{
 				Name:      testPagerDutyIntegrationName,
 				Namespace: config.OperatorNamespace,
@@ -556,8 +568,14 @@ func TestDeleteSecret(t *testing.T) {
 			pdclient: mocks.mockPDClient,
 		}
 
-		// Act (create)
+		// Act (create) [2x as first exits early after setting finalizer]
 		_, err := rpdi.Reconcile(reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      testPagerDutyIntegrationName,
+				Namespace: config.OperatorNamespace,
+			},
+		})
+		_, err = rpdi.Reconcile(reconcile.Request{
 			NamespacedName: types.NamespacedName{
 				Name:      testPagerDutyIntegrationName,
 				Namespace: config.OperatorNamespace,
@@ -614,8 +632,14 @@ func TestMigration(t *testing.T) {
 			pdclient: mocks.mockPDClient,
 		}
 
-		// Act
+		// Act [2x as first exists early after setting finalizer]
 		_, err := rpdi.Reconcile(reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      testPagerDutyIntegrationName,
+				Namespace: config.OperatorNamespace,
+			},
+		})
+		_, err = rpdi.Reconcile(reconcile.Request{
 			NamespacedName: types.NamespacedName{
 				Name:      testPagerDutyIntegrationName,
 				Namespace: config.OperatorNamespace,
