@@ -558,7 +558,7 @@ func verifySyncSetExists(c client.Client, expected *SyncSetEntry) bool {
 func verifyNoSyncSetExists(c client.Client, expected *SyncSetEntry) bool {
 	ssList := &hivev1.SyncSetList{}
 	opts := client.ListOptions{Namespace: testNamespace}
-	err := c.List(context.TODO(), &opts, ssList)
+	err := c.List(context.TODO(), ssList, &opts)
 
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -581,7 +581,7 @@ func verifyNoSyncSetExists(c client.Client, expected *SyncSetEntry) bool {
 func verifyNoConfigMapExists(c client.Client) bool {
 	cmList := &corev1.ConfigMapList{}
 	opts := client.ListOptions{Namespace: testNamespace}
-	err := c.List(context.TODO(), &opts, cmList)
+	err := c.List(context.TODO(), cmList, &opts)
 
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -627,7 +627,7 @@ func verifySecretExists(c client.Client, expected *SecretEntry) bool {
 func verifyNoSecretExists(c client.Client, expected *SecretEntry) bool {
 	secretList := &corev1.SecretList{}
 	opts := client.ListOptions{Namespace: testNamespace}
-	err := c.List(context.TODO(), &opts, secretList)
+	err := c.List(context.TODO(), secretList, &opts)
 
 	if err != nil {
 		if errors.IsNotFound(err) {
