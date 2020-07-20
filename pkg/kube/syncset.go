@@ -16,21 +16,24 @@ package kube
 
 import (
 	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1"
+	"github.com/openshift/pagerduty-operator/config"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // GenerateSyncSet returns a syncset that can be created with the oc client
-func GenerateSyncSet(namespace string, clusterDeploymentName string, secret *corev1.Secret) *hivev1.SyncSet {
+func GenerateSyncSet(namespace string, name string, secret *corev1.Secret) *hivev1.SyncSet {
+	ssName := name + config.SyncSetPostfix
+
 	return &hivev1.SyncSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      secret.Name,
+			Name:      ssName,
 			Namespace: namespace,
 		},
 		Spec: hivev1.SyncSetSpec{
 			ClusterDeploymentRefs: []corev1.LocalObjectReference{
 				{
-					Name: clusterDeploymentName,
+					Name: name,
 				},
 			},
 			SyncSetCommonSpec: hivev1.SyncSetCommonSpec{
@@ -43,7 +46,7 @@ func GenerateSyncSet(namespace string, clusterDeploymentName string, secret *cor
 						},
 						TargetRef: hivev1.SecretReference{
 							Namespace: "openshift-monitoring",
-							Name:      secret.Name,
+							Name:      config.PagerDutySecretName,
 						},
 					},
 				},
