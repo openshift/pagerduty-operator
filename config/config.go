@@ -21,8 +21,9 @@ const (
 	PagerDutyAPISecretName string = "pagerduty-api-key"
 	PagerDutyAPISecretKey  string = "PAGERDUTY_API_KEY"
 	OperatorFinalizer      string = "pd.managed.openshift.io/pagerduty"
-	SecretSuffix           string = "-pd-secret"
-	ConfigMapSuffix        string = "-pd-config"
+	SyncSetPostfix         string = "-pd-sync"
+	PagerDutySecretName    string = "pd-secret"
+	ConfigMapPostfix       string = "-pd-config"
 
 	// PagerDutyUrgencyRule is the type of IncidentUrgencyRule for new incidents
 	// coming into the Service. This is for the creation of NEW SERVICES ONLY
@@ -38,10 +39,3 @@ const (
 	// ClusterDeploymentNoalertsLabel is the label the clusterdeployment will have if the cluster should not send alerts
 	ClusterDeploymentNoalertsLabel string = "api.openshift.com/noalerts"
 )
-
-// Name is used to generate the name of secondary resources (SyncSets,
-// Secrets, ConfigMaps) for a ClusterDeployment that are created by
-// the PagerDutyIntegration controller.
-func Name(servicePrefix, clusterDeploymentName, suffix string) string {
-	return servicePrefix + "-" + clusterDeploymentName + suffix
-}

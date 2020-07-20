@@ -12,26 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package kube
+package controller
 
 import (
-	"github.com/openshift/pagerduty-operator/config"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/openshift/pagerduty-operator/pkg/controller/clusterdeployment"
 )
 
-// GenerateConfigMap returns a configmap that can be created with the oc client
-func GenerateConfigMap(namespace string, name string, pdServiceID string, pdIntegrationID string) *corev1.ConfigMap {
-	cmName := name + config.ConfigMapPostfix
-
-	return &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      cmName,
-			Namespace: namespace,
-		},
-		Data: map[string]string{
-			"SERVICE_ID":     pdServiceID,
-			"INTEGRATION_ID": pdIntegrationID,
-		},
-	}
+func init() {
+	// AddToManagerFuncs is a list of functions to create controllers and add them to a manager.
+	AddToManagerFuncs = append(AddToManagerFuncs, clusterdeployment.Add)
 }
