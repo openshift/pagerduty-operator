@@ -4,6 +4,17 @@ metadata:
   name: pagerduty-operator
 rules:
 - apiGroups:
+  - pagerduty.openshift.io
+  resources:
+  - pagerdutyintegrations
+  - pagerdutyintegrations/status
+  - pagerdutyintegrations/finalizers
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+- apiGroups:
   - ""
   resources:
   - pods
