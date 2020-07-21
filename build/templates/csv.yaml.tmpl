@@ -38,4 +38,10 @@ spec:
         # Rules will be added here by the generate-operator-bundle.py script.
       deployments: []
         # Deployment spec will be added here by the generate-operator-bundle.py script.
-
+  customresourcedefinitions:
+    owned:
+    - description: PagerDutyIntegration
+      displayName: PagerDutyIntegration
+      kind: PagerDutyIntegration
+      name: pagerdutyintegrations.pagerduty.openshift.io
+      version: v1alpha1
