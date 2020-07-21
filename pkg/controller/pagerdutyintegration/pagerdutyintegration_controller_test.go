@@ -1,4 +1,18 @@
-package clusterdeployment
+// Copyright 2020 Red Hat
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package pagerdutyintegration
 
 import (
 	"context"
@@ -9,6 +23,8 @@ import (
 	hiveapis "github.com/openshift/hive/pkg/apis"
 	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1"
 	"github.com/openshift/pagerduty-operator/config"
+	pagerdutyapis "github.com/openshift/pagerduty-operator/pkg/apis"
+	pagerdutyv1alpha1 "github.com/openshift/pagerduty-operator/pkg/apis/pagerduty/v1alpha1"
 	"github.com/openshift/pagerduty-operator/pkg/kube"
 	mockpd "github.com/openshift/pagerduty-operator/pkg/pagerduty/mock"
 	"github.com/stretchr/testify/assert"
@@ -24,16 +40,18 @@ import (
 )
 
 const (
-	testClusterName          = "testCluster"
-	testNamespace            = "testNamespace"
-	testIntegrationID        = "ABC123"
-	testServiceID            = "DEF456"
-	testAPIKey               = "test-pd-api-key"
-	testEscalationPolicy     = "test-escalation-policy"
-	testResolveTimeout       = "300"
-	testAcknowledgeTimeout   = "300"
-	testOtherSyncSetPostfix  = "-something-else"
-	testsecretReferencesName = "pd-secret"
+	testPagerDutyIntegrationName = "testPagerDutyIntegration"
+	testClusterName              = "testCluster"
+	testNamespace                = "testNamespace"
+	testIntegrationID            = "ABC123"
+	testServiceID                = "DEF456"
+	testAPIKey                   = "test-pd-api-key"
+	testEscalationPolicy         = "test-escalation-policy"
+	testResolveTimeout           = 300
+	testAcknowledgeTimeout       = 300
+	testOtherSyncSetPostfix      = "-something-else"
+	testsecretReferencesName     = "pd-secret"
+	testServicePrefix            = "test-service-prefix"
 )
 
 type SyncSetEntry struct {
@@ -89,9 +107,6 @@ func testPDConfigSecret() *corev1.Secret {
 		},
 		Data: map[string][]byte{
 			config.PagerDutyAPISecretKey: []byte(testAPIKey),
-			"ESCALATION_POLICY":          []byte(testEscalationPolicy),
-			"RESOLVE_TIMEOUT":            []byte(testResolveTimeout),
-			"ACKNOWLEDGE_TIMEOUT":        []byte(testAcknowledgeTimeout),
 		},
 	}
 	return s
@@ -102,7 +117,7 @@ func testPDConfigMap() *corev1.ConfigMap {
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
-			Name:      testClusterName + config.ConfigMapPostfix,
+			Name:      config.Name(testServicePrefix, testClusterName, config.ConfigMapSuffix),
 		},
 		Data: map[string]string{
 			"INTEGRATION_ID": testIntegrationID,
@@ -128,8 +143,9 @@ func testSecret() *corev1.Secret {
 
 // testSyncSet returns a SyncSet for an existing testClusterDeployment to use in testing.
 func testSyncSet() *hivev1.SyncSet {
-	secret := kube.GeneratePdSecret(testNamespace, config.PagerDutySecretName, testIntegrationID)
-	ss := kube.GenerateSyncSet(testNamespace, testClusterName+config.SyncSetPostfix, secret)
+	secretName := config.Name(testServicePrefix, testClusterName, config.SecretSuffix)
+	secret := kube.GeneratePdSecret(testNamespace, secretName, testIntegrationID)
+	ss := kube.GenerateSyncSet(testNamespace, testClusterName, secret)
 	return ss
 }
 
@@ -145,6 +161,32 @@ func testOtherSyncSet() *hivev1.SyncSet {
 				{
 					Name: testClusterName,
 				},
+			},
+		},
+	}
+}
+
+func testPagerDutyIntegration() *pagerdutyv1alpha1.PagerDutyIntegration {
+	return &pagerdutyv1alpha1.PagerDutyIntegration{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      testPagerDutyIntegrationName,
+			Namespace: config.OperatorNamespace,
+		},
+		Spec: pagerdutyv1alpha1.PagerDutyIntegrationSpec{
+			AcknowledgeTimeout: testAcknowledgeTimeout,
+			ResolveTimeout:     testResolveTimeout,
+			EscalationPolicy:   testEscalationPolicy,
+			ServicePrefix:      testServicePrefix,
+			ClusterDeploymentSelector: metav1.LabelSelector{
+				MatchLabels: map[string]string{config.ClusterDeploymentManagedLabel: "true"},
+			},
+			PagerdutyApiKeySecretRef: corev1.SecretReference{
+				Name:      config.PagerDutyAPISecretName,
+				Namespace: config.OperatorNamespace,
+			},
+			TargetSecretRef: corev1.SecretReference{
+				Name:      config.Name(testServicePrefix, testClusterName, config.SecretSuffix),
+				Namespace: testNamespace,
 			},
 		},
 	}
@@ -190,11 +232,11 @@ func testNoalertsClusterDeployment() *hivev1.ClusterDeployment {
 }
 
 // deletedClusterDeployment returns a fake deleted ClusterDeployment to use in testing.
-func deletedClusterDeployment() *hivev1.ClusterDeployment {
+func deletedClusterDeployment(pdiName string) *hivev1.ClusterDeployment {
 	cd := testClusterDeployment()
 	now := metav1.Now()
 	cd.DeletionTimestamp = &now
-	cd.SetFinalizers([]string{config.OperatorFinalizer})
+	cd.SetFinalizers([]string{"pd.managed.openshift.io/" + pdiName})
 
 	return cd
 }
@@ -222,8 +264,9 @@ func uninstalledClusterDeployment() *hivev1.ClusterDeployment {
 	return cd
 }
 
-func TestReconcileClusterDeployment(t *testing.T) {
+func TestReconcilePagerDutyIntegration(t *testing.T) {
 	hiveapis.AddToScheme(scheme.Scheme)
+	pagerdutyapis.AddToScheme(scheme.Scheme)
 	tests := []struct {
 		name             string
 		localObjects     []runtime.Object
@@ -233,19 +276,19 @@ func TestReconcileClusterDeployment(t *testing.T) {
 		verifySecrets    func(client.Client, *SecretEntry) bool
 		setupPDMock      func(*mockpd.MockClientMockRecorder)
 	}{
-
 		{
 			name: "Test Creating",
 			localObjects: []runtime.Object{
 				testClusterDeployment(),
 				testPDConfigSecret(),
+				testPagerDutyIntegration(),
 			},
 			expectedSyncSets: &SyncSetEntry{
-				name:                     testClusterName + config.SyncSetPostfix,
+				name:                     config.Name(testServicePrefix, testClusterName, config.SecretSuffix),
 				clusterDeploymentRefName: testClusterName,
 			},
 			expectedSecrets: &SecretEntry{
-				name:         testsecretReferencesName,
+				name:         config.Name(testServicePrefix, testClusterName, config.SecretSuffix),
 				pagerdutyKey: testIntegrationID,
 			},
 			verifySyncSets: verifySyncSetExists,
@@ -258,9 +301,10 @@ func TestReconcileClusterDeployment(t *testing.T) {
 		{
 			name: "Test Deleting",
 			localObjects: []runtime.Object{
-				deletedClusterDeployment(),
+				deletedClusterDeployment(testPagerDutyIntegrationName),
 				testPDConfigSecret(),
 				testPDConfigMap(),
+				testPagerDutyIntegration(),
 			},
 			expectedSyncSets: &SyncSetEntry{},
 			expectedSecrets:  &SecretEntry{},
@@ -273,56 +317,21 @@ func TestReconcileClusterDeployment(t *testing.T) {
 		{
 			name: "Test Deleting with missing ConfigMap",
 			localObjects: []runtime.Object{
-				deletedClusterDeployment(),
+				deletedClusterDeployment(testPagerDutyIntegrationName),
 				testPDConfigSecret(),
+				testPagerDutyIntegration(),
 			},
 			expectedSyncSets: &SyncSetEntry{},
 			expectedSecrets:  &SecretEntry{},
 			verifySyncSets:   verifyNoSyncSetExists,
 			verifySecrets:    verifyNoSecretExists,
-			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
-			},
-		},
-		{
-			name: "Test Creating (unmanaged with label)",
-			localObjects: []runtime.Object{
-				unmanagedClusterDeployment(),
-			},
-			expectedSyncSets: &SyncSetEntry{},
-			expectedSecrets:  &SecretEntry{},
-			verifySyncSets:   verifyNoSyncSetExists,
-			verifySecrets:    verifyNoSecretExists,
-			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
-			},
-		},
-		{
-			name: "Test Creating (unmanaged without label)",
-			localObjects: []runtime.Object{
-				unlabelledClusterDeployment(),
-			},
-			expectedSyncSets: &SyncSetEntry{},
-			expectedSecrets:  &SecretEntry{},
-			verifySyncSets:   verifyNoSyncSetExists,
-			verifySecrets:    verifyNoSecretExists,
-			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
-			},
-		},
-		{
-			name: "Test Creating (managed with noalerts)",
-			localObjects: []runtime.Object{
-				testNoalertsClusterDeployment(),
-			},
-			expectedSyncSets: &SyncSetEntry{},
-			expectedSecrets:  &SecretEntry{},
-			verifySyncSets:   verifyNoSyncSetExists,
-			verifySecrets:    verifyNoSecretExists,
-			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
-			},
+			setupPDMock:      func(r *mockpd.MockClientMockRecorder) {},
 		},
 		{
 			name: "Test Uninstalled Cluster",
 			localObjects: []runtime.Object{
 				uninstalledClusterDeployment(),
+				testPagerDutyIntegration(),
 			},
 			expectedSyncSets: &SyncSetEntry{},
 			expectedSecrets:  &SecretEntry{},
@@ -339,13 +348,14 @@ func TestReconcileClusterDeployment(t *testing.T) {
 				testSyncSet(),
 				testPDConfigMap(),
 				testPDConfigSecret(),
+				testPagerDutyIntegration(),
 			},
 			expectedSyncSets: &SyncSetEntry{
-				name:                     testClusterName + config.SyncSetPostfix,
+				name:                     config.Name(testServicePrefix, testClusterName, config.SecretSuffix),
 				clusterDeploymentRefName: testClusterName,
 			},
 			expectedSecrets: &SecretEntry{
-				name:         testsecretReferencesName,
+				name:         config.Name(testServicePrefix, testClusterName, config.SecretSuffix),
 				pagerdutyKey: testIntegrationID,
 			},
 			verifySyncSets: verifySyncSetExists,
@@ -355,10 +365,51 @@ func TestReconcileClusterDeployment(t *testing.T) {
 			},
 		},
 		{
+			name: "Test Creating (unmanaged with label)",
+			localObjects: []runtime.Object{
+				unmanagedClusterDeployment(),
+				testPDConfigSecret(),
+				testPagerDutyIntegration(),
+			},
+			expectedSyncSets: &SyncSetEntry{},
+			expectedSecrets:  &SecretEntry{},
+			verifySyncSets:   verifyNoSyncSetExists,
+			verifySecrets:    verifyNoSecretExists,
+			setupPDMock:      func(r *mockpd.MockClientMockRecorder) {},
+		},
+		{
+			name: "Test Creating (unmanaged without label)",
+			localObjects: []runtime.Object{
+				unlabelledClusterDeployment(),
+				testPagerDutyIntegration(),
+			},
+			expectedSyncSets: &SyncSetEntry{},
+			expectedSecrets:  &SecretEntry{},
+			verifySyncSets:   verifyNoSyncSetExists,
+			verifySecrets:    verifyNoSecretExists,
+			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
+			},
+		},
+		{
+			name: "Test Creating (managed with noalerts)",
+			localObjects: []runtime.Object{
+				testNoalertsClusterDeployment(),
+				testPagerDutyIntegration(),
+			},
+			expectedSyncSets: &SyncSetEntry{},
+			expectedSecrets:  &SecretEntry{},
+			verifySyncSets:   verifyNoSyncSetExists,
+			verifySecrets:    verifyNoSecretExists,
+			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
+			},
+		},
+		{
 			name: "Test Creating with other SyncSets (managed with noalerts)",
 			localObjects: []runtime.Object{
 				testNoalertsClusterDeployment(),
 				testOtherSyncSet(),
+				testPagerDutyIntegration(),
+				testPDConfigSecret(),
 			},
 			expectedSyncSets: &SyncSetEntry{name: testClusterName + testOtherSyncSetPostfix, clusterDeploymentRefName: testClusterName},
 			expectedSecrets:  &SecretEntry{},
@@ -368,6 +419,7 @@ func TestReconcileClusterDeployment(t *testing.T) {
 			},
 		},
 	}
+
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			// Arrange
@@ -376,17 +428,23 @@ func TestReconcileClusterDeployment(t *testing.T) {
 
 			defer mocks.mockCtrl.Finish()
 
-			rcd := &ReconcileClusterDeployment{
+			rpdi := &ReconcilePagerDutyIntegration{
 				client:   mocks.fakeKubeClient,
 				scheme:   scheme.Scheme,
 				pdclient: mocks.mockPDClient,
 			}
 
-			// Act
-			_, err := rcd.Reconcile(reconcile.Request{
+			// Act [2x as first exits early after setting finalizer]
+			_, err := rpdi.Reconcile(reconcile.Request{
 				NamespacedName: types.NamespacedName{
-					Name:      testClusterName,
-					Namespace: testNamespace,
+					Name:      testPagerDutyIntegrationName,
+					Namespace: config.OperatorNamespace,
+				},
+			})
+			_, err = rpdi.Reconcile(reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      testPagerDutyIntegrationName,
+					Namespace: config.OperatorNamespace,
 				},
 			})
 
@@ -407,6 +465,7 @@ func TestRemoveAlertsAfterCreate(t *testing.T) {
 			testOtherSyncSet(),
 			testPDConfigSecret(),
 			testPDConfigMap(), // <-- see comment below
+			testPagerDutyIntegration(),
 		})
 		// in order to test the delete, we need to create the pd secret w/ a non-empty SERVICE_ID, which means CreateService won't be called
 
@@ -423,17 +482,23 @@ func TestRemoveAlertsAfterCreate(t *testing.T) {
 
 		defer mocks.mockCtrl.Finish()
 
-		rcd := &ReconcileClusterDeployment{
+		rpdi := &ReconcilePagerDutyIntegration{
 			client:   mocks.fakeKubeClient,
 			scheme:   scheme.Scheme,
 			pdclient: mocks.mockPDClient,
 		}
 
-		// Act (create)
-		_, err := rcd.Reconcile(reconcile.Request{
+		// Act (create) [2x as first exits early after setting finalizer]
+		_, err := rpdi.Reconcile(reconcile.Request{
 			NamespacedName: types.NamespacedName{
-				Name:      testClusterName,
-				Namespace: testNamespace,
+				Name:      testPagerDutyIntegrationName,
+				Namespace: config.OperatorNamespace,
+			},
+		})
+		_, err = rpdi.Reconcile(reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      testPagerDutyIntegrationName,
+				Namespace: config.OperatorNamespace,
 			},
 		})
 
@@ -447,16 +512,16 @@ func TestRemoveAlertsAfterCreate(t *testing.T) {
 		err = mocks.fakeKubeClient.Get(context.TODO(), types.NamespacedName{Namespace: testNamespace, Name: testClusterName}, clusterDeployment)
 
 		// Act (delete) [2x because was seeing other SyncSet's getting deleted]
-		_, err = rcd.Reconcile(reconcile.Request{
+		_, err = rpdi.Reconcile(reconcile.Request{
 			NamespacedName: types.NamespacedName{
-				Name:      testClusterName,
-				Namespace: testNamespace,
+				Name:      testPagerDutyIntegrationName,
+				Namespace: config.OperatorNamespace,
 			},
 		})
-		_, err = rcd.Reconcile(reconcile.Request{
+		_, err = rpdi.Reconcile(reconcile.Request{
 			NamespacedName: types.NamespacedName{
-				Name:      testClusterName,
-				Namespace: testNamespace,
+				Name:      testPagerDutyIntegrationName,
+				Namespace: config.OperatorNamespace,
 			},
 		})
 
@@ -474,15 +539,16 @@ func TestDeleteSecret(t *testing.T) {
 		mocks := setupDefaultMocks(t, []runtime.Object{
 			testClusterDeployment(),
 			testPDConfigSecret(),
+			testPagerDutyIntegration(),
 		})
 
 		expectedSyncSets := &SyncSetEntry{
-			name:                     testClusterName + config.SyncSetPostfix,
+			name:                     config.Name(testServicePrefix, testClusterName, config.SecretSuffix),
 			clusterDeploymentRefName: testClusterName,
 		}
 
 		expectedSecrets := &SecretEntry{
-			name:         testsecretReferencesName,
+			name:         config.Name(testServicePrefix, testClusterName, config.SecretSuffix),
 			pagerdutyKey: testIntegrationID,
 		}
 
@@ -496,30 +562,39 @@ func TestDeleteSecret(t *testing.T) {
 
 		defer mocks.mockCtrl.Finish()
 
-		rcd := &ReconcileClusterDeployment{
+		rpdi := &ReconcilePagerDutyIntegration{
 			client:   mocks.fakeKubeClient,
 			scheme:   scheme.Scheme,
 			pdclient: mocks.mockPDClient,
 		}
 
-		// Act (create)
-		_, err := rcd.Reconcile(reconcile.Request{
+		// Act (create) [2x as first exits early after setting finalizer]
+		_, err := rpdi.Reconcile(reconcile.Request{
 			NamespacedName: types.NamespacedName{
-				Name:      testClusterName,
-				Namespace: testNamespace,
+				Name:      testPagerDutyIntegrationName,
+				Namespace: config.OperatorNamespace,
+			},
+		})
+		_, err = rpdi.Reconcile(reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      testPagerDutyIntegrationName,
+				Namespace: config.OperatorNamespace,
 			},
 		})
 
 		// Remove the secret which is referred by the syncset
 		secret := &corev1.Secret{}
-		err = mocks.fakeKubeClient.Get(context.TODO(), types.NamespacedName{Namespace: testNamespace, Name: testsecretReferencesName}, secret)
+		err = mocks.fakeKubeClient.Get(context.TODO(), types.NamespacedName{
+			Namespace: testNamespace,
+			Name:      config.Name(testServicePrefix, testClusterName, config.SecretSuffix),
+		}, secret)
 		err = mocks.fakeKubeClient.Delete(context.TODO(), secret)
 
 		// Act (reconcile again)
-		_, err = rcd.Reconcile(reconcile.Request{
+		_, err = rpdi.Reconcile(reconcile.Request{
 			NamespacedName: types.NamespacedName{
-				Name:      testClusterName,
-				Namespace: testNamespace,
+				Name:      testPagerDutyIntegrationName,
+				Namespace: config.OperatorNamespace,
 			},
 		})
 
@@ -528,6 +603,139 @@ func TestDeleteSecret(t *testing.T) {
 		assert.True(t, verifySyncSetExists(mocks.fakeKubeClient, expectedSyncSets))
 		assert.True(t, verifySecretExists(mocks.fakeKubeClient, expectedSecrets))
 	})
+}
+
+func TestMigration(t *testing.T) {
+	t.Run("Test Managed Cluster that later sets noalerts label", func(t *testing.T) {
+		// Arrange
+		mocks := setupDefaultMocks(t, []runtime.Object{
+			testClusterDeployment(),
+			testPDConfigSecret(),
+			testMigratoryPagerDutyIntegration(),
+			testLegacyPDConfigMap(),
+			testLegacySecret(),
+			testLegacySyncSet(),
+		})
+
+		setupPDMock := func(r *mockpd.MockClientMockRecorder) {
+			// create (without calling PD)
+			r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(1)
+
+		}
+		setupPDMock(mocks.mockPDClient.EXPECT())
+
+		defer mocks.mockCtrl.Finish()
+
+		rpdi := &ReconcilePagerDutyIntegration{
+			client:   mocks.fakeKubeClient,
+			scheme:   scheme.Scheme,
+			pdclient: mocks.mockPDClient,
+		}
+
+		// Act [2x as first exists early after setting finalizer]
+		_, err := rpdi.Reconcile(reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      testPagerDutyIntegrationName,
+				Namespace: config.OperatorNamespace,
+			},
+		})
+		_, err = rpdi.Reconcile(reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      testPagerDutyIntegrationName,
+				Namespace: config.OperatorNamespace,
+			},
+		})
+
+		// Assert
+		assert.NoError(t, err, "Unexpected Error")
+		assert.True(t, verifySyncSetExists(mocks.fakeKubeClient, &SyncSetEntry{
+			name:                     config.Name(testServicePrefix, testClusterName, config.SecretSuffix),
+			clusterDeploymentRefName: testClusterName,
+		}))
+		assert.True(t, verifySecretExists(mocks.fakeKubeClient, &SecretEntry{
+			name:         config.Name(testServicePrefix, testClusterName, config.SecretSuffix),
+			pagerdutyKey: testIntegrationID,
+		}))
+		assert.True(t, verifySyncSetExists(mocks.fakeKubeClient, &SyncSetEntry{
+			name:                     testClusterName + "-pd-sync",
+			clusterDeploymentRefName: testClusterName,
+		}) == false)
+		assert.True(t, verifySecretExists(mocks.fakeKubeClient, &SecretEntry{
+			name:         "pd-secret",
+			pagerdutyKey: testIntegrationID,
+		}) == false)
+
+		pdi := &pagerdutyv1alpha1.PagerDutyIntegration{}
+		err = mocks.fakeKubeClient.Get(
+			context.TODO(),
+			types.NamespacedName{Name: testPagerDutyIntegrationName, Namespace: config.OperatorNamespace},
+			pdi,
+		)
+		assert.NotContains(t, pdi.Annotations, "pd.openshift.io/legacy")
+	})
+}
+
+func testMigratoryPagerDutyIntegration() *pagerdutyv1alpha1.PagerDutyIntegration {
+	pdi := testPagerDutyIntegration()
+	pdi.Annotations = map[string]string{"pd.openshift.io/legacy": "true"}
+	return pdi
+}
+
+// testPDConfigMap returns a fake configmap for a deployed cluster for testing.
+func testLegacyPDConfigMap() *corev1.ConfigMap {
+	return &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: testNamespace,
+			Name:      testClusterName + config.ConfigMapSuffix,
+		},
+		Data: map[string]string{
+			"INTEGRATION_ID": testIntegrationID,
+			"SERVICE_ID":     testServiceID,
+		},
+	}
+}
+
+// testSecret returns a Secret that will go in the SyncSet for a deployed cluster to use in testing.
+func testLegacySecret() *corev1.Secret {
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "pd-secret",
+			Namespace: testNamespace,
+		},
+		Data: map[string][]byte{
+			"PAGERDUTY_KEY": []byte(testIntegrationID),
+		},
+	}
+}
+
+// testSyncSet returns a SyncSet for an existing testClusterDeployment to use in testing.
+func testLegacySyncSet() *hivev1.SyncSet {
+	return &hivev1.SyncSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      testClusterName + "-pd-sync",
+			Namespace: testNamespace,
+		},
+		Spec: hivev1.SyncSetSpec{
+			ClusterDeploymentRefs: []corev1.LocalObjectReference{{
+				Name: testClusterName,
+			}},
+			SyncSetCommonSpec: hivev1.SyncSetCommonSpec{
+				ResourceApplyMode: "Sync",
+				Secrets: []hivev1.SecretMapping{
+					{
+						SourceRef: hivev1.SecretReference{
+							Namespace: testNamespace,
+							Name:      "pd-secret",
+						},
+						TargetRef: hivev1.SecretReference{
+							Namespace: "openshift-monitoring",
+							Name:      "pagerduty-api-key",
+						},
+					},
+				},
+			},
+		},
+	}
 }
 
 // verifySyncSetExists verifies that a SyncSet exists that matches the supplied expected SyncSetEntry.
@@ -551,7 +759,7 @@ func verifySyncSetExists(c client.Client, expected *SyncSetEntry) bool {
 	if secretReferences == "" {
 		return false
 	}
-	return string(secretReferences) == testsecretReferencesName
+	return string(secretReferences) == expected.name
 }
 
 // verifyNoSyncSetExists verifies that there is no SyncSet present that matches the supplied expected SyncSetEntry.
@@ -591,7 +799,7 @@ func verifyNoConfigMapExists(c client.Client) bool {
 	}
 
 	for _, cm := range cmList.Items {
-		if strings.HasSuffix(cm.Name, config.ConfigMapPostfix) {
+		if strings.HasSuffix(cm.Name, config.ConfigMapSuffix) {
 			// too bad, found a configmap associated with this operator
 			return false
 		}
