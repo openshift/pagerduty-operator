@@ -210,32 +210,6 @@ func (r *ReconcilePagerDutyIntegration) Reconcile(request reconcile.Request) (re
 		}
 	}
 
-	// TODO: Remove all of this migration code in a future release.
-	// Start migration
-	const MigrationAnnotation string = "pd.openshift.io/legacy"
-	for _, cd := range matchingClusterDeployments.Items {
-		if pdi.Annotations[MigrationAnnotation] != "" {
-			err := r.handleMigrate(pdi, &cd)
-			if err != nil {
-				r.reqLogger.Error(
-					err,
-					"Error while trying to migrate legacy resources, this may result in a new PagerDuty Service created for this ClusterDeployment",
-					"ClusterDeployment.Name", cd.Name, "ClusterDeployment.Namespace", cd.Namespace,
-					"PagerDutyIntegration.Name", pdi.Name, "PagerDutyIntegration.Namespace", pdi.Namespace,
-				)
-				return r.requeueOnErr(err)
-			}
-		}
-	}
-	if pdi.Annotations[MigrationAnnotation] != "" {
-		delete(pdi.Annotations, MigrationAnnotation)
-		err = r.client.Update(context.TODO(), pdi)
-		if err != nil {
-			return r.requeueOnErr(err)
-		}
-	}
-	// End migration
-
 	for _, cd := range matchingClusterDeployments.Items {
 		if cd.DeletionTimestamp != nil || cd.Labels[config.ClusterDeploymentNoalertsLabel] == "true" {
 			err := r.handleDelete(pdi, &cd)
