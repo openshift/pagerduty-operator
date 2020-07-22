@@ -8,7 +8,8 @@ This operator runs on [Hive](https://github.com/openshift/hive) and watches for 
 ## How the PagerDuty Operator works
 
 * The PagerDutyIntegration controller watches for changes to PagerDutyIntegration CRs, and also for changes to appropriately labeled ClusterDeployment CRs (and ConfigMap/Secret/SyncSet resources owned by such a ClusterDeployment).
-* For each PagerDutyIntegration CR, it will get a list of matching ClusterDeployments that have the `spec.installed` field set to true and don't have the `api.openshift.com/noalerts` label set.
+* For each PagerDutyIntegration CR, it will get a list of matching ClusterDeployments that have the `spec.installed` field set to true and don't have the `ext-managed.openshift.io/noalerts` label set.
+  * The `ext-managed.openshift.io/noalerts` label is used to disable alerts from the provisioned cluster. This label is typically used on test clusters that do not require immediate attention as a result of critical issues or outages. Therefore, PagerDuty does not continue its actions if it finds this label in the new cluster's `ClusterDeployment`.
 * For each of these ClusterDeployments, PagerDuty creates a secret which contains the integration key required to communicate with PagerDuty Web application.
 * The PagerDuty operator then creates [syncset](https://github.com/openshift/hive/blob/master/config/crds/hive_v1_syncset.yaml) with the relevant information for hive to send the PagerDuty secret to the newly provisioned cluster .
 * This syncset is used by hive to deploy the pagerduty secret to the provisioned cluster so that the relevant SRE team get notified of alerts on the cluster.

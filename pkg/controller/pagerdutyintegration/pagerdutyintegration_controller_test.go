@@ -210,11 +210,32 @@ func testClusterDeployment() *hivev1.ClusterDeployment {
 	return &cd
 }
 
-// testClusterDeployment returns a fake ClusterDeployment for an installed cluster to use in testing.
+// testNoalertsClusterDeployment returns a fake ClusterDeployment for an installed cluster to use in testing.
 func testNoalertsClusterDeployment() *hivev1.ClusterDeployment {
 	labelMap := map[string]string{
 		config.ClusterDeploymentManagedLabel:  "true",
 		config.ClusterDeploymentNoalertsLabel: "true",
+	}
+	cd := hivev1.ClusterDeployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      testClusterName,
+			Namespace: testNamespace,
+			Labels:    labelMap,
+		},
+		Spec: hivev1.ClusterDeploymentSpec{
+			ClusterName: testClusterName,
+		},
+	}
+	cd.Spec.Installed = true
+
+	return &cd
+}
+
+// testNoalertsClusterDeploymentOld returns a fake ClusterDeployment for an installed cluster to use in testing. remove with https://issues.redhat.com/browse/OSD-4059
+func testNoalertsClusterDeploymentOld() *hivev1.ClusterDeployment {
+	labelMap := map[string]string{
+		config.ClusterDeploymentManagedLabel:     "true",
+		config.ClusterDeploymentNoalertsLabelOld: "true",
 	}
 	cd := hivev1.ClusterDeployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -378,6 +399,19 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			setupPDMock:      func(r *mockpd.MockClientMockRecorder) {},
 		},
 		{
+			// remove with https://issues.redhat.com/browse/OSD-4059
+			name: "Test Creating (managed with OLD noalerts)",
+			localObjects: []runtime.Object{
+				testNoalertsClusterDeploymentOld(),
+			},
+			expectedSyncSets: &SyncSetEntry{},
+			expectedSecrets:  &SecretEntry{},
+			verifySyncSets:   verifyNoSyncSetExists,
+			verifySecrets:    verifyNoSecretExists,
+			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
+			},
+		},
+		{
 			name: "Test Creating (unmanaged without label)",
 			localObjects: []runtime.Object{
 				unlabelledClusterDeployment(),
@@ -410,6 +444,19 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testOtherSyncSet(),
 				testPagerDutyIntegration(),
 				testPDConfigSecret(),
+			},
+			expectedSyncSets: &SyncSetEntry{name: testClusterName + testOtherSyncSetPostfix, clusterDeploymentRefName: testClusterName},
+			expectedSecrets:  &SecretEntry{},
+			verifySyncSets:   verifyNoSyncSetExists,
+			verifySecrets:    verifyNoSecretExists,
+			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
+			},
+		},
+		{
+			name: "Test Creating with other SyncSets (managed with OLD noalerts)",
+			localObjects: []runtime.Object{
+				testNoalertsClusterDeploymentOld(),
+				testOtherSyncSet(),
 			},
 			expectedSyncSets: &SyncSetEntry{name: testClusterName + testOtherSyncSetPostfix, clusterDeploymentRefName: testClusterName},
 			expectedSecrets:  &SecretEntry{},

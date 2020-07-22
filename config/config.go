@@ -36,7 +36,9 @@ const (
 	// if the cluster is OSD (managed) or not
 	ClusterDeploymentManagedLabel string = "api.openshift.com/managed"
 	// ClusterDeploymentNoalertsLabel is the label the clusterdeployment will have if the cluster should not send alerts
-	ClusterDeploymentNoalertsLabel string = "api.openshift.com/noalerts"
+	ClusterDeploymentNoalertsLabel string = "ext-managed.openshift.io/noalerts"
+	// ClusterDeploymentNoalertsLabelOld is the OLD label used and will be remoed as a part of https://issues.redhat.com/browse/OSD-4059
+	ClusterDeploymentNoalertsLabelOld string = "api.openshift.com/noalerts"
 )
 
 // Name is used to generate the name of secondary resources (SyncSets,
