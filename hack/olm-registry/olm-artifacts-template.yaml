@@ -6,6 +6,14 @@ metadata:
 parameters:
 - name: REGISTRY_IMG
   required: true
+- name: ACKNOWLEDGE_TIMEOUT
+  required: true
+- name: RESOLVE_TIMEOUT
+  required: true
+- name: SERVICE_PREFIX
+  required: true
+- name: ESCALATION_POLICY
+  required: true
 - name: CHANNEL
   value: staging
 - name: IMAGE_TAG
@@ -39,3 +47,23 @@ objects:
     name: pagerduty-operator
     source: pagerduty-operator-catalog
     sourceNamespace: pagerduty-operator
+
+- apiVersion: pagerduty.openshift.io/v1alpha1
+  kind: PagerDutyIntegration
+  metadata:
+    name: osd
+    namespace: pagerduty-operator
+  spec:
+    acknowledgeTimeout: ${ACKNOWLEDGE_TIMEOUT}
+    resolveTimeout: ${RESOLVE_TIMEOUT}
+    escalationPolicy: ${ESCALATION_POLICY}
+    servicePrefix: ${SERVICE_PREFIX}
+    pagerdutyApiKeySecretRef:
+      name: pagerduty-api-key
+      namespace: pagerduty-operator
+    clusterDeploymentSelector:
+      matchLabels:
+        api.openshift.com/managed: "true"
+    targetSecretRef:
+      name: pd-secret
+      namespace: openshift-monitoring
