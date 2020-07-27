@@ -15,13 +15,15 @@
 package kube
 
 import (
-	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1"
+	pagerdutyv1alpha1 "github.com/openshift/pagerduty-operator/pkg/apis/pagerduty/v1alpha1"
 )
 
 // GenerateSyncSet returns a syncset that can be created with the oc client
-func GenerateSyncSet(namespace string, clusterDeploymentName string, secret *corev1.Secret) *hivev1.SyncSet {
+func GenerateSyncSet(namespace string, clusterDeploymentName string, secret *corev1.Secret, pdi *pagerdutyv1alpha1.PagerDutyIntegration) *hivev1.SyncSet {
 	return &hivev1.SyncSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      secret.Name,
@@ -42,8 +44,8 @@ func GenerateSyncSet(namespace string, clusterDeploymentName string, secret *cor
 							Name:      secret.Name,
 						},
 						TargetRef: hivev1.SecretReference{
-							Namespace: "openshift-monitoring",
-							Name:      secret.Name,
+							Namespace: pdi.Spec.TargetSecretRef.Namespace,
+							Name:      pdi.Spec.TargetSecretRef.Name,
 						},
 					},
 				},
