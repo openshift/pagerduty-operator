@@ -28,7 +28,7 @@ objects:
     sourceType: grpc
     image: ${REGISTRY_IMG}:${CHANNEL}-${IMAGE_TAG}
     displayName: pagerduty-operator Registry
-    publisher: SRE 
+    publisher: SRE
 
 - apiVersion: operators.coreos.com/v1alpha2
   kind: OperatorGroup
@@ -67,3 +67,20 @@ objects:
     targetSecretRef:
       name: pd-secret
       namespace: openshift-monitoring
+
+- apiVersion: monitoring.coreos.com/v1
+  kind: PrometheusRule
+  metadata:
+    name: pagerduty-integration-api-secret
+    namespace: pagerduty-operator
+  spec:
+    groups:
+      - name: pagerduty-integration-api-secret
+        rules:
+          - alert: PagerDutyIntegrationAPISecretError
+            annotations:
+              message: PagerDuty Operator is failing to load PAGERDUTY_API_KEY from Secret specified in PagerDutyIntegration {{ $labels.pagerdutyintegration_name }}. Either the Secret might be missing, or the key might be missing from within the Secret.
+            expr: pagerdutyintegration_secret_loaded < 1
+            for: 15m
+            labels:
+              severity: warning

@@ -32,7 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-func (r *ReconcilePagerDutyIntegration) handleCreate(pdi *pagerdutyv1alpha1.PagerDutyIntegration, cd *hivev1.ClusterDeployment) error {
+func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pagerdutyv1alpha1.PagerDutyIntegration, cd *hivev1.ClusterDeployment) error {
 	var (
 		// secretName is the name of the Secret deployed to the target
 		// cluster, and also the name of the SyncSet that causes it to
@@ -96,7 +96,7 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdi *pagerdutyv1alpha1.Page
 	err = pdData.ParseClusterConfig(r.client, cd.Namespace, configMapName)
 	if err != nil {
 		var createErr error
-		_, createErr = r.pdclient.CreateService(pdData)
+		_, createErr = pdclient.CreateService(pdData)
 		if createErr != nil {
 			localmetrics.UpdateMetricPagerDutyCreateFailure(1, ClusterID)
 			return createErr
@@ -104,7 +104,7 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdi *pagerdutyv1alpha1.Page
 	}
 	localmetrics.UpdateMetricPagerDutyCreateFailure(0, ClusterID)
 
-	pdIntegrationKey, err = r.pdclient.GetIntegrationKey(pdData)
+	pdIntegrationKey, err = pdclient.GetIntegrationKey(pdData)
 	if err != nil {
 		return err
 	}

@@ -28,7 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-func (r *ReconcilePagerDutyIntegration) handleDelete(pdi *pagerdutyv1alpha1.PagerDutyIntegration, cd *hivev1.ClusterDeployment) error {
+func (r *ReconcilePagerDutyIntegration) handleDelete(pdclient pd.Client, pdi *pagerdutyv1alpha1.PagerDutyIntegration, cd *hivev1.ClusterDeployment) error {
 	var (
 		// secretName is the name of the Secret deployed to the target
 		// cluster, and also the name of the SyncSet that causes it to
@@ -119,7 +119,7 @@ func (r *ReconcilePagerDutyIntegration) handleDelete(pdi *pagerdutyv1alpha1.Page
 
 	if deletePDService {
 		// we have everything necessary to attempt deletion of the PD service
-		err = r.pdclient.DeleteService(pdData)
+		err = pdclient.DeleteService(pdData)
 		if err != nil {
 			r.reqLogger.Error(err, "Failed cleaning up pagerduty.")
 		} else {

@@ -69,16 +69,23 @@ var (
 		Buckets: []float64{1},
 	}, []string{"controller", "method", "resource", "status"})
 
+	MetricPagerDutyIntegrationSecretLoaded = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name:        "pagerdutyintegration_secret_loaded",
+		Help:        "Metric to track the ability to load the PagerDuty API key from the Secret specified in the PagerDutyIntegration",
+		ConstLabels: prometheus.Labels{"name": "pagerduty-operator"},
+	}, []string{"pagerdutyintegration_name"})
+
 	MetricsList = []prometheus.Collector{
 		MetricPagerDutyCreateFailure,
 		MetricPagerDutyDeleteFailure,
 		MetricPagerDutyHeartbeat,
 		ApiCallDuration,
 		ReconcileDuration,
+		MetricPagerDutyIntegrationSecretLoaded,
 	}
 )
 
-// UpdateAPIMetrics updates all API endpoint metrics ever 5 minutes
+// UpdateAPIMetrics updates all API endpoint metrics every 5 minutes
 func UpdateAPIMetrics(APIKey string, timer *prometheus.Timer) {
 	d := time.Tick(5 * time.Minute)
 	for range d {
@@ -87,14 +94,33 @@ func UpdateAPIMetrics(APIKey string, timer *prometheus.Timer) {
 
 }
 
-// UpdateMetricPagerDutyCreateFailure updates guage to 1 when creation fails
+// UpdateMetricPagerDutyIntegrationSecretLoaded updates gauge to 1
+// when the PagerDuty API key can be loaded from the Secret specified
+// in the PagerDutyIntegration, or to 0 if it fails
+func UpdateMetricPagerDutyIntegrationSecretLoaded(x int, pdiName string) {
+	MetricPagerDutyIntegrationSecretLoaded.With(
+		prometheus.Labels{"pagerdutyintegration_name": pdiName},
+	).Set(float64(x))
+}
+
+// DeleteMetricPagerDutyIntegrationSecretLoaded deletes the metric for
+// the PagerDutyIntegration name provided. This should be called when
+// e.g. the PagerDutyIntegration is being deleted, so that there are
+// no irrelevant metrics (which alerts could be firing on).
+func DeleteMetricPagerDutyIntegrationSecretLoaded(pdiName string) bool {
+	return MetricPagerDutyIntegrationSecretLoaded.Delete(
+		prometheus.Labels{"pagerdutyintegration_name": pdiName},
+	)
+}
+
+// UpdateMetricPagerDutyCreateFailure updates gauge to 1 when creation fails
 func UpdateMetricPagerDutyCreateFailure(x int, cd string) {
 	MetricPagerDutyCreateFailure.With(prometheus.Labels{
 		"clusterdeployment_name": cd}).Set(
 		float64(x))
 }
 
-// UpdateMetricPagerDutyDeleteFailure updates guage to 1 when deletion fails
+// UpdateMetricPagerDutyDeleteFailure updates gauge to 1 when deletion fails
 func UpdateMetricPagerDutyDeleteFailure(x int, cd string) {
 	MetricPagerDutyDeleteFailure.With(prometheus.Labels{
 		"clusterdeployment_name": cd}).Set(
