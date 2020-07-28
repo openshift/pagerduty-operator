@@ -54,8 +54,8 @@ objects:
     name: osd
     namespace: pagerduty-operator
   spec:
-    acknowledgeTimeout: ${ACKNOWLEDGE_TIMEOUT}
-    resolveTimeout: ${RESOLVE_TIMEOUT}
+    acknowledgeTimeout: ${{ACKNOWLEDGE_TIMEOUT}}
+    resolveTimeout: ${{RESOLVE_TIMEOUT}}
     escalationPolicy: ${ESCALATION_POLICY}
     servicePrefix: ${SERVICE_PREFIX}
     pagerdutyApiKeySecretRef:
