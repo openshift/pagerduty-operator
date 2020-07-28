@@ -57,6 +57,7 @@ const (
 type SyncSetEntry struct {
 	name                     string
 	clusterDeploymentRefName string
+	targetSecret             hivev1.SecretReference
 }
 
 type SecretEntry struct {
@@ -145,7 +146,8 @@ func testSecret() *corev1.Secret {
 func testSyncSet() *hivev1.SyncSet {
 	secretName := config.Name(testServicePrefix, testClusterName, config.SecretSuffix)
 	secret := kube.GeneratePdSecret(testNamespace, secretName, testIntegrationID)
-	ss := kube.GenerateSyncSet(testNamespace, testClusterName, secret)
+	pdi := testPagerDutyIntegration()
+	ss := kube.GenerateSyncSet(testNamespace, testClusterName, secret, pdi)
 	return ss
 }
 
@@ -307,6 +309,10 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			expectedSyncSets: &SyncSetEntry{
 				name:                     config.Name(testServicePrefix, testClusterName, config.SecretSuffix),
 				clusterDeploymentRefName: testClusterName,
+				targetSecret: hivev1.SecretReference{
+					Name:      testPagerDutyIntegration().Spec.TargetSecretRef.Name,
+					Namespace: testPagerDutyIntegration().Spec.TargetSecretRef.Namespace,
+				},
 			},
 			expectedSecrets: &SecretEntry{
 				name:         config.Name(testServicePrefix, testClusterName, config.SecretSuffix),
@@ -374,6 +380,10 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			expectedSyncSets: &SyncSetEntry{
 				name:                     config.Name(testServicePrefix, testClusterName, config.SecretSuffix),
 				clusterDeploymentRefName: testClusterName,
+				targetSecret: hivev1.SecretReference{
+					Name:      testPagerDutyIntegration().Spec.TargetSecretRef.Name,
+					Namespace: testPagerDutyIntegration().Spec.TargetSecretRef.Namespace,
+				},
 			},
 			expectedSecrets: &SecretEntry{
 				name:         config.Name(testServicePrefix, testClusterName, config.SecretSuffix),
@@ -445,10 +455,17 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testPagerDutyIntegration(),
 				testPDConfigSecret(),
 			},
-			expectedSyncSets: &SyncSetEntry{name: testClusterName + testOtherSyncSetPostfix, clusterDeploymentRefName: testClusterName},
-			expectedSecrets:  &SecretEntry{},
-			verifySyncSets:   verifyNoSyncSetExists,
-			verifySecrets:    verifyNoSecretExists,
+			expectedSyncSets: &SyncSetEntry{
+				name:                     testClusterName + testOtherSyncSetPostfix,
+				clusterDeploymentRefName: testClusterName,
+				targetSecret: hivev1.SecretReference{
+					Name:      testPagerDutyIntegration().Spec.TargetSecretRef.Name,
+					Namespace: testPagerDutyIntegration().Spec.TargetSecretRef.Namespace,
+				},
+			},
+			expectedSecrets: &SecretEntry{},
+			verifySyncSets:  verifyNoSyncSetExists,
+			verifySecrets:   verifyNoSecretExists,
 			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
 			},
 		},
@@ -458,10 +475,17 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testNoalertsClusterDeploymentOld(),
 				testOtherSyncSet(),
 			},
-			expectedSyncSets: &SyncSetEntry{name: testClusterName + testOtherSyncSetPostfix, clusterDeploymentRefName: testClusterName},
-			expectedSecrets:  &SecretEntry{},
-			verifySyncSets:   verifyNoSyncSetExists,
-			verifySecrets:    verifyNoSecretExists,
+			expectedSyncSets: &SyncSetEntry{
+				name:                     testClusterName + testOtherSyncSetPostfix,
+				clusterDeploymentRefName: testClusterName,
+				targetSecret: hivev1.SecretReference{
+					Name:      testPagerDutyIntegration().Spec.TargetSecretRef.Name,
+					Namespace: testPagerDutyIntegration().Spec.TargetSecretRef.Name,
+				},
+			},
+			expectedSecrets: &SecretEntry{},
+			verifySyncSets:  verifyNoSyncSetExists,
+			verifySecrets:   verifyNoSecretExists,
 			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
 			},
 		},

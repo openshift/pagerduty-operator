@@ -150,7 +150,7 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdi *pagerdutyv1alpha1.Page
 			return err
 		}
 		r.reqLogger.Info("syncset not found , create a new one on this ")
-		ss = kube.GenerateSyncSet(cd.Namespace, cd.Name, secret)
+		ss = kube.GenerateSyncSet(cd.Namespace, cd.Name, secret, pdi)
 		if err = controllerutil.SetControllerReference(cd, ss, r.scheme); err != nil {
 			r.reqLogger.Error(err, "Error setting controller reference on syncset")
 			return err
