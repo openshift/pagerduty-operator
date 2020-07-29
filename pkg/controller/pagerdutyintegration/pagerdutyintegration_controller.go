@@ -16,11 +16,13 @@ package pagerdutyintegration
 
 import (
 	"context"
+	"time"
 
 	"github.com/go-logr/logr"
 	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1"
 	"github.com/openshift/pagerduty-operator/config"
 	pagerdutyv1alpha1 "github.com/openshift/pagerduty-operator/pkg/apis/pagerduty/v1alpha1"
+	"github.com/openshift/pagerduty-operator/pkg/localmetrics"
 	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
 	"github.com/openshift/pagerduty-operator/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
@@ -34,6 +36,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+)
+
+const (
+	controllerName = "pagerdutyintegration"
 )
 
 var log = logf.Log.WithName("controller_pagerdutyintegration")
@@ -65,7 +71,7 @@ func newReconciler(mgr manager.Manager) (reconcile.Reconciler, error) {
 	pdAPIKey, err := utils.LoadSecretData(tempClient, config.PagerDutyAPISecretName, config.OperatorNamespace, config.PagerDutyAPISecretKey)
 
 	return &ReconcilePagerDutyIntegration{
-		client:   mgr.GetClient(),
+		client:   utils.NewClientWithMetricsOrDie(log, mgr, controllerName),
 		scheme:   mgr.GetScheme(),
 		pdclient: pd.NewClient(pdAPIKey),
 	}, nil
@@ -162,8 +168,16 @@ type ReconcilePagerDutyIntegration struct {
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcilePagerDutyIntegration) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+	start := time.Now()
+
 	r.reqLogger = log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	r.reqLogger.Info("Reconciling PagerDutyIntegration")
+
+	defer func() {
+		dur := time.Since(start)
+		localmetrics.SetReconcileDuration(controllerName, dur.Seconds())
+		r.reqLogger.WithValues("Duration", dur).Info("Reconcile complete")
+	}()
 
 	// Fetch the PagerDutyIntegration instance
 	pdi := &pagerdutyv1alpha1.PagerDutyIntegration{}
