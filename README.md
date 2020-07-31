@@ -145,11 +145,15 @@ visible in the URL after the `#` character.
 
 `pagerduty-operator` doesn't start reconciling clusters until `spec.installed` is set to `true`.
 
-Create ClusterDeployment.
+You can create a dummy ClusterDeployment by copying a real one from an active hive
 
 ```terminal
+real-hive$ oc get cd -n <namespace> <cdname> -o yaml > /tmp/fake-clusterdeployment.yaml
+
+...
+
 $ oc create namespace fake-cluster-namespace
-$ oc apply -f hack/clusterdeployment/fake-clusterdeployment.yml
+$ oc apply -f /tmp/fake-clusterdeployment.yaml
 ```
 
 If present, set `spec.installed` to true.
