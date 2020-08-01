@@ -98,11 +98,11 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 		var createErr error
 		_, createErr = pdclient.CreateService(pdData)
 		if createErr != nil {
-			localmetrics.UpdateMetricPagerDutyCreateFailure(1, ClusterID)
+			localmetrics.UpdateMetricPagerDutyCreateFailure(1, ClusterID, pdi.Name)
 			return createErr
 		}
 	}
-	localmetrics.UpdateMetricPagerDutyCreateFailure(0, ClusterID)
+	localmetrics.UpdateMetricPagerDutyCreateFailure(0, ClusterID, pdi.Name)
 
 	pdIntegrationKey, err = pdclient.GetIntegrationKey(pdData)
 	if err != nil {

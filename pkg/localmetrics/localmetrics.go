@@ -38,13 +38,13 @@ var (
 		Name:        "pagerduty_create_failure",
 		Help:        "Metric for the failure of creating a cluster deployment.",
 		ConstLabels: prometheus.Labels{"name": "pagerduty-operator"},
-	}, []string{"clusterdeployment_name"})
+	}, []string{"clusterdeployment_name", "pagerdutyintegration_name"})
 
 	MetricPagerDutyDeleteFailure = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name:        "pagerduty_delete_failure",
 		Help:        "Metric for the failure of deleting a cluster deployment.",
 		ConstLabels: prometheus.Labels{"name": "pagerduty-operator"},
-	}, []string{"clusterdeployment_name"})
+	}, []string{"clusterdeployment_name", "pagerdutyintegration_name"})
 
 	MetricPagerDutyHeartbeat = prometheus.NewSummary(prometheus.SummaryOpts{
 		Name:        "pagerduty_heartbeat",
@@ -114,17 +114,19 @@ func DeleteMetricPagerDutyIntegrationSecretLoaded(pdiName string) bool {
 }
 
 // UpdateMetricPagerDutyCreateFailure updates gauge to 1 when creation fails
-func UpdateMetricPagerDutyCreateFailure(x int, cd string) {
+func UpdateMetricPagerDutyCreateFailure(x int, cd string, pdiName string) {
 	MetricPagerDutyCreateFailure.With(prometheus.Labels{
-		"clusterdeployment_name": cd}).Set(
-		float64(x))
+		"clusterdeployment_name":    cd,
+		"pagerdutyintegration_name": pdiName,
+	}).Set(float64(x))
 }
 
 // UpdateMetricPagerDutyDeleteFailure updates gauge to 1 when deletion fails
-func UpdateMetricPagerDutyDeleteFailure(x int, cd string) {
+func UpdateMetricPagerDutyDeleteFailure(x int, cd string, pdiName string) {
 	MetricPagerDutyDeleteFailure.With(prometheus.Labels{
-		"clusterdeployment_name": cd}).Set(
-		float64(x))
+		"clusterdeployment_name":    cd,
+		"pagerdutyintegration_name": pdiName,
+	}).Set(float64(x))
 }
 
 // SetReconcileDuration Push the duration of the reconcile iteration

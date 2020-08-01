@@ -155,11 +155,11 @@ func (r *ReconcilePagerDutyIntegration) handleDelete(pdclient pd.Client, pdi *pa
 		utils.DeleteFinalizer(cd, finalizer)
 		err = r.client.Update(context.TODO(), cd)
 		if err != nil {
-			metrics.UpdateMetricPagerDutyDeleteFailure(1, ClusterID)
+			metrics.UpdateMetricPagerDutyDeleteFailure(1, ClusterID, pdi.Name)
 			return err
 		}
 	}
-	metrics.UpdateMetricPagerDutyDeleteFailure(0, ClusterID)
+	metrics.UpdateMetricPagerDutyDeleteFailure(0, ClusterID, pdi.Name)
 
 	return nil
 }
