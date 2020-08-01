@@ -159,6 +159,17 @@ func (r *ReconcilePagerDutyIntegration) handleDelete(pdclient pd.Client, pdi *pa
 			return err
 		}
 	}
+
+	if utils.HasFinalizer(cd, config.OperatorFinalizer) {
+		r.reqLogger.Info("Deleting old PD finalizer from ClusterDeployment", "Namespace", cd.Namespace, "Name", cd.Name)
+		utils.DeleteFinalizer(cd, config.OperatorFinalizer)
+		err = r.client.Update(context.TODO(), cd)
+		if err != nil {
+			metrics.UpdateMetricPagerDutyDeleteFailure(1, ClusterID, pdi.Name)
+			return err
+		}
+	}
+
 	metrics.UpdateMetricPagerDutyDeleteFailure(0, ClusterID, pdi.Name)
 
 	return nil
