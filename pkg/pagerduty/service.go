@@ -18,10 +18,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/openshift/pagerduty-operator/config"
+	"github.com/openshift/pagerduty-operator/pkg/localmetrics"
 
 	"time"
 
@@ -100,11 +102,39 @@ type SvcClient struct {
 	Delay       DelayFunc
 }
 
+type customHTTPClient struct {
+	pdApi.HTTPClient
+	controller string
+}
+
+// Do wrapping standard call to time it
+func (c customHTTPClient) Do(req *http.Request) (*http.Response, error) {
+	start := time.Now()
+
+	resp, err := c.HTTPClient.Do(req)
+
+	if err == nil {
+		localmetrics.AddAPICall(c.controller, req, resp, time.Since(start).Seconds())
+	}
+
+	return resp, err
+}
+
+// WithCustomHTTPClient allows to wrapper to monitor API response time
+func WithCustomHTTPClient(controllerName string) pdApi.ClientOptions {
+	return func(c *pdApi.Client) {
+		c.HTTPClient = customHTTPClient{
+			HTTPClient: c.HTTPClient,
+			controller: controllerName,
+		}
+	}
+}
+
 //NewClient creates out client wrapper object for the actual pdApi.Client we use.
-func NewClient(APIKey string) Client {
+func NewClient(APIKey string, controllerName string) Client {
 	return &SvcClient{
 		APIKey:      APIKey,
-		PdClient:    pdApi.NewClient(APIKey),
+		PdClient:    pdApi.NewClient(APIKey, WithCustomHTTPClient(controllerName)),
 		ManageEvent: pdApi.ManageEvent,
 		Delay:       time.Sleep,
 	}

@@ -29,8 +29,9 @@ import (
 var log = logf.Log.WithName("localmetrics")
 
 const (
-	apiEndpoint  = "https://api.pagerduty.com/users"
-	operatorName = "pagerduty-operator"
+	apiEndpoint     = "https://api.pagerduty.com/users"
+	operatorName    = "pagerduty-operator"
+	pagerdutyDomain = "pagerduty.com"
 )
 
 var (
@@ -188,12 +189,23 @@ func resourceFrom(url *neturl.URL) (resource string) {
 		// If we can't parse, return a general bucket. This includes paths that don't start with
 		// /api or /apis.
 		if r := recover(); r != nil {
-			// TODO(efried): Should we be logging these? I guess if we start to see a lot of them...
+			// TODO(bdematteo): Should we be logging these? I guess if we start to see a lot of them...
 			resource = "{OTHER}"
 		}
 	}()
 
 	tokens := strings.Split(url.Path[1:], "/")
+	// First managing the case of pagerduty API calls
+	if strings.HasSuffix(url.Hostname(), pagerdutyDomain) {
+		tokens[1] = "{UID}"
+		if len(tokens) > 2 {
+			tokens[3] = "{UID}"
+			// Should not have resource with more than 4 elements but better aggregating in case of future evolution
+			tokens = tokens[:4]
+		}
+		resource = url.Host + "/" + strings.Join(tokens, "/")
+		return
+	}
 
 	// First normalize to $group/$version/...
 	switch tokens[0] {
