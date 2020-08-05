@@ -106,6 +106,8 @@ func start() error {
 	// Create a new Cmd to provide shared dependencies and start components
 	mgr, err := manager.New(cfg, manager.Options{
 		Namespace: "",
+		// Disable controller-runtime metrics serving
+		MetricsBindAddress: "0",
 	})
 	if err != nil {
 		log.Error(err, "")
