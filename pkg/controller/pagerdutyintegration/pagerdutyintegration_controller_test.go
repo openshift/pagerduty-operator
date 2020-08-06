@@ -26,6 +26,7 @@ import (
 	pagerdutyapis "github.com/openshift/pagerduty-operator/pkg/apis"
 	pagerdutyv1alpha1 "github.com/openshift/pagerduty-operator/pkg/apis/pagerduty/v1alpha1"
 	"github.com/openshift/pagerduty-operator/pkg/kube"
+	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
 	mockpd "github.com/openshift/pagerduty-operator/pkg/pagerduty/mock"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
@@ -359,6 +360,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			localObjects: []runtime.Object{
 				uninstalledClusterDeployment(),
 				testPagerDutyIntegration(),
+				testPDConfigSecret(),
 			},
 			expectedSyncSets: &SyncSetEntry{},
 			expectedSecrets:  &SecretEntry{},
@@ -426,6 +428,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			localObjects: []runtime.Object{
 				unlabelledClusterDeployment(),
 				testPagerDutyIntegration(),
+				testPDConfigSecret(),
 			},
 			expectedSyncSets: &SyncSetEntry{},
 			expectedSecrets:  &SecretEntry{},
@@ -439,6 +442,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			localObjects: []runtime.Object{
 				testNoalertsClusterDeployment(),
 				testPagerDutyIntegration(),
+				testPDConfigSecret(),
 			},
 			expectedSyncSets: &SyncSetEntry{},
 			expectedSecrets:  &SecretEntry{},
@@ -502,7 +506,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			rpdi := &ReconcilePagerDutyIntegration{
 				client:   mocks.fakeKubeClient,
 				scheme:   scheme.Scheme,
-				pdclient: mocks.mockPDClient,
+				pdclient: func(s string) pd.Client { return mocks.mockPDClient },
 			}
 
 			// Act [2x as first exits early after setting finalizer]
@@ -556,7 +560,7 @@ func TestRemoveAlertsAfterCreate(t *testing.T) {
 		rpdi := &ReconcilePagerDutyIntegration{
 			client:   mocks.fakeKubeClient,
 			scheme:   scheme.Scheme,
-			pdclient: mocks.mockPDClient,
+			pdclient: func(s string) pd.Client { return mocks.mockPDClient },
 		}
 
 		// Act (create) [2x as first exits early after setting finalizer]
@@ -636,7 +640,7 @@ func TestDeleteSecret(t *testing.T) {
 		rpdi := &ReconcilePagerDutyIntegration{
 			client:   mocks.fakeKubeClient,
 			scheme:   scheme.Scheme,
-			pdclient: mocks.mockPDClient,
+			pdclient: func(s string) pd.Client { return mocks.mockPDClient },
 		}
 
 		// Act (create) [2x as first exits early after setting finalizer]

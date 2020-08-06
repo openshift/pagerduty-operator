@@ -52,29 +52,16 @@ var log = logf.Log.WithName("controller_pagerdutyintegration")
 // Add creates a new PagerDutyIntegration Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
-	newRec, err := newReconciler(mgr)
-	if err != nil {
-		return err
-	}
-
-	return add(mgr, newRec)
+	return add(mgr, newReconciler(mgr))
 }
 
 // newReconciler returns a new reconcile.Reconciler
-func newReconciler(mgr manager.Manager) (reconcile.Reconciler, error) {
-	tempClient, err := client.New(mgr.GetConfig(), client.Options{Scheme: mgr.GetScheme()})
-	if err != nil {
-		return nil, err
-	}
-
-	// get PD API key from secret
-	pdAPIKey, err := utils.LoadSecretData(tempClient, config.PagerDutyAPISecretName, config.OperatorNamespace, config.PagerDutyAPISecretKey)
-
+func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 	return &ReconcilePagerDutyIntegration{
 		client:   utils.NewClientWithMetricsOrDie(log, mgr, controllerName),
 		scheme:   mgr.GetScheme(),
-		pdclient: pd.NewClient(pdAPIKey),
-	}, nil
+		pdclient: pd.NewClient,
+	}
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
@@ -159,7 +146,7 @@ type ReconcilePagerDutyIntegration struct {
 	client    client.Client
 	scheme    *runtime.Scheme
 	reqLogger logr.Logger
-	pdclient  pd.Client
+	pdclient  func(APIKey string) pd.Client
 }
 
 // Reconcile reads that state of the cluster for a PagerDutyIntegration object and makes changes based on the state read
@@ -198,14 +185,30 @@ func (r *ReconcilePagerDutyIntegration) Reconcile(request reconcile.Request) (re
 		return r.requeueOnErr(err)
 	}
 
+	pdApiKey, err := utils.LoadSecretData(
+		r.client,
+		pdi.Spec.PagerdutyApiKeySecretRef.Name,
+		pdi.Spec.PagerdutyApiKeySecretRef.Namespace,
+		config.PagerDutyAPISecretKey,
+	)
+	if err != nil {
+		r.reqLogger.Error(err, "Failed to load PagerDuty API key from Secret listed in PagerDutyIntegration CR")
+		localmetrics.UpdateMetricPagerDutyIntegrationSecretLoaded(0, pdi.Name)
+		return r.requeueAfter(10 * time.Minute)
+	}
+	localmetrics.UpdateMetricPagerDutyIntegrationSecretLoaded(1, pdi.Name)
+	pdClient := r.pdclient(pdApiKey)
+
 	if pdi.DeletionTimestamp != nil {
 		if utils.HasFinalizer(pdi, config.OperatorFinalizer) {
 			for _, cd := range matchingClusterDeployments.Items {
-				err := r.handleDelete(pdi, &cd)
+				err := r.handleDelete(pdClient, pdi, &cd)
 				if err != nil {
 					return r.requeueOnErr(err)
 				}
 			}
+
+			localmetrics.DeleteMetricPagerDutyIntegrationSecretLoaded(pdi.Name)
 
 			utils.DeleteFinalizer(pdi, config.OperatorFinalizer)
 			err = r.client.Update(context.TODO(), pdi)
@@ -226,12 +229,12 @@ func (r *ReconcilePagerDutyIntegration) Reconcile(request reconcile.Request) (re
 
 	for _, cd := range matchingClusterDeployments.Items {
 		if cd.DeletionTimestamp != nil || cd.Labels[config.ClusterDeploymentNoalertsLabel] == "true" {
-			err := r.handleDelete(pdi, &cd)
+			err := r.handleDelete(pdClient, pdi, &cd)
 			if err != nil {
 				return r.requeueOnErr(err)
 			}
 		} else {
-			err := r.handleCreate(pdi, &cd)
+			err := r.handleCreate(pdClient, pdi, &cd)
 			if err != nil {
 				return r.requeueOnErr(err)
 			}
@@ -258,4 +261,8 @@ func (r *ReconcilePagerDutyIntegration) doNotRequeue() (reconcile.Result, error)
 
 func (r *ReconcilePagerDutyIntegration) requeueOnErr(err error) (reconcile.Result, error) {
 	return reconcile.Result{}, err
+}
+
+func (r *ReconcilePagerDutyIntegration) requeueAfter(t time.Duration) (reconcile.Result, error) {
+	return reconcile.Result{RequeueAfter: t}, nil
 }
