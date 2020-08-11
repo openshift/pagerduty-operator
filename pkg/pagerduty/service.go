@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/openshift/pagerduty-operator/config"
+	"github.com/openshift/pagerduty-operator/pkg/error_manager"
 
 	"time"
 
@@ -170,7 +171,7 @@ func (c *SvcClient) CreateService(data *Data) (string, error) {
 
 	escalationPolicy, err := c.PdClient.GetEscalationPolicy(string(data.EscalationPolicyID), nil)
 	if err != nil {
-		return "", errors.New("Escalation policy not found in PagerDuty")
+		return "", error_manager.ToStatus(errors.New("Escalation policy not found in PagerDuty"), error_manager.StatusPagerdutycallError)
 	}
 
 	clusterService := pdApi.Service{
@@ -318,5 +319,6 @@ func (c *SvcClient) resolveIncident(serviceKey, incidentKey string) error {
 	event.Payload.Source = "pagerduty-operator"
 	event.Payload.Severity = "info"
 	_, err := c.ManageEvent(event)
-	return err
+
+	return error_manager.ToStatus(err, error_manager.StatusPagerdutycallError)
 }

@@ -154,7 +154,7 @@ type ReconcilePagerDutyIntegration struct {
 // Note:
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
-func (r *ReconcilePagerDutyIntegration) Reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *ReconcilePagerDutyIntegration) Reconcile(request reconcile.Request) (rec reconcile.Result, oErr error) {
 	start := time.Now()
 
 	r.reqLogger = log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
@@ -162,7 +162,7 @@ func (r *ReconcilePagerDutyIntegration) Reconcile(request reconcile.Request) (re
 
 	defer func() {
 		dur := time.Since(start)
-		localmetrics.SetReconcileDuration(controllerName, dur.Seconds())
+		localmetrics.SetReconcileDuration(controllerName, dur.Seconds(), oErr)
 		r.reqLogger.WithValues("Duration", dur).Info("Reconcile complete")
 	}()
 

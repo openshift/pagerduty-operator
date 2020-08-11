@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/openshift/pagerduty-operator/pkg/error_manager"
 	"github.com/prometheus/client_golang/prometheus"
 
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
@@ -57,7 +58,7 @@ var (
 		Help:        "Distribution of the number of seconds a Reconcile takes, broken down by controller",
 		ConstLabels: prometheus.Labels{"name": "pagerduty-operator"},
 		Buckets:     []float64{0.001, 0.01, 0.1, 1, 5, 10, 20},
-	}, []string{"controller"})
+	}, []string{"controller", "status"})
 
 	// apiCallDuration times API requests. Histogram also gives us a _count metric for free.
 	ApiCallDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{
@@ -130,8 +131,8 @@ func UpdateMetricPagerDutyDeleteFailure(x int, cd string, pdiName string) {
 }
 
 // SetReconcileDuration Push the duration of the reconcile iteration
-func SetReconcileDuration(controller string, duration float64) {
-	ReconcileDuration.WithLabelValues(controller).Observe(duration)
+func SetReconcileDuration(controller string, duration float64, status error) {
+	ReconcileDuration.WithLabelValues(controller, error_manager.ToString(status)).Observe(duration)
 }
 
 // UpdateMetricPagerDutyHeartbeat curls the PD API, updates the gauge to 1
