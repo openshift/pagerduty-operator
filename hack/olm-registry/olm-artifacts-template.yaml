@@ -14,6 +14,8 @@ parameters:
   required: true
 - name: ESCALATION_POLICY
   required: true
+- name: ALERTS_SKIP_LEGALENTITY_IDS
+  value: '[]'
 - name: CHANNEL
   value: staging
 - name: IMAGE_TAG
@@ -62,8 +64,13 @@ objects:
       name: pagerduty-api-key
       namespace: pagerduty-operator
     clusterDeploymentSelector:
-      matchLabels:
-        api.openshift.com/managed: "true"
+      matchExpressions:
+      - key: api.openshift.com/managed
+        operator: in
+        values: ["true"]
+      - key: api.openshift.com/legal-entity-id
+        operators: NotIn
+        values: ${{ALERTS_SKIP_LEGALENTITY_IDS}}
     targetSecretRef:
       name: pd-secret
       namespace: openshift-monitoring
