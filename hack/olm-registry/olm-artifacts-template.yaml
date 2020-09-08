@@ -14,7 +14,7 @@ parameters:
   required: true
 - name: ESCALATION_POLICY
   required: true
-- name: ALERTS_SKIP_LEGALENTITY_IDS
+- name: SILENT_ALERT_LEGALENTITY_IDS
   value: '[]'
 - name: CHANNEL
   value: staging
@@ -70,7 +70,31 @@ objects:
         values: ["true"]
       - key: api.openshift.com/legal-entity-id
         operators: NotIn
-        values: ${{ALERTS_SKIP_LEGALENTITY_IDS}}
+        values: ${{SILENT_ALERT_LEGALENTITY_IDS}}
+    targetSecretRef:
+      name: pd-secret
+      namespace: openshift-monitoring
+- apiVersion: pagerduty.openshift.io/v1alpha1
+  kind: PagerDutyIntegration
+  metadata:
+    name: osd-silent
+    namespace: pagerduty-operator
+  spec:
+    acknowledgeTimeout: ${{ACKNOWLEDGE_TIMEOUT}}
+    resolveTimeout: ${{RESOLVE_TIMEOUT}}
+    escalationPolicy: ${ESCALATION_POLICY_SILENT}
+    servicePrefix: ${SERVICE_PREFIX}_silent
+    pagerdutyApiKeySecretRef:
+      name: pagerduty-api-key
+      namespace: pagerduty-operator
+    clusterDeploymentSelector:
+      matchExpressions:
+      - key: api.openshift.com/managed
+        operator: in
+        values: ["true"]
+      - key: api.openshift.com/legal-entity-id
+        operators: In
+        values: ${{SILENT_ALERT_LEGALENTITY_IDS}}
     targetSecretRef:
       name: pd-secret
       namespace: openshift-monitoring
