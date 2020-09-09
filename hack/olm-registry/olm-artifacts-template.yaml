@@ -69,7 +69,7 @@ objects:
         operator: in
         values: ["true"]
       - key: api.openshift.com/legal-entity-id
-        operators: NotIn
+        operator: NotIn
         values: ${{SILENT_ALERT_LEGALENTITY_IDS}}
     targetSecretRef:
       name: pd-secret
@@ -93,7 +93,7 @@ objects:
         operator: in
         values: ["true"]
       - key: api.openshift.com/legal-entity-id
-        operators: In
+        operator: In
         values: ${{SILENT_ALERT_LEGALENTITY_IDS}}
     targetSecretRef:
       name: pd-secret
