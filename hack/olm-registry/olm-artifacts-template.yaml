@@ -14,8 +14,10 @@ parameters:
   required: true
 - name: ESCALATION_POLICY
   required: true
+- name: ESCALATION_POLICY_SILENT
+  required: true
 - name: SILENT_ALERT_LEGALENTITY_IDS
-  value: '[]'
+  value: '["None"]'
 - name: CHANNEL
   value: staging
 - name: IMAGE_TAG
@@ -58,8 +60,8 @@ objects:
   spec:
     acknowledgeTimeout: ${{ACKNOWLEDGE_TIMEOUT}}
     resolveTimeout: ${{RESOLVE_TIMEOUT}}
-    escalationPolicy: ${ESCALATION_POLICY}
-    servicePrefix: ${SERVICE_PREFIX}
+    escalationPolicy: ${{ESCALATION_POLICY}}
+    servicePrefix: ${{SERVICE_PREFIX}}
     pagerdutyApiKeySecretRef:
       name: pagerduty-api-key
       namespace: pagerduty-operator
@@ -82,8 +84,8 @@ objects:
   spec:
     acknowledgeTimeout: ${{ACKNOWLEDGE_TIMEOUT}}
     resolveTimeout: ${{RESOLVE_TIMEOUT}}
-    escalationPolicy: ${ESCALATION_POLICY_SILENT}
-    servicePrefix: ${SERVICE_PREFIX}_silent
+    escalationPolicy: ${{ESCALATION_POLICY_SILENT}}
+    servicePrefix: ${{SERVICE_PREFIX}}_silent
     pagerdutyApiKeySecretRef:
       name: pagerduty-api-key
       namespace: pagerduty-operator
