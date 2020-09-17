@@ -24,6 +24,7 @@ require (
 // Replaces from https://sdk.operatorframework.io/docs/migration/version-upgrade-guide/#v016x
 // Pinned to kubernetes-1.16.2
 replace (
+	github.com/openshift/api => github.com/openshift/api v0.0.0-20190924102528-32369d4db2ad
 	k8s.io/api => k8s.io/api v0.0.0-20191016110408-35e52d86657a
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.0.0-20191016113550-5357c4baaf65
 	k8s.io/apimachinery => k8s.io/apimachinery v0.0.0-20191004115801-a2eda9f80ab8
