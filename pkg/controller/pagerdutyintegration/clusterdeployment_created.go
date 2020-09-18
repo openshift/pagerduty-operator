@@ -96,7 +96,7 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 	// load configuration
 	err = pdData.ParseClusterConfig(r.client, cd.Namespace, configMapName)
 
-	if pdData.ServiceID == "" {
+	if err != nil || pdData.ServiceID == "" {
 		// unable to load configuration, therefore create the PD service
 		var createErr error
 		r.reqLogger.Info("Creating PD service", "ClusterID", pdData.ClusterID, "BaseDomain", pdData.BaseDomain)
