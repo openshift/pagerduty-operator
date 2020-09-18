@@ -118,10 +118,12 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 		if err := r.client.Create(context.TODO(), newCM); err != nil {
 			if errors.IsAlreadyExists(err) {
 				if updateErr := r.client.Update(context.TODO(), newCM); updateErr != nil {
+					r.reqLogger.Error(err, "Error updating existing configmap", "Name", configMapName)
 					return err
 				}
 				return nil
 			}
+			r.reqLogger.Error(err, "Error creating configmap", "Name", configMapName)
 			return err
 		}
 	}
