@@ -167,7 +167,6 @@ func (c *SvcClient) GetIntegrationKey(data *Data) (string, error) {
 
 // CreateService creates a service in pagerduty for the specified clusterid and returns the service key
 func (c *SvcClient) CreateService(data *Data) (string, error) {
-
 	escalationPolicy, err := c.PdClient.GetEscalationPolicy(string(data.EscalationPolicyID), nil)
 	if err != nil {
 		return "", errors.New("Escalation policy not found in PagerDuty")

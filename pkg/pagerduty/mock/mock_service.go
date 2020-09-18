@@ -68,6 +68,8 @@ func (mr *MockClientMockRecorder) GetIntegrationKey(data interface{}) *gomock.Ca
 func (m *MockClient) CreateService(data *pagerduty.Data) (string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateService", data)
+	data.ServiceID = "XYZ123"
+	data.IntegrationID = "LMN456"
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1

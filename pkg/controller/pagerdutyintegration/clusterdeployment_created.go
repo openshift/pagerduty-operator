@@ -93,20 +93,56 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 	// To prevent scoping issues in the err check below.
 	var pdIntegrationKey string
 
+	// load configuration
 	err = pdData.ParseClusterConfig(r.client, cd.Namespace, configMapName)
-	if err != nil {
+
+	if err != nil || pdData.ServiceID == "" {
+		// unable to load configuration, therefore create the PD service
 		var createErr error
+		r.reqLogger.Info("Creating PD service", "ClusterID", pdData.ClusterID, "BaseDomain", pdData.BaseDomain)
 		_, createErr = pdclient.CreateService(pdData)
 		if createErr != nil {
 			localmetrics.UpdateMetricPagerDutyCreateFailure(1, ClusterID, pdi.Name)
 			return createErr
 		}
-	}
-	localmetrics.UpdateMetricPagerDutyCreateFailure(0, ClusterID, pdi.Name)
+		localmetrics.UpdateMetricPagerDutyCreateFailure(0, ClusterID, pdi.Name)
 
-	pdIntegrationKey, err = pdclient.GetIntegrationKey(pdData)
-	if err != nil {
-		return err
+		r.reqLogger.Info("Creating configmap")
+
+		// save config map
+		newCM := kube.GenerateConfigMap(cd.Namespace, configMapName, pdData.ServiceID, pdData.IntegrationID)
+		if err = controllerutil.SetControllerReference(cd, newCM, r.scheme); err != nil {
+			r.reqLogger.Error(err, "Error setting controller reference on configmap")
+			return err
+		}
+		if err := r.client.Create(context.TODO(), newCM); err != nil {
+			if errors.IsAlreadyExists(err) {
+				if updateErr := r.client.Update(context.TODO(), newCM); updateErr != nil {
+					r.reqLogger.Error(err, "Error updating existing configmap", "Name", configMapName)
+					return err
+				}
+				return nil
+			}
+			r.reqLogger.Error(err, "Error creating configmap", "Name", configMapName)
+			return err
+		}
+	}
+
+	// try to load integration key (secret)
+	sc := &corev1.Secret{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: secretName, Namespace: cd.Namespace}, sc)
+	if err == nil {
+		// successfully loaded secret, snag the integration key
+		r.reqLogger.Info("pdIntegrationKey found, skipping create", "ClusterID", pdData.ClusterID, "BaseDomain", pdData.BaseDomain)
+		pdIntegrationKey = string(sc.Data[config.PagerDutySecretKey])
+	} else {
+		// unable to load an integration key, create one.
+		r.reqLogger.Info("pdIntegrationKey not found, creating one", "ClusterID", pdData.ClusterID, "BaseDomain", pdData.BaseDomain)
+		pdIntegrationKey, err = pdclient.GetIntegrationKey(pdData)
+		if err != nil {
+			// unable to get an integration key
+			return err
+		}
 	}
 
 	//add secret part
@@ -128,7 +164,7 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 		if err != nil {
 			return nil
 		}
-		if string(sc.Data["PAGERDUTY_KEY"]) != pdIntegrationKey {
+		if string(sc.Data[config.PagerDutySecretKey]) != pdIntegrationKey {
 			r.reqLogger.Info("pdIntegrationKey is changed, delete the secret first")
 			if err = r.client.Delete(context.TODO(), secret); err != nil {
 				log.Info("failed to delete existing pd secret")
@@ -158,22 +194,6 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 		if err := r.client.Create(context.TODO(), ss); err != nil {
 			return err
 		}
-	}
-
-	r.reqLogger.Info("Creating configmap")
-	newCM := kube.GenerateConfigMap(cd.Namespace, configMapName, pdData.ServiceID, pdData.IntegrationID)
-	if err = controllerutil.SetControllerReference(cd, newCM, r.scheme); err != nil {
-		r.reqLogger.Error(err, "Error setting controller reference on configmap")
-		return err
-	}
-	if err := r.client.Create(context.TODO(), newCM); err != nil {
-		if errors.IsAlreadyExists(err) {
-			if updateErr := r.client.Update(context.TODO(), newCM); updateErr != nil {
-				return err
-			}
-			return nil
-		}
-		return err
 	}
 
 	return nil

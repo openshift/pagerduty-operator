@@ -133,11 +133,11 @@ func testPDConfigMap() *corev1.ConfigMap {
 func testSecret() *corev1.Secret {
 	s := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "pd-secret",
+			Name:      testServicePrefix + "-" + testClusterName + "-" + testsecretReferencesName,
 			Namespace: testNamespace,
 		},
 		Data: map[string][]byte{
-			"PAGERDUTY_KEY": []byte(testIntegrationID),
+			config.PagerDutySecretKey: []byte(testIntegrationID),
 		},
 	}
 	return s
@@ -324,6 +324,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
 				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(1)
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(1)
+				r.DeleteService(gomock.Any()).Return(nil).Times(0)
 			},
 		},
 		{
@@ -339,6 +340,8 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			verifySyncSets:   verifyNoSyncSetExists,
 			verifySecrets:    verifyNoSecretExists,
 			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
+				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
+				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.DeleteService(gomock.Any()).Return(nil).Times(1)
 			},
 		},
@@ -353,7 +356,11 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			expectedSecrets:  &SecretEntry{},
 			verifySyncSets:   verifyNoSyncSetExists,
 			verifySecrets:    verifyNoSecretExists,
-			setupPDMock:      func(r *mockpd.MockClientMockRecorder) {},
+			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
+				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
+				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
+				r.DeleteService(gomock.Any()).Return(nil).Times(0)
+			},
 		},
 		{
 			name: "Test Uninstalled Cluster",
@@ -367,6 +374,9 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			verifySyncSets:   verifyNoSyncSetExists,
 			verifySecrets:    verifyNoSecretExists,
 			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
+				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
+				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
+				r.DeleteService(gomock.Any()).Return(nil).Times(0)
 			},
 		},
 		{
@@ -394,7 +404,9 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			verifySyncSets: verifySyncSetExists,
 			verifySecrets:  verifySecretExists,
 			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
-				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(1)
+				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
+				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
+				r.DeleteService(gomock.Any()).Return(nil).Times(0)
 			},
 		},
 		{
@@ -408,7 +420,11 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			expectedSecrets:  &SecretEntry{},
 			verifySyncSets:   verifyNoSyncSetExists,
 			verifySecrets:    verifyNoSecretExists,
-			setupPDMock:      func(r *mockpd.MockClientMockRecorder) {},
+			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
+				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
+				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
+				r.DeleteService(gomock.Any()).Return(nil).Times(0)
+			},
 		},
 		{
 			// remove with https://issues.redhat.com/browse/OSD-4059
@@ -421,6 +437,9 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			verifySyncSets:   verifyNoSyncSetExists,
 			verifySecrets:    verifyNoSecretExists,
 			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
+				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
+				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
+				r.DeleteService(gomock.Any()).Return(nil).Times(0)
 			},
 		},
 		{
@@ -435,6 +454,9 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			verifySyncSets:   verifyNoSyncSetExists,
 			verifySecrets:    verifyNoSecretExists,
 			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
+				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
+				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
+				r.DeleteService(gomock.Any()).Return(nil).Times(0)
 			},
 		},
 		{
@@ -449,6 +471,9 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			verifySyncSets:   verifyNoSyncSetExists,
 			verifySecrets:    verifyNoSecretExists,
 			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
+				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
+				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
+				r.DeleteService(gomock.Any()).Return(nil).Times(0)
 			},
 		},
 		{
@@ -471,6 +496,9 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			verifySyncSets:  verifyNoSyncSetExists,
 			verifySecrets:   verifyNoSecretExists,
 			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
+				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
+				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
+				r.DeleteService(gomock.Any()).Return(nil).Times(0)
 			},
 		},
 		{
@@ -491,6 +519,9 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			verifySyncSets:  verifyNoSyncSetExists,
 			verifySecrets:   verifyNoSecretExists,
 			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
+				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
+				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
+				r.DeleteService(gomock.Any()).Return(nil).Times(0)
 			},
 		},
 	}
@@ -509,14 +540,24 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				pdclient: func(s string) pd.Client { return mocks.mockPDClient },
 			}
 
-			// Act [2x as first exits early after setting finalizer]
-			_, err := rpdi.Reconcile(reconcile.Request{
+			// 1st run sets finalizer
+			_, err1 := rpdi.Reconcile(reconcile.Request{
 				NamespacedName: types.NamespacedName{
 					Name:      testPagerDutyIntegrationName,
 					Namespace: config.OperatorNamespace,
 				},
 			})
-			_, err = rpdi.Reconcile(reconcile.Request{
+
+			// 2nd run does the initial work
+			_, err2 := rpdi.Reconcile(reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      testPagerDutyIntegrationName,
+					Namespace: config.OperatorNamespace,
+				},
+			})
+
+			// 3rd run should be a noop, we need to confirm
+			_, err3 := rpdi.Reconcile(reconcile.Request{
 				NamespacedName: types.NamespacedName{
 					Name:      testPagerDutyIntegrationName,
 					Namespace: config.OperatorNamespace,
@@ -524,9 +565,11 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			})
 
 			// Assert
-			assert.NoError(t, err, "Unexpected Error")
-			assert.True(t, test.verifySyncSets(mocks.fakeKubeClient, test.expectedSyncSets))
-			assert.True(t, test.verifySecrets(mocks.fakeKubeClient, test.expectedSecrets))
+			assert.NoError(t, err1, "Unexpected Error with Reconcile (1 of 3)")
+			assert.NoError(t, err2, "Unexpected Error with Reconcile (2 of 3)")
+			assert.NoError(t, err3, "Unexpected Error with Reconcile (3 of 3)")
+			assert.True(t, test.verifySyncSets(mocks.fakeKubeClient, test.expectedSyncSets), "verifySyncSets: "+test.name)
+			assert.True(t, test.verifySecrets(mocks.fakeKubeClient, test.expectedSecrets), "verifySecrets: "+test.name)
 		})
 	}
 }
@@ -546,10 +589,10 @@ func TestRemoveAlertsAfterCreate(t *testing.T) {
 
 		setupPDMock :=
 			func(r *mockpd.MockClientMockRecorder) {
-				// create (without calling PD)
-				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(1)
-
-				// delete
+				// delete service is the only thing called.
+				// explicitly check that no create service or key are called.
+				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
+				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.DeleteService(gomock.Any()).Return(nil).Times(1)
 			}
 
@@ -629,8 +672,9 @@ func TestDeleteSecret(t *testing.T) {
 
 		setupPDMock :=
 			func(r *mockpd.MockClientMockRecorder) {
-				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(2)
+				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(1)
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(2)
+				r.DeleteService(gomock.Any()).Return(nil).Times(0)
 			}
 
 		setupPDMock(mocks.mockPDClient.EXPECT())
@@ -702,7 +746,7 @@ func testLegacySecret() *corev1.Secret {
 			Namespace: testNamespace,
 		},
 		Data: map[string][]byte{
-			"PAGERDUTY_KEY": []byte(testIntegrationID),
+			config.PagerDutySecretKey: []byte(testIntegrationID),
 		},
 	}
 }

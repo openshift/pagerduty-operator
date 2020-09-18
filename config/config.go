@@ -20,6 +20,7 @@ const (
 	OperatorNamespace      string = "pagerduty-operator"
 	PagerDutyAPISecretName string = "pagerduty-api-key"
 	PagerDutyAPISecretKey  string = "PAGERDUTY_API_KEY"
+	PagerDutySecretKey     string = "PAGERDUTY_KEY"
 	OperatorFinalizer      string = "pd.managed.openshift.io/pagerduty"
 	SecretSuffix           string = "-pd-secret"
 	ConfigMapSuffix        string = "-pd-config"

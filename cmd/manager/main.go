@@ -46,7 +46,8 @@ import (
 
 // Change below variables to serve metrics on different host or port.
 var (
-	metricsPort = "8080"
+	// metricsPort the port on which metrics is hosted, don't pick one that's already used
+	metricsPort = "8081"
 	metricsPath = "/metrics"
 )
 var log = logf.Log.WithName("cmd")
@@ -142,10 +143,11 @@ func start() error {
 	go cache.Start(stopCh)
 	cache.WaitForCacheSync(stopCh)
 
-	metricsServer := metrics.NewBuilder().WithPort(metricsPort).WithPath(metricsPath).
+	metricsServer := metrics.NewBuilder(operatorconfig.OperatorNamespace, operatorconfig.OperatorName).
+		WithPort(metricsPort).
+		WithPath(metricsPath).
 		WithCollectors(localmetrics.MetricsList).
 		WithRoute().
-		WithServiceName(operatorconfig.OperatorName).
 		GetConfig()
 
 	// Configure metrics if it errors log the error but continue
