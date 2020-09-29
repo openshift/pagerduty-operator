@@ -73,6 +73,9 @@ objects:
       - key: api.openshift.com/legal-entity-id
         operator: NotIn
         values: ${{SILENT_ALERT_LEGALENTITY_IDS}}
+      - key: api.openshift.com/channel-group
+        operator: NotIn
+        values: ["nightly"]
     targetSecretRef:
       name: pd-secret
       namespace: openshift-monitoring
