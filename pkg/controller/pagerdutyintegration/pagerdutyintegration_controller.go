@@ -228,7 +228,7 @@ func (r *ReconcilePagerDutyIntegration) Reconcile(request reconcile.Request) (re
 	}
 
 	for _, cd := range matchingClusterDeployments.Items {
-		if cd.DeletionTimestamp != nil || cd.Labels[config.ClusterDeploymentNoalertsLabel] == "true" {
+		if cd.DeletionTimestamp != nil {
 			err := r.handleDelete(pdClient, pdi, &cd)
 			if err != nil {
 				return r.requeueOnErr(err)

@@ -213,48 +213,6 @@ func testClusterDeployment() *hivev1.ClusterDeployment {
 	return &cd
 }
 
-// testNoalertsClusterDeployment returns a fake ClusterDeployment for an installed cluster to use in testing.
-func testNoalertsClusterDeployment() *hivev1.ClusterDeployment {
-	labelMap := map[string]string{
-		config.ClusterDeploymentManagedLabel:  "true",
-		config.ClusterDeploymentNoalertsLabel: "true",
-	}
-	cd := hivev1.ClusterDeployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      testClusterName,
-			Namespace: testNamespace,
-			Labels:    labelMap,
-		},
-		Spec: hivev1.ClusterDeploymentSpec{
-			ClusterName: testClusterName,
-		},
-	}
-	cd.Spec.Installed = true
-
-	return &cd
-}
-
-// testNoalertsClusterDeploymentOld returns a fake ClusterDeployment for an installed cluster to use in testing. remove with https://issues.redhat.com/browse/OSD-4059
-func testNoalertsClusterDeploymentOld() *hivev1.ClusterDeployment {
-	labelMap := map[string]string{
-		config.ClusterDeploymentManagedLabel:     "true",
-		config.ClusterDeploymentNoalertsLabelOld: "true",
-	}
-	cd := hivev1.ClusterDeployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      testClusterName,
-			Namespace: testNamespace,
-			Labels:    labelMap,
-		},
-		Spec: hivev1.ClusterDeploymentSpec{
-			ClusterName: testClusterName,
-		},
-	}
-	cd.Spec.Installed = true
-
-	return &cd
-}
-
 // deletedClusterDeployment returns a fake deleted ClusterDeployment to use in testing.
 func deletedClusterDeployment(pdiName string) *hivev1.ClusterDeployment {
 	cd := testClusterDeployment()
@@ -427,22 +385,6 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			},
 		},
 		{
-			// remove with https://issues.redhat.com/browse/OSD-4059
-			name: "Test Creating (managed with OLD noalerts)",
-			localObjects: []runtime.Object{
-				testNoalertsClusterDeploymentOld(),
-			},
-			expectedSyncSets: &SyncSetEntry{},
-			expectedSecrets:  &SecretEntry{},
-			verifySyncSets:   verifyNoSyncSetExists,
-			verifySecrets:    verifyNoSecretExists,
-			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
-				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
-				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
-				r.DeleteService(gomock.Any()).Return(nil).Times(0)
-			},
-		},
-		{
 			name: "Test Creating (unmanaged without label)",
 			localObjects: []runtime.Object{
 				unlabelledClusterDeployment(),
@@ -453,71 +395,6 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			expectedSecrets:  &SecretEntry{},
 			verifySyncSets:   verifyNoSyncSetExists,
 			verifySecrets:    verifyNoSecretExists,
-			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
-				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
-				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
-				r.DeleteService(gomock.Any()).Return(nil).Times(0)
-			},
-		},
-		{
-			name: "Test Creating (managed with noalerts)",
-			localObjects: []runtime.Object{
-				testNoalertsClusterDeployment(),
-				testPagerDutyIntegration(),
-				testPDConfigSecret(),
-			},
-			expectedSyncSets: &SyncSetEntry{},
-			expectedSecrets:  &SecretEntry{},
-			verifySyncSets:   verifyNoSyncSetExists,
-			verifySecrets:    verifyNoSecretExists,
-			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
-				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
-				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
-				r.DeleteService(gomock.Any()).Return(nil).Times(0)
-			},
-		},
-		{
-			name: "Test Creating with other SyncSets (managed with noalerts)",
-			localObjects: []runtime.Object{
-				testNoalertsClusterDeployment(),
-				testOtherSyncSet(),
-				testPagerDutyIntegration(),
-				testPDConfigSecret(),
-			},
-			expectedSyncSets: &SyncSetEntry{
-				name:                     testClusterName + testOtherSyncSetPostfix,
-				clusterDeploymentRefName: testClusterName,
-				targetSecret: hivev1.SecretReference{
-					Name:      testPagerDutyIntegration().Spec.TargetSecretRef.Name,
-					Namespace: testPagerDutyIntegration().Spec.TargetSecretRef.Namespace,
-				},
-			},
-			expectedSecrets: &SecretEntry{},
-			verifySyncSets:  verifyNoSyncSetExists,
-			verifySecrets:   verifyNoSecretExists,
-			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
-				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
-				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
-				r.DeleteService(gomock.Any()).Return(nil).Times(0)
-			},
-		},
-		{
-			name: "Test Creating with other SyncSets (managed with OLD noalerts)",
-			localObjects: []runtime.Object{
-				testNoalertsClusterDeploymentOld(),
-				testOtherSyncSet(),
-			},
-			expectedSyncSets: &SyncSetEntry{
-				name:                     testClusterName + testOtherSyncSetPostfix,
-				clusterDeploymentRefName: testClusterName,
-				targetSecret: hivev1.SecretReference{
-					Name:      testPagerDutyIntegration().Spec.TargetSecretRef.Name,
-					Namespace: testPagerDutyIntegration().Spec.TargetSecretRef.Name,
-				},
-			},
-			expectedSecrets: &SecretEntry{},
-			verifySyncSets:  verifyNoSyncSetExists,
-			verifySecrets:   verifyNoSecretExists,
 			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
 				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
@@ -572,82 +449,6 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			assert.True(t, test.verifySecrets(mocks.fakeKubeClient, test.expectedSecrets), "verifySecrets: "+test.name)
 		})
 	}
-}
-
-func TestRemoveAlertsAfterCreate(t *testing.T) {
-	t.Run("Test Managed Cluster that later sets noalerts label", func(t *testing.T) {
-		// Arrange
-		mocks := setupDefaultMocks(t, []runtime.Object{
-			testClusterDeployment(),
-			testSecret(),
-			testOtherSyncSet(),
-			testPDConfigSecret(),
-			testPDConfigMap(), // <-- see comment below
-			testPagerDutyIntegration(),
-		})
-		// in order to test the delete, we need to create the pd secret w/ a non-empty SERVICE_ID, which means CreateService won't be called
-
-		setupPDMock :=
-			func(r *mockpd.MockClientMockRecorder) {
-				// delete service is the only thing called.
-				// explicitly check that no create service or key are called.
-				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
-				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
-				r.DeleteService(gomock.Any()).Return(nil).Times(1)
-			}
-
-		setupPDMock(mocks.mockPDClient.EXPECT())
-
-		defer mocks.mockCtrl.Finish()
-
-		rpdi := &ReconcilePagerDutyIntegration{
-			client:   mocks.fakeKubeClient,
-			scheme:   scheme.Scheme,
-			pdclient: func(s1 string, s2 string) pd.Client { return mocks.mockPDClient },
-		}
-
-		// Act (create) [2x as first exits early after setting finalizer]
-		_, err := rpdi.Reconcile(reconcile.Request{
-			NamespacedName: types.NamespacedName{
-				Name:      testPagerDutyIntegrationName,
-				Namespace: config.OperatorNamespace,
-			},
-		})
-		_, err = rpdi.Reconcile(reconcile.Request{
-			NamespacedName: types.NamespacedName{
-				Name:      testPagerDutyIntegrationName,
-				Namespace: config.OperatorNamespace,
-			},
-		})
-
-		// UPDATE (noalerts)
-		// can't set to empty string, it won't update.. value does not matter
-		clusterDeployment := &hivev1.ClusterDeployment{}
-		err = mocks.fakeKubeClient.Get(context.TODO(), types.NamespacedName{Namespace: testNamespace, Name: testClusterName}, clusterDeployment)
-		clusterDeployment.Labels[config.ClusterDeploymentNoalertsLabel] = "true"
-		err = mocks.fakeKubeClient.Update(context.TODO(), clusterDeployment)
-
-		err = mocks.fakeKubeClient.Get(context.TODO(), types.NamespacedName{Namespace: testNamespace, Name: testClusterName}, clusterDeployment)
-
-		// Act (delete) [2x because was seeing other SyncSet's getting deleted]
-		_, err = rpdi.Reconcile(reconcile.Request{
-			NamespacedName: types.NamespacedName{
-				Name:      testPagerDutyIntegrationName,
-				Namespace: config.OperatorNamespace,
-			},
-		})
-		_, err = rpdi.Reconcile(reconcile.Request{
-			NamespacedName: types.NamespacedName{
-				Name:      testPagerDutyIntegrationName,
-				Namespace: config.OperatorNamespace,
-			},
-		})
-
-		// Assert
-		assert.NoError(t, err, "Unexpected Error")
-		assert.True(t, verifyNoSyncSetExists(mocks.fakeKubeClient, &SyncSetEntry{}))
-		assert.True(t, verifyNoConfigMapExists(mocks.fakeKubeClient))
-	})
 }
 
 //TestDeleteSecret tests that the reconcile process when the pd-secret is being deleted
