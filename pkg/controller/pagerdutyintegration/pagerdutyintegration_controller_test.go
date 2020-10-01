@@ -537,7 +537,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			rpdi := &ReconcilePagerDutyIntegration{
 				client:   mocks.fakeKubeClient,
 				scheme:   scheme.Scheme,
-				pdclient: func(s string) pd.Client { return mocks.mockPDClient },
+				pdclient: func(s1 string, s2 string) pd.Client { return mocks.mockPDClient },
 			}
 
 			// 1st run sets finalizer
@@ -603,7 +603,7 @@ func TestRemoveAlertsAfterCreate(t *testing.T) {
 		rpdi := &ReconcilePagerDutyIntegration{
 			client:   mocks.fakeKubeClient,
 			scheme:   scheme.Scheme,
-			pdclient: func(s string) pd.Client { return mocks.mockPDClient },
+			pdclient: func(s1 string, s2 string) pd.Client { return mocks.mockPDClient },
 		}
 
 		// Act (create) [2x as first exits early after setting finalizer]
@@ -684,7 +684,7 @@ func TestDeleteSecret(t *testing.T) {
 		rpdi := &ReconcilePagerDutyIntegration{
 			client:   mocks.fakeKubeClient,
 			scheme:   scheme.Scheme,
-			pdclient: func(s string) pd.Client { return mocks.mockPDClient },
+			pdclient: func(s1 string, s2 string) pd.Client { return mocks.mockPDClient },
 		}
 
 		// Act (create) [2x as first exits early after setting finalizer]

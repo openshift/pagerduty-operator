@@ -146,7 +146,7 @@ type ReconcilePagerDutyIntegration struct {
 	client    client.Client
 	scheme    *runtime.Scheme
 	reqLogger logr.Logger
-	pdclient  func(APIKey string) pd.Client
+	pdclient  func(APIKey string, controllerName string) pd.Client
 }
 
 // Reconcile reads that state of the cluster for a PagerDutyIntegration object and makes changes based on the state read
@@ -197,7 +197,7 @@ func (r *ReconcilePagerDutyIntegration) Reconcile(request reconcile.Request) (re
 		return r.requeueAfter(10 * time.Minute)
 	}
 	localmetrics.UpdateMetricPagerDutyIntegrationSecretLoaded(1, pdi.Name)
-	pdClient := r.pdclient(pdApiKey)
+	pdClient := r.pdclient(pdApiKey, controllerName)
 
 	if pdi.DeletionTimestamp != nil {
 		if utils.HasFinalizer(pdi, config.OperatorFinalizer) {
