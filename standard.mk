@@ -70,8 +70,8 @@ skopeo-push: build
 
 .PHONY: build-catalog-image
 build-catalog-image:
-	$(call create_push_catalog_image,staging,service/saas-pagerduty-operator-bundle,$$APP_SRE_BOT_PUSH_TOKEN,false,service/saas-osd-operators,$(OPERATOR_NAME)-services/$(OPERATOR_NAME).yaml,hack/generate-operator-bundle.py,$(CATALOG_REGISTRY_ORGANIZATION))
-	$(call create_push_catalog_image,production,service/saas-pagerduty-operator-bundle,$$APP_SRE_BOT_PUSH_TOKEN,true,service/saas-osd-operators,$(OPERATOR_NAME)-services/$(OPERATOR_NAME).yaml,hack/generate-operator-bundle.py,$(CATALOG_REGISTRY_ORGANIZATION))
+	$(call create_push_catalog_image,staging,service/saas-pagerduty-operator-bundle,$$APP_SRE_BOT_PUSH_TOKEN,false,service/app-interface,data/services/osd-operators/cicd/saas/saas-$(OPERATOR_NAME).yaml,hack/generate-operator-bundle.py,$(CATALOG_REGISTRY_ORGANIZATION),$(OPERATOR_NAME))
+	$(call create_push_catalog_image,production,service/saas-pagerduty-operator-bundle,$$APP_SRE_BOT_PUSH_TOKEN,true,service/app-interface,data/services/osd-operators/cicd/saas/saas-$(OPERATOR_NAME).yaml,hack/generate-operator-bundle.py,$(CATALOG_REGISTRY_ORGANIZATION),$(OPERATOR_NAME))
 
 .PHONY: gocheck
 gocheck: ## Lint code
