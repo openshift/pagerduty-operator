@@ -7,6 +7,7 @@
 # 6 - saasherder config path (absolute within repo, eg /name/hive.yaml)
 # 7 - relative path to bundle generator python script (eg ./build/generate-operator-bundle.py)
 # 8 - Catalog registry quay.io organization name (eg openshift-sre)
+# 9 - Operator name
 # Uses these variables (from project.mk or standard.mk):
 # Operator image
 # Git hash
@@ -18,7 +19,7 @@ define create_push_catalog_image
 	mkdir -p bundles-$(1)/$(OPERATOR_NAME) ;\
 	removed_versions="" ;\
 	if [[ "$$(echo $(4) | tr [:upper:] [:lower:])" == "true" ]]; then \
-		deployed_hash=$$(curl -s 'https://gitlab.cee.redhat.com/$(5)/raw/master/$(6)' | $(CONTAINER_ENGINE) run --rm -i quay.io/app-sre/yq -r '.services[]|select(.name="pagerduty-operator").hash') ;\
+		deployed_hash=$$(curl -s 'https://gitlab.cee.redhat.com/$(5)/raw/master/$(6)' | $(CONTAINER_ENGINE) run --rm -i quay.io/app-sre/yq yq r - 'resourceTemplates[*].targets(namespace.$ref==/services/osd-operators/namespaces/hivep01ue1/$(9).yml).ref') ;\
 		delete=false ;\
 		for bundle_path in $$(find bundles-$(1) -mindepth 2 -maxdepth 2 -type d | grep -v .git | sort -V); do \
 			if [[ "$${delete}" == false ]]; then \
