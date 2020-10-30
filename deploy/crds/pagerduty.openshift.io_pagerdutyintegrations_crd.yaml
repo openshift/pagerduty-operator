@@ -8,6 +8,8 @@ spec:
     kind: PagerDutyIntegration
     listKind: PagerDutyIntegrationList
     plural: pagerdutyintegrations
+    shortNames:
+    - pdi
     singular: pagerdutyintegration
   scope: Namespaced
   subresources:
