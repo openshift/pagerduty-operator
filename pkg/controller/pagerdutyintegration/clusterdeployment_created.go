@@ -47,7 +47,7 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 		// creation of resources for a ClusterDeployment, and each one
 		// will need a finalizer here. We add a suffix of the CR
 		// name to distinguish them.
-		finalizer string = "pd.managed.openshift.io/" + pdi.Name
+		finalizer string = config.PagerDutyFinalizerPrefix + pdi.Name
 	)
 
 	if !cd.Spec.Installed {

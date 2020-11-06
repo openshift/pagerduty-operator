@@ -43,7 +43,7 @@ func (r *ReconcilePagerDutyIntegration) handleDelete(pdclient pd.Client, pdi *pa
 		// creation of resources for a ClusterDeployment, and each one
 		// will need a finalizer here. We add a suffix of the CR
 		// name to distinguish them.
-		finalizer string = "pd.managed.openshift.io/" + pdi.Name
+		finalizer string = config.PagerDutyFinalizerPrefix + pdi.Name
 	)
 
 	if cd == nil {
@@ -160,9 +160,9 @@ func (r *ReconcilePagerDutyIntegration) handleDelete(pdclient pd.Client, pdi *pa
 		}
 	}
 
-	if utils.HasFinalizer(cd, config.OperatorFinalizer) {
+	if utils.HasFinalizer(cd, config.LegacyPagerDutyFinalizer) {
 		r.reqLogger.Info("Deleting old PD finalizer from ClusterDeployment", "Namespace", cd.Namespace, "Name", cd.Name)
-		utils.DeleteFinalizer(cd, config.OperatorFinalizer)
+		utils.DeleteFinalizer(cd, config.LegacyPagerDutyFinalizer)
 		err = r.client.Update(context.TODO(), cd)
 		if err != nil {
 			metrics.UpdateMetricPagerDutyDeleteFailure(1, ClusterID, pdi.Name)
