@@ -21,9 +21,14 @@ const (
 	PagerDutyAPISecretName string = "pagerduty-api-key"
 	PagerDutyAPISecretKey  string = "PAGERDUTY_API_KEY"
 	PagerDutySecretKey     string = "PAGERDUTY_KEY"
-	OperatorFinalizer      string = "pd.managed.openshift.io/pagerduty"
-	SecretSuffix           string = "-pd-secret"
-	ConfigMapSuffix        string = "-pd-config"
+	// PagerDutyFinalizerPrefix prefix used for finalizers on resources other than PDI
+	PagerDutyFinalizerPrefix string = "pd.managed.openshift.io/"
+	// PagerDutyIntegrationFinalizer name of finalizer used for PDI
+	PagerDutyIntegrationFinalizer string = "pd.managed.openshift.io/pagerduty"
+	// LegacyPagerDutyFinalizer name of legacy finalizer, always to be deleted
+	LegacyPagerDutyFinalizer string = "pd.managed.openshift.io/pagerduty"
+	SecretSuffix             string = "-pd-secret"
+	ConfigMapSuffix          string = "-pd-config"
 
 	// PagerDutyUrgencyRule is the type of IncidentUrgencyRule for new incidents
 	// coming into the Service. This is for the creation of NEW SERVICES ONLY
@@ -36,10 +41,6 @@ const (
 	// ClusterDeploymentManagedLabel is the label the clusterdeployment will have that determines
 	// if the cluster is OSD (managed) or not
 	ClusterDeploymentManagedLabel string = "api.openshift.com/managed"
-	// ClusterDeploymentNoalertsLabel is the label the clusterdeployment will have if the cluster should not send alerts
-	ClusterDeploymentNoalertsLabel string = "ext-managed.openshift.io/noalerts"
-	// ClusterDeploymentNoalertsLabelOld is the OLD label used and will be remoed as a part of https://issues.redhat.com/browse/OSD-4059
-	ClusterDeploymentNoalertsLabelOld string = "api.openshift.com/noalerts"
 )
 
 // Name is used to generate the name of secondary resources (SyncSets,

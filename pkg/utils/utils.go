@@ -15,12 +15,8 @@ import (
 
 // HasFinalizer returns true if the given object has the given finalizer
 func HasFinalizer(object metav1.Object, finalizer string) bool {
-	for _, f := range object.GetFinalizers() {
-		if f == finalizer {
-			return true
-		}
-	}
-	return false
+	finalizers := sets.NewString(object.GetFinalizers()...)
+	return finalizers.Has(finalizer)
 }
 
 // AddFinalizer adds a finalizer to the given object

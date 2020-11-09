@@ -180,11 +180,22 @@ func (r *ReconcilePagerDutyIntegration) Reconcile(request reconcile.Request) (re
 		return r.requeueOnErr(err)
 	}
 
-	matchingClusterDeployments, err := r.getMatchingClusterDeployments(pdi)
+	// fetch all CDs so we can inspect if they're dropped out of the matching CD list
+	allClusterDeployments, err := r.getAllClusterDeployments()
 	if err != nil {
-		return r.requeueOnErr(err)
+		return reconcile.Result{}, err
 	}
 
+	// fetch matching CDs
+	matchingClusterDeployments, err := r.getMatchingClusterDeployments(pdi)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	// the name of the finalizer for the PDI being reconciled
+	clusterDeploymentFinalizerName := config.PagerDutyFinalizerPrefix + pdi.Name
+
+	// load PD api key
 	pdApiKey, err := utils.LoadSecretData(
 		r.client,
 		pdi.Spec.PagerdutyApiKeySecretRef.Name,
@@ -199,18 +210,25 @@ func (r *ReconcilePagerDutyIntegration) Reconcile(request reconcile.Request) (re
 	localmetrics.UpdateMetricPagerDutyIntegrationSecretLoaded(1, pdi.Name)
 	pdClient := r.pdclient(pdApiKey, controllerName)
 
+	// check if PDI is being deleted, if so we cleanup all CD w/ matching finalizers
 	if pdi.DeletionTimestamp != nil {
-		if utils.HasFinalizer(pdi, config.OperatorFinalizer) {
-			for _, cd := range matchingClusterDeployments.Items {
-				err := r.handleDelete(pdClient, pdi, &cd)
-				if err != nil {
-					return r.requeueOnErr(err)
+		if utils.HasFinalizer(pdi, config.PagerDutyIntegrationFinalizer) {
+			// review _all_ CD, cleanup anything w/ this PDI finalizer
+
+			// do the CD cleanup
+			for _, clusterdeployment := range allClusterDeployments.Items {
+				if utils.HasFinalizer(&clusterdeployment, clusterDeploymentFinalizerName) {
+					err = r.handleDelete(pdClient, pdi, &clusterdeployment)
+					if err != nil {
+						return reconcile.Result{}, err
+					}
 				}
 			}
 
 			localmetrics.DeleteMetricPagerDutyIntegrationSecretLoaded(pdi.Name)
 
-			utils.DeleteFinalizer(pdi, config.OperatorFinalizer)
+			// do the PDI cleanup
+			utils.DeleteFinalizer(pdi, config.PagerDutyIntegrationFinalizer)
 			err = r.client.Update(context.TODO(), pdi)
 			if err != nil {
 				return r.requeueOnErr(err)
@@ -219,21 +237,49 @@ func (r *ReconcilePagerDutyIntegration) Reconcile(request reconcile.Request) (re
 		return r.doNotRequeue()
 	}
 
-	if !utils.HasFinalizer(pdi, config.OperatorFinalizer) {
-		utils.AddFinalizer(pdi, config.OperatorFinalizer)
+	// add finalizer to PDI if it's not there (if we get here, it's not being deleted)
+	if !utils.HasFinalizer(pdi, config.PagerDutyIntegrationFinalizer) {
+		utils.AddFinalizer(pdi, config.PagerDutyIntegrationFinalizer)
 		err := r.client.Update(context.TODO(), pdi)
 		if err != nil {
 			return r.requeueOnErr(err)
 		}
 	}
 
-	for _, cd := range matchingClusterDeployments.Items {
-		if cd.DeletionTimestamp != nil || cd.Labels[config.ClusterDeploymentNoalertsLabel] == "true" {
-			err := r.handleDelete(pdClient, pdi, &cd)
-			if err != nil {
-				return r.requeueOnErr(err)
+	// review all CD and see if PD service needs added or removed
+	for _, cd := range allClusterDeployments.Items {
+		if utils.HasFinalizer(&cd, clusterDeploymentFinalizerName) {
+			if cd.DeletionTimestamp != nil {
+				// it has a finalizer and is being deleted.  clean up PD things!
+				err := r.handleDelete(pdClient, pdi, &cd)
+				if err != nil {
+					return r.requeueOnErr(err)
+				}
+			} else {
+				// it has a finalizer and is NOT being deleted.
+				// check if it should have PD setup or not (did it drop out of the PDI?)
+				cdIsMatching := false
+				for _, mcd := range matchingClusterDeployments.Items {
+					if cd.Namespace == mcd.Namespace && cd.Name == mcd.Name {
+						cdIsMatching = true
+						break
+					}
+				}
+
+				if !cdIsMatching {
+					// the CD has a finalizer but is NOT matching the PDI. clean it up.
+					err := r.handleDelete(pdClient, pdi, &cd)
+					if err != nil {
+						return r.requeueOnErr(err)
+					}
+				}
 			}
-		} else {
+		}
+	}
+
+	// and finally, any Matching CD not being deleted goes through handleCreate, which will do the needful
+	for _, cd := range matchingClusterDeployments.Items {
+		if cd.DeletionTimestamp == nil {
 			err := r.handleCreate(pdClient, pdi, &cd)
 			if err != nil {
 				return r.requeueOnErr(err)
@@ -244,6 +290,11 @@ func (r *ReconcilePagerDutyIntegration) Reconcile(request reconcile.Request) (re
 	return r.doNotRequeue()
 }
 
+func (r *ReconcilePagerDutyIntegration) getAllClusterDeployments() (*hivev1.ClusterDeploymentList, error) {
+	allClusterDeployments := &hivev1.ClusterDeploymentList{}
+	err := r.client.List(context.TODO(), allClusterDeployments, &client.ListOptions{})
+	return allClusterDeployments, err
+}
 func (r *ReconcilePagerDutyIntegration) getMatchingClusterDeployments(pdi *pagerdutyv1alpha1.PagerDutyIntegration) (*hivev1.ClusterDeploymentList, error) {
 	selector, err := metav1.LabelSelectorAsSelector(&pdi.Spec.ClusterDeploymentSelector)
 	if err != nil {

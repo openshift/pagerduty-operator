@@ -67,15 +67,26 @@ objects:
       namespace: pagerduty-operator
     clusterDeploymentSelector:
       matchExpressions:
+      # only create PD service for managed (OSD) clusters
       - key: api.openshift.com/managed
         operator: In
         values: ["true"]
+      # ignore CD for specific organizations
       - key: api.openshift.com/legal-entity-id
         operator: NotIn
         values: ${{SILENT_ALERT_LEGALENTITY_IDS}}
+      # ignore CD for any "nightly" clusters
       - key: api.openshift.com/channel-group
         operator: NotIn
         values: ["nightly"]
+      # ignore CD w/ "legacy" noalerts label
+      - key: api.openshift.com/noalerts
+        operator: NotIn
+        values: ["true"]
+      # ignore CD w/ ext noalerts label
+      - key: ext-managed.openshift.io/noalerts
+        operator: NotIn
+        values: ["true"]
     targetSecretRef:
       name: pd-secret
       namespace: openshift-monitoring
@@ -94,12 +105,22 @@ objects:
       namespace: pagerduty-operator
     clusterDeploymentSelector:
       matchExpressions:
+      # only create PD service for managed (OSD) clusters
       - key: api.openshift.com/managed
         operator: In
         values: ["true"]
+      # for the "silent" PDI, create when CD in specific organizations we ignore in the "osd" (regular) PDI
       - key: api.openshift.com/legal-entity-id
         operator: In
         values: ${{SILENT_ALERT_LEGALENTITY_IDS}}
+      # ignore CD w/ "legacy" noalerts label
+      - key: api.openshift.com/noalerts
+        operator: NotIn
+        values: ["true"]
+      # ignore CD w/ ext noalerts label
+      - key: ext-managed.openshift.io/noalerts
+        operator: NotIn
+        values: ["true"]
     targetSecretRef:
       name: pd-secret
       namespace: openshift-monitoring
