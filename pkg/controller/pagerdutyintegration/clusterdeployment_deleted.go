@@ -29,6 +29,11 @@ import (
 )
 
 func (r *ReconcilePagerDutyIntegration) handleDelete(pdclient pd.Client, pdi *pagerdutyv1alpha1.PagerDutyIntegration, cd *hivev1.ClusterDeployment) error {
+	if cd == nil {
+		// nothing to do, bail early
+		return nil
+	}
+
 	var (
 		// secretName is the name of the Secret deployed to the target
 		// cluster, and also the name of the SyncSet that causes it to
@@ -45,11 +50,6 @@ func (r *ReconcilePagerDutyIntegration) handleDelete(pdclient pd.Client, pdi *pa
 		// name to distinguish them.
 		finalizer string = config.PagerDutyFinalizerPrefix + pdi.Name
 	)
-
-	if cd == nil {
-		// nothing to do, bail early
-		return nil
-	}
 
 	if !utils.HasFinalizer(cd, finalizer) {
 		return nil

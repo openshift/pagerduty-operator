@@ -10,10 +10,7 @@ import (
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
-
-var log = logf.Log.WithName("clientwrapper")
 
 // NewClientWithMetricsOrDie creates a new controller-runtime client with a wrapper which increments
 // metrics for requests by controller name, HTTP method, URL path, and HTTP status. The client will
