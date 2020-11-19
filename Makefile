@@ -1,3 +1,5 @@
+include boilerplate/generated-includes.mk
+
 SHELL := /usr/bin/env bash
 
 # Include shared Makefiles
@@ -18,3 +20,7 @@ container-build:
 .PHONY: container-push
 container-push:
 	$(MAKE) push
+
+.PHONY: boilerplate-update
+boilerplate-update:
+	@boilerplate/update
