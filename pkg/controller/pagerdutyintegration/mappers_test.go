@@ -34,8 +34,8 @@ import (
 )
 
 func TestClusterDeploymentToPagerDutyIntegrationsMapper(t *testing.T) {
-	pagerdutyapis.AddToScheme(scheme.Scheme)
-	hiveapis.AddToScheme(scheme.Scheme)
+	assert.Nil(t, pagerdutyapis.AddToScheme(scheme.Scheme))
+	assert.Nil(t, hiveapis.AddToScheme(scheme.Scheme))
 
 	tests := []struct {
 		name             string

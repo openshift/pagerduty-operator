@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/openshift/pagerduty-operator/config"
@@ -57,18 +56,6 @@ func GetSecretKey(data map[string][]byte, key string) (string, error) {
 		return "", errors.New(errorStr)
 	}
 	return retString, nil
-}
-
-func convertStrToUint(value string) (uint, error) {
-	var retVal uint
-
-	parsedU64, err := strconv.ParseUint(value, 10, 32)
-	if err != nil {
-		return retVal, err
-	}
-	retVal = uint(parsedU64)
-
-	return retVal, nil
 }
 
 //Client is a wrapper interface for the SvcClient to allow for easier testing

@@ -19,4 +19,4 @@ if [[ -z $IMAGE_REPOSITORY ]]; then
 fi
 
 # build and push the operator and catalog images
-make IMAGE_REPOSITORY=$IMAGE_REPOSITORY build skopeo-push build-catalog-image
+make IMAGE_REPOSITORY=$IMAGE_REPOSITORY docker-build skopeo-push build-catalog-image

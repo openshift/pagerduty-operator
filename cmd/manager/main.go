@@ -40,8 +40,8 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
-	"sigs.k8s.io/controller-runtime/pkg/runtime/signals"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 )
 
 // Change below variables to serve metrics on different host or port.
@@ -140,7 +140,7 @@ func start() error {
 	}
 	// start cache and wait for sync
 	cache := mgr.GetCache()
-	go cache.Start(stopCh)
+	go func() { _ = cache.Start(stopCh) }()
 	cache.WaitForCacheSync(stopCh)
 
 	metricsServer := metrics.NewBuilder(operatorconfig.OperatorNamespace, operatorconfig.OperatorName).
@@ -163,8 +163,7 @@ func start() error {
 		log.Error(err, "Failed to get secret")
 		return err
 	}
-	var APIKey string
-	APIKey = string(pdAPISecret.Data[operatorconfig.PagerDutyAPISecretKey])
+	var APIKey = string(pdAPISecret.Data[operatorconfig.PagerDutyAPISecretKey])
 
 	timer := prometheus.NewTimer(localmetrics.MetricPagerDutyHeartbeat)
 	go localmetrics.UpdateAPIMetrics(APIKey, timer)

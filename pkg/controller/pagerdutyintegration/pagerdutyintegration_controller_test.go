@@ -77,23 +77,6 @@ type mocks struct {
 	mockPDClient   *mockpd.MockClient
 }
 
-//rawToSecret takes a SyncSet resource and returns the decoded Secret it contains.
-func rawToSecret(raw runtime.RawExtension) *corev1.Secret {
-	decoder := scheme.Codecs.UniversalDecoder(corev1.SchemeGroupVersion)
-
-	obj, _, err := decoder.Decode(raw.Raw, nil, nil)
-	if err != nil {
-		// okay, not everything in the syncset is necessarily a secret
-		return nil
-	}
-	s, ok := obj.(*corev1.Secret)
-	if ok {
-		return s
-	}
-
-	return nil
-}
-
 func setupDefaultMocks(t *testing.T, localObjects []runtime.Object) *mocks {
 	mocks := &mocks{
 		fakeKubeClient: fakekubeclient.NewFakeClient(localObjects...),
@@ -157,23 +140,6 @@ func testCDSyncSet() *hivev1.SyncSet {
 	return ss
 }
 
-// testCDOtherSyncSet returns a SyncSet that is not for PD for an existing testClusterDeployment to use in testing.
-func testCDOtherSyncSet() *hivev1.SyncSet {
-	return &hivev1.SyncSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      testClusterName + testOtherSyncSetPostfix,
-			Namespace: testNamespace,
-		},
-		Spec: hivev1.SyncSetSpec{
-			ClusterDeploymentRefs: []corev1.LocalObjectReference{
-				{
-					Name: testClusterName,
-				},
-			},
-		},
-	}
-}
-
 func testPagerDutyIntegration() *pagerdutyv1alpha1.PagerDutyIntegration {
 	return &pagerdutyv1alpha1.PagerDutyIntegration{
 		ObjectMeta: metav1.ObjectMeta{
@@ -227,16 +193,9 @@ func testClusterDeployment(isInstalled bool, isManaged bool, hasFinalizer bool, 
 	return &cd
 }
 
-// unlabelledClusterDeployment returns a fake ClusterDeployment with no "api.openshift.com/managed" label present to use in testing.
-func unlabelledClusterDeployment() *hivev1.ClusterDeployment {
-	cd := testClusterDeployment(true, false, false, false)
-	cd.SetLabels(map[string]string{})
-	return cd
-}
-
 func TestReconcilePagerDutyIntegration(t *testing.T) {
-	hiveapis.AddToScheme(scheme.Scheme)
-	pagerdutyapis.AddToScheme(scheme.Scheme)
+	assert.Nil(t, hiveapis.AddToScheme(scheme.Scheme))
+	assert.Nil(t, pagerdutyapis.AddToScheme(scheme.Scheme))
 
 	// expectedSyncSet is used by tests that _expect_ a SS
 	expectedSyncSet := &SyncSetEntry{

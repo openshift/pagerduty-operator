@@ -55,7 +55,7 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 		return nil
 	}
 
-	if utils.HasFinalizer(cd, finalizer) == false {
+	if !utils.HasFinalizer(cd, finalizer) {
 		utils.AddFinalizer(cd, finalizer)
 		return r.client.Update(context.TODO(), cd)
 	}

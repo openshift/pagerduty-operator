@@ -88,7 +88,7 @@ Continue to [Create PagerDutyIntegration](#create-pagerdutyintegration).
 Build local code modifications and push image to your own quay.io account.
 
 ```terminal
-$ make build
+$ make docker-build
 [...]
 Successfully tagged quay.io/<userid>/pagerduty-operator:v0.1.129-057ffd29
 
