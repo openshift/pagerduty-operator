@@ -62,6 +62,7 @@ anaconda-mode/
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 ### Vim ###
+*.orig
 # swap
 .sw[a-p]
 .*.sw[a-p]
@@ -77,3 +78,6 @@ tags
 ### Eclipse ###
 .project
 # End of https://www.gitignore.io/api/go,vim,emacs,visualstudiocode
+### Boilerplate ###
+.operator-sdk/*
+.venv/*
