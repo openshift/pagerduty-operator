@@ -41,7 +41,6 @@ type PagerDutyIntegrationSpec struct {
 // +k8s:openapi-gen=true
 type PagerDutyIntegrationStatus struct{}
 
-//go:generate ../../../../hack/generate.sh
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // PagerDutyIntegration is the Schema for the pagerdutyintegrations API
