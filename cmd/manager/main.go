@@ -39,8 +39,8 @@ import (
 	"github.com/spf13/pflag"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 )
 
@@ -59,12 +59,6 @@ func printVersion() {
 }
 
 func main() {
-	if err := start(); err != nil {
-		panic(err)
-	}
-}
-
-func start() error {
 	// Add the zap logger flag set to the CLI. The flag set must
 	// be added before calling pflag.Parse().
 	pflag.CommandLine.AddFlagSet(zap.FlagSet())
@@ -75,7 +69,6 @@ func start() error {
 
 	pflag.Parse()
 
-	stopCh := signals.SetupSignalHandler()
 	// Use a zap logr.Logger implementation. If none of the zap
 	// flags are configured (or if the zap flag set is not being
 	// used), this defaults to a production zap logger.
@@ -96,7 +89,6 @@ func start() error {
 	}
 
 	ctx := context.TODO()
-
 	// Become the leader before proceeding
 	err = leader.Become(ctx, "pagerduty-operator-lock")
 	if err != nil {
@@ -107,7 +99,7 @@ func start() error {
 	// Create a new Cmd to provide shared dependencies and start components
 	mgr, err := manager.New(cfg, manager.Options{
 		Namespace: "",
-		// Disable controller-runtime metrics serving
+		// disable the controller-runtime metrics
 		MetricsBindAddress: "0",
 	})
 	if err != nil {
@@ -138,10 +130,6 @@ func start() error {
 		log.Error(err, "")
 		os.Exit(1)
 	}
-	// start cache and wait for sync
-	cache := mgr.GetCache()
-	go func() { _ = cache.Start(stopCh) }()
-	cache.WaitForCacheSync(stopCh)
 
 	metricsServer := metrics.NewBuilder(operatorconfig.OperatorNamespace, operatorconfig.OperatorName).
 		WithPort(metricsPort).
@@ -156,20 +144,32 @@ func start() error {
 		os.Exit(1)
 	}
 
-	client := mgr.GetClient()
-	pdAPISecret := &corev1.Secret{}
-	err = client.Get(context.TODO(), types.NamespacedName{Namespace: operatorconfig.OperatorNamespace, Name: operatorconfig.PagerDutyAPISecretName}, pdAPISecret)
-	if err != nil {
-		log.Error(err, "Failed to get secret")
-		return err
-	}
-	var APIKey = string(pdAPISecret.Data[operatorconfig.PagerDutyAPISecretKey])
+	// Add runnable custom metrics
+	err = mgr.Add(manager.RunnableFunc(func(s <-chan struct{}) error {
+		client := mgr.GetClient()
+		pdAPISecret := &corev1.Secret{}
+		err = client.Get(context.TODO(), types.NamespacedName{Namespace: operatorconfig.OperatorNamespace, Name: operatorconfig.PagerDutyAPISecretName}, pdAPISecret)
+		if err != nil {
+			log.Error(err, "Failed to get secret")
+			return err
+		}
+		var APIKey = string(pdAPISecret.Data[operatorconfig.PagerDutyAPISecretKey])
+		timer := prometheus.NewTimer(localmetrics.MetricPagerDutyHeartbeat)
+		localmetrics.UpdateAPIMetrics(APIKey, timer)
 
-	timer := prometheus.NewTimer(localmetrics.MetricPagerDutyHeartbeat)
-	go localmetrics.UpdateAPIMetrics(APIKey, timer)
+		<-s
+		return nil
+	}))
+	if err != nil {
+		log.Error(err, "unable add a runnable to the manager")
+		os.Exit(1)
+	}
 
 	log.Info("Starting the Cmd.")
 
 	// Start the Cmd
-	return mgr.Start(stopCh)
+	if err := mgr.Start(signals.SetupSignalHandler()); err != nil {
+		log.Error(err, "Manager exited non-zero")
+		os.Exit(1)
+	}
 }
