@@ -5,6 +5,7 @@ go 1.13
 require (
 	github.com/PagerDuty/go-pagerduty v1.2.0
 	github.com/go-logr/logr v0.2.1
+	github.com/go-openapi/spec v0.19.4
 	github.com/golang/mock v1.4.4
 	github.com/openshift/api v3.9.1-0.20191111211345-a27ff30ebf09+incompatible
 	github.com/openshift/hive v1.0.16-0.20201211144432-f97557354336
@@ -17,6 +18,7 @@ require (
 	k8s.io/api v0.19.0
 	k8s.io/apimachinery v0.19.0
 	k8s.io/client-go v12.0.0+incompatible
+	k8s.io/kube-openapi v0.0.0-20200805222855-6aeccd4b50c6
 	sigs.k8s.io/controller-runtime v0.6.2
 )
 
