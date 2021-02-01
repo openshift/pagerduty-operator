@@ -16,6 +16,7 @@ package pagerdutyintegration
 
 import (
 	"context"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1"
 	"github.com/openshift/pagerduty-operator/config"
@@ -152,9 +153,10 @@ func (r *ReconcilePagerDutyIntegration) handleDelete(pdclient pd.Client, pdi *pa
 
 	if utils.HasFinalizer(cd, finalizer) {
 		r.reqLogger.Info("Deleting PD finalizer from ClusterDeployment", "Namespace", cd.Namespace, "Name", cd.Name)
+		baseToPatch := client.MergeFrom(cd.DeepCopy())
 		utils.DeleteFinalizer(cd, finalizer)
-		err = r.client.Update(context.TODO(), cd)
-		if err != nil {
+		if err := r.client.Patch(context.TODO(), cd, baseToPatch); err != nil {
+			r.reqLogger.Error(err, "Error deleting Finalizer from cluster deployment", "Namespace", cd.Namespace, "Name", cd.Name)
 			metrics.UpdateMetricPagerDutyDeleteFailure(1, ClusterID, pdi.Name)
 			return err
 		}
