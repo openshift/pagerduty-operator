@@ -16,6 +16,7 @@ package pagerdutyintegration
 
 import (
 	"context"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -56,8 +57,9 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 	}
 
 	if !utils.HasFinalizer(cd, finalizer) {
+		baseToPatch := client.MergeFrom(cd.DeepCopy())
 		utils.AddFinalizer(cd, finalizer)
-		return r.client.Update(context.TODO(), cd)
+		return r.client.Patch(context.TODO(), cd, baseToPatch)
 	}
 
 	ClusterID := cd.Spec.ClusterName
