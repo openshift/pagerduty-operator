@@ -17,7 +17,9 @@ package pagerdutyintegration
 import (
 	"context"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"strings"
 
+	hiveconstants "github.com/openshift/hive/pkg/constants"
 	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1"
 	"github.com/openshift/pagerduty-operator/config"
 	pagerdutyv1alpha1 "github.com/openshift/pagerduty-operator/pkg/apis/pagerduty/v1alpha1"
@@ -59,6 +61,7 @@ func (r *ReconcilePagerDutyIntegration) handleDelete(pdclient pd.Client, pdi *pa
 	ClusterID := cd.Spec.ClusterName
 
 	deletePDService := true
+	isRelocating := false
 
 	pdAPISecret := &corev1.Secret{}
 	err := r.client.Get(
@@ -83,6 +86,16 @@ func (r *ReconcilePagerDutyIntegration) handleDelete(pdclient pd.Client, pdi *pa
 			deletion.
 		*/
 		deletePDService = false
+	}
+
+	if utils.HasAnnotation(cd, hiveconstants.RelocateAnnotation, strings.HasSuffix, string(hivev1.RelocateOutgoing), string(hivev1.RelocateComplete)) {
+		/*
+			The ClusterDeployment is relocating, or has finished relocating on the outgoing shard.
+			Because of this we should not delete the PD service, as it is required to still be
+			in place and managed by the pagerduty operator on the incoming shard. But we should still
+			clean up any dependent objects with ownerReferences back to the clusterdeployment.
+		 */
+		isRelocating = true
 	}
 
 	apiKey, err := pd.GetSecretKey(pdAPISecret.Data, config.PagerDutyAPISecretKey)
@@ -119,15 +132,23 @@ func (r *ReconcilePagerDutyIntegration) handleDelete(pdclient pd.Client, pdi *pa
 	}
 
 	if deletePDService {
-		// we have everything necessary to attempt deletion of the PD service
-		err = pdclient.DeleteService(pdData)
-		if err != nil {
-			r.reqLogger.Error(err, "Failed cleaning up pagerduty.")
-		} else {
-			// NOTE: not deleting the configmap if we didn't delete
-			// the service with the assumption that the config can
-			// be used later for cleanup find the PD configmap and
-			// delete it
+		// we have everything necessary to attempt deletion of the PD service.
+		// Only do it if we are not relocating the clusterdeployment
+		errorDeletingPDService := false
+		if !isRelocating {
+			err = pdclient.DeleteService(pdData)
+			if err != nil {
+				r.reqLogger.Error(err, "Failed cleaning up pagerduty.")
+				errorDeletingPDService = true
+			}
+		}
+
+		// NOTE: not deleting the configmap if we didn't delete
+		// the service with the assumption that the config can
+		// be used later for cleanup find the PD configmap and
+		// delete it
+		// We want to do this regardless of whether the cluster is relocating
+		if !errorDeletingPDService {
 			r.reqLogger.Info("Deleting PD ConfigMap", "Namespace", cd.Namespace, "Name", configMapName)
 			err = utils.DeleteConfigMap(configMapName, cd.Namespace, r.client, r.reqLogger)
 
@@ -141,6 +162,12 @@ func (r *ReconcilePagerDutyIntegration) handleDelete(pdclient pd.Client, pdi *pa
 	err = utils.DeleteSecret(secretName, cd.Namespace, r.client, r.reqLogger)
 	if err != nil {
 		r.reqLogger.Error(err, "Error deleting Secret", "Namespace", cd.Namespace, "Name", secretName)
+	}
+
+	// switch the PD syncset to Upsert prior to deletion if the clusterdeployment is relocating
+	if utils.HasAnnotation(cd, hiveconstants.RelocateAnnotation, strings.HasSuffix, string(hivev1.RelocateOutgoing), string(hivev1.RelocateComplete)) {
+		r.reqLogger.Info("Updating PD SyncSet", "Namespace", cd.Namespace, "Name", secretName)
+		err = utils.UpdateSyncSetApplyMode(secretName, cd.Namespace, r.client, hivev1.UpsertResourceApplyMode, r.reqLogger)
 	}
 
 	// find the PD syncset and delete it

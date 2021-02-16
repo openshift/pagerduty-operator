@@ -130,3 +130,46 @@ func DeleteSecret(name string, namespace string, client client.Client, reqLogger
 
 	return nil
 }
+
+// HasAnnotation returns true if the given object has the given annotation
+// and (optionally) a value that matches one of the supplied list of values
+// using the supplied comparator
+func HasAnnotation(object metav1.Object, key string, comparator func(string, string) bool, values ...string) bool {
+	annotations := object.GetAnnotations()
+	if v, ok := annotations[key]; ok {
+		if len(values) == 0 {
+			return true
+		}
+		for _, value := range values {
+			if comparator(v, value) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// DeleteSyncSet deletes a SyncSet
+func UpdateSyncSetApplyMode(name string, namespace string, client client.Client, mode hivev1.SyncSetResourceApplyMode, reqLogger logr.Logger) error {
+	syncset := &hivev1.SyncSet{}
+	err := client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, syncset)
+
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// Request object not found, could have been deleted after reconcile request.
+			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
+			// Return and don't requeue
+			return nil
+		}
+		// Error finding the syncset, requeue
+		return err
+	}
+
+	reqLogger.Info("Updating SyncSet Apply Mode", "Namespace", namespace, "Name", name, "ApplyMode", mode)
+	syncset.Spec.ResourceApplyMode = mode
+	err = client.Update(context.TODO(), syncset)
+	if err != nil {
+		return err
+	}
+	return nil
+}
