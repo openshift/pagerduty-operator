@@ -168,6 +168,9 @@ func (r *ReconcilePagerDutyIntegration) handleDelete(pdclient pd.Client, pdi *pa
 	if utils.HasAnnotation(cd, hiveconstants.RelocateAnnotation, strings.HasSuffix, string(hivev1.RelocateOutgoing), string(hivev1.RelocateComplete)) {
 		r.reqLogger.Info("Updating PD SyncSet", "Namespace", cd.Namespace, "Name", secretName)
 		err = utils.UpdateSyncSetApplyMode(secretName, cd.Namespace, r.client, hivev1.UpsertResourceApplyMode, r.reqLogger)
+		if err != nil {
+			r.reqLogger.Error(err, "Error updating SyncSet apply mode", "Namespace", cd.Namespace, "Name", secretName)
+		}
 	}
 
 	// find the PD syncset and delete it

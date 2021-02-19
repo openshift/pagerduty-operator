@@ -149,7 +149,7 @@ func HasAnnotation(object metav1.Object, key string, comparator func(string, str
 	return false
 }
 
-// DeleteSyncSet deletes a SyncSet
+// UpdateSyncSetApplyMode updates the SyncSet ApplyMode value
 func UpdateSyncSetApplyMode(name string, namespace string, client client.Client, mode hivev1.SyncSetResourceApplyMode, reqLogger logr.Logger) error {
 	syncset := &hivev1.SyncSet{}
 	err := client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, syncset)

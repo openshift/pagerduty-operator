@@ -66,10 +66,11 @@ func TestUpdateSyncSetApplyMode(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			client := fake.NewFakeClient(test.objects...)
-			UpdateSyncSetApplyMode(testSyncSetName, testNamespace, client, test.targetApplyMode, testLogger)
+			err := UpdateSyncSetApplyMode(testSyncSetName, testNamespace, client, test.targetApplyMode, testLogger)
+			assert.NoError(t, err, "Unexpected error updating SyncSet: " + test.name)
 
 			ss := hivev1.SyncSet{}
-			err := client.Get(context.TODO(),
+			err = client.Get(context.TODO(),
 				types.NamespacedName{Name: testSyncSetName, Namespace: testNamespace},
 				&ss)
 			assert.NoError(t, err, "Unexpected error checking SyncSet: " + test.name)

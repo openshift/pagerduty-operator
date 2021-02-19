@@ -129,6 +129,21 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 			return err
 		}
 	}
+	// In the event of a ClusterRelocation, owner-references will be lost. Check and re-instate.
+	cm := &corev1.ConfigMap{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: configMapName, Namespace: cd.Namespace}, cm)
+	if err != nil {
+		return err
+	}
+	if len(cm.OwnerReferences) == 0 {
+		if err = controllerutil.SetControllerReference(cd, cm, r.scheme); err != nil {
+			r.reqLogger.Error(err, "Error setting controller reference on configmap")
+			return err
+		}
+		if err := r.client.Update(context.TODO(), cm); err != nil {
+			return err
+		}
+	}
 
 	// try to load integration key (secret)
 	sc := &corev1.Secret{}
@@ -178,6 +193,21 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 			}
 		}
 	}
+	// In the event of a ClusterRelocation, owner-references will be lost. Check and re-instate.
+	secret = &corev1.Secret{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: secretName, Namespace: cd.Namespace}, secret)
+	if err != nil {
+		return err
+	}
+	if len(secret.OwnerReferences) == 0 {
+		if err = controllerutil.SetControllerReference(cd, secret, r.scheme); err != nil {
+			r.reqLogger.Error(err, "Error setting controller reference on secret")
+			return err
+		}
+		if err := r.client.Update(context.TODO(), secret); err != nil {
+			return err
+		}
+	}
 
 	r.reqLogger.Info("Creating syncset")
 	ss := &hivev1.SyncSet{}
@@ -194,6 +224,16 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 			return err
 		}
 		if err := r.client.Create(context.TODO(), ss); err != nil {
+			return err
+		}
+	}
+	// In the event of a ClusterRelocation, owner-references will be lost. Check and re-instate.
+	if len(ss.OwnerReferences) == 0 {
+		if err = controllerutil.SetControllerReference(cd, ss, r.scheme); err != nil {
+			r.reqLogger.Error(err, "Error setting controller reference on syncset")
+			return err
+		}
+		if err := r.client.Update(context.TODO(), ss); err != nil {
 			return err
 		}
 	}
