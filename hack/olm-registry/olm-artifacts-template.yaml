@@ -115,7 +115,11 @@ objects:
       - key: api.openshift.com/managed
         operator: In
         values: ["true"]
-      # ignore CD for specific organizations
+      # ignore CD if its a scale test organization, scale test org has its own PDI
+      - key: api.openshift.com/legal-entity-id
+        operator: NotIn
+        values: ${{SCALE_TEST_LEGALENTITY_IDS}}
+      # ignore CD for alerts we wish to route to the silence PD escalation policy
       - key: api.openshift.com/legal-entity-id
         operator: NotIn
         values: ${{SILENT_ALERT_LEGALENTITY_IDS}}
@@ -153,6 +157,10 @@ objects:
       - key: api.openshift.com/managed
         operator: In
         values: ["true"]
+      # ignore CD if its a scale test organization, scale test org has its own PDI
+      - key: api.openshift.com/legal-entity-id
+        operator: NotIn
+        values: ${{SCALE_TEST_LEGALENTITY_IDS}}
       # for the "silent" PDI, create when CD in specific organizations we ignore in the "osd" (regular) PDI
       - key: api.openshift.com/legal-entity-id
         operator: In
