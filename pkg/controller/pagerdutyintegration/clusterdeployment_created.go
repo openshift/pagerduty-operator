@@ -16,7 +16,9 @@ package pagerdutyintegration
 
 import (
 	"context"
+	hiveconstants "github.com/openshift/hive/pkg/constants"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -53,6 +55,15 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 
 	if !cd.Spec.Installed {
 		// Cluster isn't installed yet, return
+		return nil
+	}
+
+	// Flag if the clusterdeployment is in the middle of a Hive relocation
+	if utils.HasAnnotation(cd, hiveconstants.RelocateAnnotation, strings.HasSuffix, string(hivev1.RelocateIncoming), string(hivev1.RelocateOutgoing)) {
+		/*
+			The ClusterDeployment is relocating. We should not attempt to reconcile any
+			related resources whilst this is happening.
+		*/
 		return nil
 	}
 
