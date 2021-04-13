@@ -2,7 +2,7 @@ apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
   name: #OPERATOR_NAME#-v#OPERATOR_VERSION#
-  namespace: #OPERATOR_NAMESPACE#
+  namespace: pagerduty-operator
   annotations:
     categories: A list of comma separated categories that your operator falls under.
     certified: "false"
@@ -11,8 +11,8 @@ metadata:
     createdAt: "$TIME"
     support: OSD SRE
 spec:
-  displayName: #OPERATOR_NAME#
-  description: SRE operator - #OPERATOR_NAME#
+  displayName: pagerduty-operator
+  description: SRE operator - pagerduty-operator
   keywords:
   - kubernetes
   - openshift
@@ -28,7 +28,7 @@ spec:
   - type: SingleNamespace
     supported: true
   - type: MultiNamespace
-    supported: false
+    supported: true
   - type: AllNamespaces
     supported: false
   install:
@@ -36,8 +36,8 @@ spec:
     spec:
       clusterPermissions: []
         # Rules will be added here by the generate-operator-bundle.py script.
-      deployments: []
-        # Deployment spec will be added here by the generate-operator-bundle.py script.
+      deployments:
+      - name: pagerduty-operator
   customresourcedefinitions:
     owned:
     - description: PagerDutyIntegration

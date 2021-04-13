@@ -81,3 +81,9 @@ tags
 ### Boilerplate ###
 .operator-sdk/*
 .venv/*
+
+# SaaS Bundle
+saas-pagerduty-operator-bundle/
+
+# Local docker configuration
+.docker/*
