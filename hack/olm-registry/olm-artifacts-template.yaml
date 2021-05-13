@@ -6,6 +6,8 @@ metadata:
 parameters:
 - name: REGISTRY_IMG
   required: true
+- name: IMAGE_DIGEST
+  required: true
 - name: ACKNOWLEDGE_TIMEOUT
   required: true
 - name: RESOLVE_TIMEOUT
@@ -26,10 +28,6 @@ parameters:
   value: '["None"]'
 - name: CHANNEL
   value: staging
-- name: IMAGE_TAG
-  value: latest
-- name: REPO_DIGEST
-  required: true
 
 objects:
 - apiVersion: operators.coreos.com/v1alpha1
@@ -38,7 +36,7 @@ objects:
     name: pagerduty-operator-catalog
   spec:
     sourceType: grpc
-    image: ${REPO_DIGEST}
+    image: ${REGISTRY_IMG}@${IMAGE_DIGEST}
     displayName: pagerduty-operator Registry
     publisher: SRE
 
