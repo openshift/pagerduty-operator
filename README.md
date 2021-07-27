@@ -50,7 +50,7 @@ $ oc apply -f manifests/01-namespace.yaml
 $ oc apply -f manifests/02-role.yaml
 $ oc apply -f manifests/03-service_account.yaml
 $ oc apply -f manifests/04-role_binding.yaml
-$ oc apply -f deploy/crds/pagerduty_v1alpha1_pagerdutyintegration_crd.yaml
+$ oc apply -f deploy/crds/pagerduty.openshift.io_pagerdutyintegrations_crd.yaml
 ```
 
 
@@ -132,7 +132,7 @@ $ oc apply -f path/to/modified/operator.yaml
 ### Create PagerDutyIntegration
 
 There's an example at
-`deploy/examples/pagerduty_v1alpha1_pagerdutyintegration_cr.yaml` that
+`deploy-extras/pagerduty_v1alpha1_pagerdutyintegration_cr.yaml` that
 you can edit and apply to your cluster.
 
 You'll need to use a valid escalation policy ID from your PagerDuty account. You
