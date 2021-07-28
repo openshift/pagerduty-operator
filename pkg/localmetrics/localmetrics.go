@@ -88,8 +88,8 @@ var (
 
 // UpdateAPIMetrics updates all API endpoint metrics every 5 minutes
 func UpdateAPIMetrics(APIKey string, timer *prometheus.Timer) {
-	d := time.Tick(5 * time.Minute)
-	for range d {
+	d := time.NewTicker(5 * time.Minute)
+	for range d.C {
 		UpdateMetricPagerDutyHeartbeat(APIKey, timer)
 	}
 

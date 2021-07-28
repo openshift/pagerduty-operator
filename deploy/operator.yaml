@@ -29,9 +29,7 @@ spec:
               cpu: "100m"
           env:
             - name: WATCH_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
+              value: "pagerduty-operator"
             - name: POD_NAME
               valueFrom:
                 fieldRef:
