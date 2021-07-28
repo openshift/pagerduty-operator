@@ -22,10 +22,10 @@ spec:
           imagePullPolicy: Always
           resources:
             requests:
-              memory: "400Mi"
+              memory: "800Mi"
               cpu: "100m"
             limits:
-              memory: "400Mi"
+              memory: "800Mi"
               cpu: "100m"
           env:
             - name: WATCH_NAMESPACE
