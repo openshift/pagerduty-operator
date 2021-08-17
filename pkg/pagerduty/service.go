@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/openshift/pagerduty-operator/config"
@@ -64,6 +65,8 @@ type Client interface {
 	GetIntegrationKey(data *Data) (string, error)
 	CreateService(data *Data) (string, error)
 	DeleteService(data *Data) error
+	EnableService(data *Data) error
+	DisableService(data *Data) error
 }
 
 type PdClient interface {
@@ -76,6 +79,7 @@ type PdClient interface {
 	ListServices(pdApi.ListServiceOptions) (*pdApi.ListServiceResponse, error)
 	ListIncidents(pdApi.ListIncidentsOptions) (*pdApi.ListIncidentsResponse, error)
 	ListIncidentAlerts(incidentId string) (*pdApi.ListAlertsResponse, error)
+	UpdateService(service pdApi.Service)  (*pdApi.Service, error)
 }
 
 type ManageEventFunc func(pdApi.V2Event) (*pdApi.V2EventResponse, error)
@@ -139,6 +143,7 @@ type Data struct {
 
 	ServiceID     string
 	IntegrationID string
+	Hibernating   bool
 }
 
 // ParseClusterConfig parses the cluster specific config map and stores the IDs in the data struct
@@ -156,6 +161,27 @@ func (data *Data) ParseClusterConfig(osc client.Client, namespace string, cmName
 
 	data.IntegrationID, err = getConfigMapKey(pdAPIConfigMap.Data, "INTEGRATION_ID")
 	if err != nil {
+		return err
+	}
+
+	val := pdAPIConfigMap.Data["HIBERNATING"]
+	data.Hibernating = val == "true"
+
+	return nil
+}
+
+// ParseClusterConfig parses the cluster specific config map and stores the IDs in the data struct
+func (data *Data) SetClusterConfig(osc client.Client, namespace string, cmName string) error {
+	pdAPIConfigMap := &corev1.ConfigMap{}
+	if err := osc.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: cmName}, pdAPIConfigMap); err != nil {
+		return err
+	}
+
+	pdAPIConfigMap.Data["SERVICE_ID"] = data.ServiceID
+	pdAPIConfigMap.Data["INTEGRATION_ID"] = data.IntegrationID
+	pdAPIConfigMap.Data["HIBERNATING"] = strconv.FormatBool(data.Hibernating)
+
+	if err := osc.Update(context.TODO(), pdAPIConfigMap); err != nil {
 		return err
 	}
 
@@ -263,6 +289,47 @@ func (c *SvcClient) DeleteService(data *Data) error {
 	}
 
 	return c.PdClient.DeleteService(data.ServiceID)
+}
+
+// EnableService will set the PD service active
+func (c *SvcClient) EnableService(data *Data) error {
+	service, err := c.PdClient.GetService(data.ServiceID, nil)
+	if err != nil {
+		return err
+	}
+
+	if service.Status != "active" {
+		service.Status = "active"
+		_, err = c.PdClient.UpdateService(*service)
+		return err
+	}
+
+	return nil
+}
+
+// DisableService will set the PD service disabled
+func (c *SvcClient) DisableService(data *Data) error {
+	service, err := c.PdClient.GetService(data.ServiceID, nil)
+	if err != nil {
+		return err
+	}
+
+	if err := c.resolvePendingIncidents(data); err != nil {
+		return err
+	}
+
+	if err = c.waitForIncidentsToResolve(data, 10*time.Second); err != nil {
+		return err
+	}
+
+	if service.Status != "disabled" {
+		service.Status = "disabled"
+		if _, err = c.PdClient.UpdateService(*service); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (c *SvcClient) resolvePendingIncidents(data *Data) error {
