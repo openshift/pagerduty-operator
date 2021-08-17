@@ -249,7 +249,12 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			},
 			expectPDSetup: true,
 			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
-				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(1)
+				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(1).DoAndReturn(
+					func(data *pd.Data) (string, error){
+						data.ServiceID = "XYZ123"
+						data.IntegrationID = "LMN456"
+						return data.IntegrationID, nil
+					})
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(1)
 				r.DeleteService(gomock.Any()).Return(nil).Times(0)
 			},
@@ -263,7 +268,12 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			},
 			expectPDSetup: true,
 			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
-				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(1)
+				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(1).DoAndReturn(
+					func(data *pd.Data) (string, error){
+						data.ServiceID = "XYZ123"
+						data.IntegrationID = "LMN456"
+						return data.IntegrationID, nil
+					})
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(1)
 				r.DeleteService(gomock.Any()).Return(nil).Times(0)
 			},
@@ -296,7 +306,12 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			},
 			expectPDSetup: true,
 			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
-				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(1)     // unit test not support "lookup"
+				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(1).DoAndReturn(
+					func(data *pd.Data) (string, error){
+						data.ServiceID = "XYZ123"
+						data.IntegrationID = "LMN456"
+						return data.IntegrationID, nil
+					})    // unit test not support "lookup"
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0) // secret already exists, won't recreate
 				r.DeleteService(gomock.Any()).Return(nil).Times(0)
 			},
