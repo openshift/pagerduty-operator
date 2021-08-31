@@ -5,9 +5,9 @@
 package mock_pagerduty
 
 import (
-	go_pagerduty "github.com/PagerDuty/go-pagerduty"
+	pagerduty "github.com/PagerDuty/go-pagerduty"
 	gomock "github.com/golang/mock/gomock"
-	pagerduty "github.com/openshift/pagerduty-operator/pkg/pagerduty"
+	pagerduty0 "github.com/openshift/pagerduty-operator/pkg/pagerduty"
 	reflect "reflect"
 )
 
@@ -35,10 +35,10 @@ func (m *MockClient) EXPECT() *MockClientMockRecorder {
 }
 
 // GetService mocks base method
-func (m *MockClient) GetService(data *pagerduty.Data) (*go_pagerduty.Service, error) {
+func (m *MockClient) GetService(data *pagerduty0.Data) (*pagerduty.Service, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetService", data)
-	ret0, _ := ret[0].(*go_pagerduty.Service)
+	ret0, _ := ret[0].(*pagerduty.Service)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -50,7 +50,7 @@ func (mr *MockClientMockRecorder) GetService(data interface{}) *gomock.Call {
 }
 
 // GetIntegrationKey mocks base method
-func (m *MockClient) GetIntegrationKey(data *pagerduty.Data) (string, error) {
+func (m *MockClient) GetIntegrationKey(data *pagerduty0.Data) (string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetIntegrationKey", data)
 	ret0, _ := ret[0].(string)
@@ -65,11 +65,9 @@ func (mr *MockClientMockRecorder) GetIntegrationKey(data interface{}) *gomock.Ca
 }
 
 // CreateService mocks base method
-func (m *MockClient) CreateService(data *pagerduty.Data) (string, error) {
+func (m *MockClient) CreateService(data *pagerduty0.Data) (string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateService", data)
-	data.ServiceID = "XYZ123"
-	data.IntegrationID = "LMN456"
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
@@ -82,7 +80,7 @@ func (mr *MockClientMockRecorder) CreateService(data interface{}) *gomock.Call {
 }
 
 // DeleteService mocks base method
-func (m *MockClient) DeleteService(data *pagerduty.Data) error {
+func (m *MockClient) DeleteService(data *pagerduty0.Data) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteService", data)
 	ret0, _ := ret[0].(error)
@@ -93,6 +91,34 @@ func (m *MockClient) DeleteService(data *pagerduty.Data) error {
 func (mr *MockClientMockRecorder) DeleteService(data interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteService", reflect.TypeOf((*MockClient)(nil).DeleteService), data)
+}
+
+// EnableService mocks base method
+func (m *MockClient) EnableService(data *pagerduty0.Data) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "EnableService", data)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// EnableService indicates an expected call of EnableService
+func (mr *MockClientMockRecorder) EnableService(data interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EnableService", reflect.TypeOf((*MockClient)(nil).EnableService), data)
+}
+
+// DisableService mocks base method
+func (m *MockClient) DisableService(data *pagerduty0.Data) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DisableService", data)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DisableService indicates an expected call of DisableService
+func (mr *MockClientMockRecorder) DisableService(data interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DisableService", reflect.TypeOf((*MockClient)(nil).DisableService), data)
 }
 
 // MockPdClient is a mock of PdClient interface
@@ -119,10 +145,10 @@ func (m *MockPdClient) EXPECT() *MockPdClientMockRecorder {
 }
 
 // GetService mocks base method
-func (m *MockPdClient) GetService(arg0 string, arg1 *go_pagerduty.GetServiceOptions) (*go_pagerduty.Service, error) {
+func (m *MockPdClient) GetService(arg0 string, arg1 *pagerduty.GetServiceOptions) (*pagerduty.Service, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetService", arg0, arg1)
-	ret0, _ := ret[0].(*go_pagerduty.Service)
+	ret0, _ := ret[0].(*pagerduty.Service)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -134,10 +160,10 @@ func (mr *MockPdClientMockRecorder) GetService(arg0, arg1 interface{}) *gomock.C
 }
 
 // GetEscalationPolicy mocks base method
-func (m *MockPdClient) GetEscalationPolicy(arg0 string, arg1 *go_pagerduty.GetEscalationPolicyOptions) (*go_pagerduty.EscalationPolicy, error) {
+func (m *MockPdClient) GetEscalationPolicy(arg0 string, arg1 *pagerduty.GetEscalationPolicyOptions) (*pagerduty.EscalationPolicy, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetEscalationPolicy", arg0, arg1)
-	ret0, _ := ret[0].(*go_pagerduty.EscalationPolicy)
+	ret0, _ := ret[0].(*pagerduty.EscalationPolicy)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -149,10 +175,10 @@ func (mr *MockPdClientMockRecorder) GetEscalationPolicy(arg0, arg1 interface{}) 
 }
 
 // GetIntegration mocks base method
-func (m *MockPdClient) GetIntegration(arg0, arg1 string, arg2 go_pagerduty.GetIntegrationOptions) (*go_pagerduty.Integration, error) {
+func (m *MockPdClient) GetIntegration(arg0, arg1 string, arg2 pagerduty.GetIntegrationOptions) (*pagerduty.Integration, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetIntegration", arg0, arg1, arg2)
-	ret0, _ := ret[0].(*go_pagerduty.Integration)
+	ret0, _ := ret[0].(*pagerduty.Integration)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -164,10 +190,10 @@ func (mr *MockPdClientMockRecorder) GetIntegration(arg0, arg1, arg2 interface{})
 }
 
 // CreateService mocks base method
-func (m *MockPdClient) CreateService(service go_pagerduty.Service) (*go_pagerduty.Service, error) {
+func (m *MockPdClient) CreateService(service pagerduty.Service) (*pagerduty.Service, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateService", service)
-	ret0, _ := ret[0].(*go_pagerduty.Service)
+	ret0, _ := ret[0].(*pagerduty.Service)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -193,10 +219,10 @@ func (mr *MockPdClientMockRecorder) DeleteService(id interface{}) *gomock.Call {
 }
 
 // CreateIntegration mocks base method
-func (m *MockPdClient) CreateIntegration(serviceID string, integration go_pagerduty.Integration) (*go_pagerduty.Integration, error) {
+func (m *MockPdClient) CreateIntegration(serviceID string, integration pagerduty.Integration) (*pagerduty.Integration, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateIntegration", serviceID, integration)
-	ret0, _ := ret[0].(*go_pagerduty.Integration)
+	ret0, _ := ret[0].(*pagerduty.Integration)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -208,10 +234,10 @@ func (mr *MockPdClientMockRecorder) CreateIntegration(serviceID, integration int
 }
 
 // ListServices mocks base method
-func (m *MockPdClient) ListServices(arg0 go_pagerduty.ListServiceOptions) (*go_pagerduty.ListServiceResponse, error) {
+func (m *MockPdClient) ListServices(arg0 pagerduty.ListServiceOptions) (*pagerduty.ListServiceResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListServices", arg0)
-	ret0, _ := ret[0].(*go_pagerduty.ListServiceResponse)
+	ret0, _ := ret[0].(*pagerduty.ListServiceResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -223,10 +249,10 @@ func (mr *MockPdClientMockRecorder) ListServices(arg0 interface{}) *gomock.Call 
 }
 
 // ListIncidents mocks base method
-func (m *MockPdClient) ListIncidents(arg0 go_pagerduty.ListIncidentsOptions) (*go_pagerduty.ListIncidentsResponse, error) {
+func (m *MockPdClient) ListIncidents(arg0 pagerduty.ListIncidentsOptions) (*pagerduty.ListIncidentsResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListIncidents", arg0)
-	ret0, _ := ret[0].(*go_pagerduty.ListIncidentsResponse)
+	ret0, _ := ret[0].(*pagerduty.ListIncidentsResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -238,10 +264,10 @@ func (mr *MockPdClientMockRecorder) ListIncidents(arg0 interface{}) *gomock.Call
 }
 
 // ListIncidentAlerts mocks base method
-func (m *MockPdClient) ListIncidentAlerts(incidentId string) (*go_pagerduty.ListAlertsResponse, error) {
+func (m *MockPdClient) ListIncidentAlerts(incidentId string) (*pagerduty.ListAlertsResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListIncidentAlerts", incidentId)
-	ret0, _ := ret[0].(*go_pagerduty.ListAlertsResponse)
+	ret0, _ := ret[0].(*pagerduty.ListAlertsResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -250,4 +276,19 @@ func (m *MockPdClient) ListIncidentAlerts(incidentId string) (*go_pagerduty.List
 func (mr *MockPdClientMockRecorder) ListIncidentAlerts(incidentId interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListIncidentAlerts", reflect.TypeOf((*MockPdClient)(nil).ListIncidentAlerts), incidentId)
+}
+
+// UpdateService mocks base method
+func (m *MockPdClient) UpdateService(service pagerduty.Service) (*pagerduty.Service, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateService", service)
+	ret0, _ := ret[0].(*pagerduty.Service)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpdateService indicates an expected call of UpdateService
+func (mr *MockPdClientMockRecorder) UpdateService(service interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateService", reflect.TypeOf((*MockPdClient)(nil).UpdateService), service)
 }

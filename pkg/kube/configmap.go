@@ -17,10 +17,11 @@ package kube
 import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"strconv"
 )
 
 // GenerateConfigMap returns a configmap that can be created with the oc client
-func GenerateConfigMap(namespace string, cmName string, pdServiceID string, pdIntegrationID string) *corev1.ConfigMap {
+func GenerateConfigMap(namespace string, cmName string, pdServiceID string, pdIntegrationID string, hibernating bool) *corev1.ConfigMap {
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cmName,
@@ -29,6 +30,7 @@ func GenerateConfigMap(namespace string, cmName string, pdServiceID string, pdIn
 		Data: map[string]string{
 			"SERVICE_ID":     pdServiceID,
 			"INTEGRATION_ID": pdIntegrationID,
+			"HIBERNATING": strconv.FormatBool(hibernating),
 		},
 	}
 }

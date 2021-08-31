@@ -277,11 +277,14 @@ func (r *ReconcilePagerDutyIntegration) Reconcile(request reconcile.Request) (re
 		}
 	}
 
-	// and finally, any Matching CD not being deleted goes through handleCreate, which will do the needful
+	// and finally, any Matching CD not being deleted
 	for _, cd := range matchingClusterDeployments.Items {
 		if cd.DeletionTimestamp == nil {
-			err := r.handleCreate(pdClient, pdi, &cd)
-			if err != nil {
+			if err := r.handleCreate(pdClient, pdi, &cd); err != nil {
+				return r.requeueOnErr(err)
+			}
+
+			if err := r.handleHibernation(pdClient, pdi, &cd); err != nil {
 				return r.requeueOnErr(err)
 			}
 		}
