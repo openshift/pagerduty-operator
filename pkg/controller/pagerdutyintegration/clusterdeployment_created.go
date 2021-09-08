@@ -16,6 +16,7 @@ package pagerdutyintegration
 
 import (
 	"context"
+
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1 "k8s.io/api/core/v1"
@@ -49,10 +50,19 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 		// will need a finalizer here. We add a suffix of the CR
 		// name to distinguish them.
 		finalizer string = config.PagerDutyFinalizerPrefix + pdi.Name
+
+		// fakeClusterDeploymentAnnotation defines if the cluster is a fake cluster.
+		fakeClusterDeploymentAnnotation = "managed.openshift.com/fake"
 	)
 
 	if !cd.Spec.Installed {
 		// Cluster isn't installed yet, return
+		return nil
+	}
+
+	val, ok := cd.Annotations[fakeClusterDeploymentAnnotation]
+	if ok && val == "true" {
+		r.reqLogger.Info("Fake cluster identified: " + cd.Spec.ClusterName + ". Skipping reconcile.")
 		return nil
 	}
 
