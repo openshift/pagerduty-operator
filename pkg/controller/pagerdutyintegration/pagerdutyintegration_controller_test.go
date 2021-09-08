@@ -168,52 +168,75 @@ func testPagerDutyIntegration() *pagerdutyv1alpha1.PagerDutyIntegration {
 	}
 }
 
+type TestClusterDeploymentBuilder struct {
+	cd hivev1.ClusterDeployment
+}
+
+func (b *TestClusterDeploymentBuilder) get() *hivev1.ClusterDeployment {
+	return &b.cd
+}
+
+func (b *TestClusterDeploymentBuilder) deleting() *TestClusterDeploymentBuilder {
+	now := metav1.Now()
+	b.cd.DeletionTimestamp = &now
+	return b
+}
+
+func (b *TestClusterDeploymentBuilder) fake() *TestClusterDeploymentBuilder {
+	b.cd.Annotations[fakeClusterDeploymentAnnotation] = "true"
+	return b
+}
+
+func (b *TestClusterDeploymentBuilder) managed() *TestClusterDeploymentBuilder {
+	b.cd.Labels[config.ClusterDeploymentManagedLabel] = "true"
+	return b
+}
+
+func (b *TestClusterDeploymentBuilder) installed() *TestClusterDeploymentBuilder {
+	b.cd.Spec.Installed = true
+	return b
+}
+
+func (b *TestClusterDeploymentBuilder) withFinalizer() *TestClusterDeploymentBuilder {
+	b.cd.SetFinalizers([]string{config.PagerDutyFinalizerPrefix + testPagerDutyIntegrationName})
+	return b
+}
+
+func (b *TestClusterDeploymentBuilder) hibernating() *TestClusterDeploymentBuilder {
+	b.cd.Spec.PowerState = hivev1.HibernatingClusterPowerState
+	b.cd.Status.Conditions = []hivev1.ClusterDeploymentCondition{
+		{
+			Type:   hivev1.ClusterHibernatingCondition,
+			Status: corev1.ConditionTrue,
+			Reason: hivev1.HibernatingHibernationReason,
+		},
+	}
+	return b
+}
+
 // testClusterDeployment returns a fake ClusterDeployment for an installed cluster to use in testing.
-func testClusterDeployment(isInstalled bool, isManaged bool, hasFinalizer bool, isDeleting bool, isHibernating bool, isFake bool) *hivev1.ClusterDeployment {
-	labelMap := map[string]string{config.ClusterDeploymentManagedLabel: strconv.FormatBool(isManaged)}
-	annotationMap := map[string]string{fakeClusterDeploymentAnnotation: strconv.FormatBool(isFake)}
+func testClusterDeployment() *TestClusterDeploymentBuilder {
 	cd := hivev1.ClusterDeployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        testClusterName,
 			Namespace:   testNamespace,
-			Labels:      labelMap,
-			Annotations: annotationMap,
+			Labels:      make(map[string]string),
+			Annotations: make(map[string]string),
 		},
 		Spec: hivev1.ClusterDeploymentSpec{
 			ClusterName: testClusterName,
 		},
 	}
-	cd.Spec.Installed = isInstalled
 
-	if isDeleting {
-		now := metav1.Now()
-		cd.DeletionTimestamp = &now
+	cd.Status.Conditions = []hivev1.ClusterDeploymentCondition{
+		{
+			Type:   hivev1.ClusterHibernatingCondition,
+			Status: corev1.ConditionFalse,
+			Reason: hivev1.RunningHibernationReason,
+		},
 	}
 
-	if hasFinalizer {
-		cd.SetFinalizers([]string{config.PagerDutyFinalizerPrefix + testPagerDutyIntegrationName})
-	}
-
-	if isHibernating {
-		cd.Spec.PowerState = hivev1.HibernatingClusterPowerState
-		cd.Status.Conditions = []hivev1.ClusterDeploymentCondition{
-			{
-				Type:   hivev1.ClusterHibernatingCondition,
-				Status: corev1.ConditionTrue,
-				Reason: hivev1.HibernatingHibernationReason,
-			},
-		}
-	} else {
-		cd.Status.Conditions = []hivev1.ClusterDeploymentCondition{
-			{
-				Type:   hivev1.ClusterHibernatingCondition,
-				Status: corev1.ConditionFalse,
-				Reason: hivev1.RunningHibernationReason,
-			},
-		}
-	}
-
-	return &cd
+	return &TestClusterDeploymentBuilder{cd}
 }
 
 func TestReconcilePagerDutyIntegration(t *testing.T) {
@@ -252,7 +275,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 		{
 			name: "Test Not Installed",
 			localObjects: []runtime.Object{
-				testClusterDeployment(false, false, false, false, false, false),
+				testClusterDeployment().get(),
 				testPDISecret(),
 				testPagerDutyIntegration(),
 			},
@@ -266,7 +289,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 		{
 			name: "Test Fake Cluster",
 			localObjects: []runtime.Object{
-				testClusterDeployment(true, false, false, false, false, true),
+				testClusterDeployment().installed().fake().get(),
 				testPDISecret(),
 				testPagerDutyIntegration(),
 			},
@@ -280,7 +303,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 		{
 			name: "Test Managed, No Finalizer, Not Deleting, PD Not Setup",
 			localObjects: []runtime.Object{
-				testClusterDeployment(true, true, false, false, false, false),
+				testClusterDeployment().installed().managed().get(),
 				testPDISecret(),
 				testPagerDutyIntegration(),
 			},
@@ -301,7 +324,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 		{
 			name: "Test Managed, Finalizer, Not Deleting, PD Not Setup",
 			localObjects: []runtime.Object{
-				testClusterDeployment(true, true, true, false, false, false),
+				testClusterDeployment().installed().managed().withFinalizer().get(),
 				testPDISecret(),
 				testPagerDutyIntegration(),
 			},
@@ -322,7 +345,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 		{
 			name: "Test Managed, Finalizer, Not Deleting, PD Setup",
 			localObjects: []runtime.Object{
-				testClusterDeployment(true, true, true, false, false, false),
+				testClusterDeployment().installed().managed().withFinalizer().get(),
 				testPDISecret(),
 				testPagerDutyIntegration(),
 				testCDConfigMap(false),
@@ -339,7 +362,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 		{
 			name: "Test Managed, Finalizer, Not Deleting, PD Setup, Missing CM",
 			localObjects: []runtime.Object{
-				testClusterDeployment(true, true, true, false, false, false),
+				testClusterDeployment().installed().managed().withFinalizer().get(),
 				testPDISecret(),
 				testPagerDutyIntegration(),
 				testCDSyncSet(),
@@ -362,7 +385,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 		{
 			name: "Test Managed, Finalizer, Not Deleting, PD Setup, Missing SyncSet",
 			localObjects: []runtime.Object{
-				testClusterDeployment(true, true, true, false, false, false),
+				testClusterDeployment().installed().managed().withFinalizer().get(),
 				testPDISecret(),
 				testPagerDutyIntegration(),
 				testCDConfigMap(false),
@@ -380,7 +403,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 		{
 			name: "Test Managed, Finalizer, Not Deleting, PD Setup, Missing Secret",
 			localObjects: []runtime.Object{
-				testClusterDeployment(true, true, true, false, false, false),
+				testClusterDeployment().installed().managed().withFinalizer().get(),
 				testPDISecret(),
 				testPagerDutyIntegration(),
 				testCDConfigMap(false),
@@ -399,7 +422,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 		{
 			name: "Test Managed, Finalizer, Deleting, PD Not Setup",
 			localObjects: []runtime.Object{
-				testClusterDeployment(true, true, true, true, false, false),
+				testClusterDeployment().installed().managed().withFinalizer().deleting().get(),
 				testPDISecret(),
 				testPagerDutyIntegration(),
 			},
@@ -413,7 +436,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 		{
 			name: "Test Managed, Finalizer, Deleting, PD Setup",
 			localObjects: []runtime.Object{
-				testClusterDeployment(true, true, true, true, false, false),
+				testClusterDeployment().installed().managed().withFinalizer().deleting().get(),
 				testPDISecret(),
 				testPagerDutyIntegration(),
 				testCDConfigMap(false),
@@ -430,7 +453,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 		{
 			name: "Test Managed, No Finalizer, Deleting, PD Not Setup",
 			localObjects: []runtime.Object{
-				testClusterDeployment(true, true, false, true, false, false),
+				testClusterDeployment().installed().managed().deleting().get(),
 				testPDISecret(),
 				testPagerDutyIntegration(),
 			},
@@ -444,7 +467,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 		{
 			name: "Test Not Managed, No Finalizer, Not Deleting, PD Not Setup",
 			localObjects: []runtime.Object{
-				testClusterDeployment(true, false, false, false, false, false),
+				testClusterDeployment().installed().get(),
 				testPDISecret(),
 				testPagerDutyIntegration(),
 			},
@@ -458,7 +481,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 		{
 			name: "Test Not Managed, Finalizer, Not Deleting, PD Not Setup",
 			localObjects: []runtime.Object{
-				testClusterDeployment(true, false, true, false, false, false),
+				testClusterDeployment().installed().withFinalizer().get(),
 				testPDISecret(),
 				testPagerDutyIntegration(),
 			},
@@ -472,7 +495,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 		{
 			name: "Test Not Managed, Finalizer, Not Deleting, PD Setup",
 			localObjects: []runtime.Object{
-				testClusterDeployment(true, false, true, false, false, false),
+				testClusterDeployment().installed().withFinalizer().get(),
 				testPDISecret(),
 				testPagerDutyIntegration(),
 				testCDConfigMap(false),
@@ -489,7 +512,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 		{
 			name: "Test Not Managed, Finalizer, Not Deleting, PD Setup",
 			localObjects: []runtime.Object{
-				testClusterDeployment(true, false, true, false, false, false),
+				testClusterDeployment().installed().withFinalizer().get(),
 				testPDISecret(),
 				testPagerDutyIntegration(),
 				testCDConfigMap(false),
@@ -506,7 +529,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 		{
 			name: "Test Not Managed, Finalizer, Deleting, PD Not Setup",
 			localObjects: []runtime.Object{
-				testClusterDeployment(true, false, true, true, false, false),
+				testClusterDeployment().installed().withFinalizer().deleting().get(),
 				testPDISecret(),
 				testPagerDutyIntegration(),
 			},
@@ -520,7 +543,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 		{
 			name: "Test Not Managed, Finalizer, Deleting, PD Setup",
 			localObjects: []runtime.Object{
-				testClusterDeployment(true, false, true, true, false, false),
+				testClusterDeployment().installed().withFinalizer().deleting().get(),
 				testPDISecret(),
 				testPagerDutyIntegration(),
 				testCDConfigMap(false),
@@ -537,7 +560,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 		{
 			name: "Test Not Managed, No Finalizer, Deleting, PD Not Setup",
 			localObjects: []runtime.Object{
-				testClusterDeployment(true, false, false, true, false, false),
+				testClusterDeployment().installed().deleting().get(),
 				testPDISecret(),
 				testPagerDutyIntegration(),
 			},
@@ -551,7 +574,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 		{
 			name: "Test Managed, Finalizer, Not Deleting, PD Not Setup, Hibernating",
 			localObjects: []runtime.Object{
-				testClusterDeployment(true, true, true, false, true, false),
+				testClusterDeployment().installed().managed().withFinalizer().hibernating().get(),
 				testPDISecret(),
 				testPagerDutyIntegration(),
 			},
@@ -571,7 +594,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 		{
 			name: "Test Managed, Finalizer, Not Deleting, PD Setup and Hibernating, transition to Active",
 			localObjects: []runtime.Object{
-				testClusterDeployment(true, true, true, false, false, false),
+				testClusterDeployment().installed().managed().withFinalizer().get(),
 				testPDISecret(),
 				testPagerDutyIntegration(),
 				testCDConfigMap(true),
@@ -589,7 +612,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 		{
 			name: "Test Managed, Finalizer, Not Deleting, PD Setup and Active, transition to Hibernating",
 			localObjects: []runtime.Object{
-				testClusterDeployment(true, true, true, false, true, false),
+				testClusterDeployment().installed().managed().withFinalizer().hibernating().get(),
 				testPDISecret(),
 				testPagerDutyIntegration(),
 				testCDConfigMap(false),
