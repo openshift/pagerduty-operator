@@ -193,6 +193,21 @@ func testClusterDeployment(isInstalled bool, isManaged bool, hasFinalizer bool, 
 
 	if isHibernating {
 		cd.Spec.PowerState = hivev1.HibernatingClusterPowerState
+		cd.Status.Conditions = []hivev1.ClusterDeploymentCondition{
+			{
+				Type:   hivev1.ClusterHibernatingCondition,
+				Status: corev1.ConditionTrue,
+				Reason: hivev1.HibernatingHibernationReason,
+			},
+		}
+	} else {
+		cd.Status.Conditions = []hivev1.ClusterDeploymentCondition{
+			{
+				Type:   hivev1.ClusterHibernatingCondition,
+				Status: corev1.ConditionFalse,
+				Reason: hivev1.RunningHibernationReason,
+			},
+		}
 	}
 
 	return &cd
