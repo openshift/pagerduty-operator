@@ -386,9 +386,9 @@ OUTER:
 				continue OUTER
 			}
 		}
-		break
+		return 
 	}
-	return
+	return errors.New("Incidents still pending")
 }
 
 func (c *SvcClient) resolveIncident(serviceKey, incidentKey string) error {

@@ -123,6 +123,7 @@ func (r *ReconcilePagerDutyIntegration) handleDelete(pdclient pd.Client, pdi *pa
 		err = pdclient.DeleteService(pdData)
 		if err != nil {
 			r.reqLogger.Error(err, "Failed cleaning up pagerduty.")
+			return err
 		} else {
 			// NOTE: not deleting the configmap if we didn't delete
 			// the service with the assumption that the config can

@@ -120,7 +120,7 @@ func TestDeleteServiceTwoPendingIncidentsResolveTimeout(t *testing.T) {
 	setupMockWithIncidents(mockPdClient, funcMock, 10)
 	funcMock.On("delay").Times(5)
 	err := c.DeleteService(NewPdData())
-	assert.Equal(t, err, nil, "Unexpected error occured")
+	assert.Error(t, err, "Incidents still pending")
 	funcMock.AssertNumberOfCalls(t, "manageEvents", 2)
 	funcMock.AssertNumberOfCalls(t, "delay", 5)
 }
