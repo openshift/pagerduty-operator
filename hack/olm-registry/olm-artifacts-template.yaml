@@ -149,7 +149,7 @@ objects:
     acknowledgeTimeout: ${{ACKNOWLEDGE_TIMEOUT}}
     resolveTimeout: ${{RESOLVE_TIMEOUT}}
     escalationPolicy: ${{ESCALATION_POLICY_SILENT}}
-    servicePrefix: ${SERVICE_PREFIX}_silent
+    servicePrefix: ${SERVICE_PREFIX}-silent
     pagerdutyApiKeySecretRef:
       name: pagerduty-api-key
       namespace: pagerduty-operator
