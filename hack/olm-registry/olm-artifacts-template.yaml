@@ -30,6 +30,8 @@ parameters:
   value: latest
 - name: REPO_DIGEST
   required: true
+- name: FEDRAMP
+  value: "false"
 
 objects:
 - apiVersion: operators.coreos.com/v1alpha1
@@ -59,6 +61,10 @@ objects:
     name: pagerduty-operator
     source: pagerduty-operator-catalog
     sourceNamespace: pagerduty-operator
+    config:
+    env:
+      - name: FEDRAMP
+        value: "${FEDRAMP}"
 
 - apiVersion: pagerduty.openshift.io/v1alpha1
   kind: PagerDutyIntegration
