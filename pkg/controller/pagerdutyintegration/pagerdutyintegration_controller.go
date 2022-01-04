@@ -16,6 +16,7 @@ package pagerdutyintegration
 
 import (
 	"context"
+	"os"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -32,9 +33,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
@@ -42,6 +43,7 @@ const (
 	controllerName = "pagerdutyintegration"
 )
 
+var fedramp = os.Getenv("FEDRAMP") == "true"
 var log = logf.Log.WithName("controller_pagerdutyintegration")
 
 /**
@@ -159,6 +161,11 @@ func (r *ReconcilePagerDutyIntegration) Reconcile(request reconcile.Request) (re
 
 	r.reqLogger = log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	r.reqLogger.Info("Reconciling PagerDutyIntegration")
+	if len(os.Getenv("FEDRAMP")) == 0 {
+		r.reqLogger.Info("FEDRAMP environment variable unset, defaulting to false")
+	} else {
+		r.reqLogger.Info("running in FedRAMP environment: %b", fedramp)
+	}
 
 	defer func() {
 		dur := time.Since(start)
