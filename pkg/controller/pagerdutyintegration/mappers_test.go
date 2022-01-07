@@ -17,8 +17,7 @@ package pagerdutyintegration
 import (
 	"testing"
 
-	hiveapis "github.com/openshift/hive/pkg/apis"
-	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1"
+	hivev1 "github.com/openshift/hive/apis/hive/v1"
 	pagerdutyapis "github.com/openshift/pagerduty-operator/pkg/apis"
 	pagerdutyv1alpha1 "github.com/openshift/pagerduty-operator/pkg/apis/pagerduty/v1alpha1"
 	"github.com/stretchr/testify/assert"
@@ -35,7 +34,6 @@ import (
 
 func TestClusterDeploymentToPagerDutyIntegrationsMapper(t *testing.T) {
 	assert.Nil(t, pagerdutyapis.AddToScheme(scheme.Scheme))
-	assert.Nil(t, hiveapis.AddToScheme(scheme.Scheme))
 
 	tests := []struct {
 		name             string

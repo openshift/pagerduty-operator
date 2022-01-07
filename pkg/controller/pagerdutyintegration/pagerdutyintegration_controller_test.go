@@ -21,8 +21,8 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	hiveapis "github.com/openshift/hive/pkg/apis"
-	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1"
+	hiveapis "github.com/openshift/hive/apis"
+	hivev1 "github.com/openshift/hive/apis/hive/v1"
 	"github.com/openshift/pagerduty-operator/config"
 	pagerdutyapis "github.com/openshift/pagerduty-operator/pkg/apis"
 	pagerdutyv1alpha1 "github.com/openshift/pagerduty-operator/pkg/apis/pagerduty/v1alpha1"
@@ -208,7 +208,7 @@ func testClusterDeployment(isInstalled bool, isManaged bool, hasFinalizer bool, 
 			{
 				Type:   hivev1.ClusterHibernatingCondition,
 				Status: corev1.ConditionFalse,
-				Reason: hivev1.RunningHibernationReason,
+				Reason: hivev1.RunningReadyReason,
 			},
 		}
 	}
