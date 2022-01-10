@@ -15,13 +15,19 @@
 package pagerdutyintegration
 
 import (
-	hivev1 "github.com/openshift/hive/pkg/apis/hive/v1"
+	hivev1 "github.com/openshift/hive/apis/hive/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/openshift/pagerduty-operator/config"
 	pagerdutyv1alpha1 "github.com/openshift/pagerduty-operator/pkg/apis/pagerduty/v1alpha1"
 	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
+)
+
+const (
+	// This can be removed once Hive is promoted past f73ed3e in all environments
+	// Support for this condition was removed in https://github.com/openshift/hive/pull/1604
+	legacyHivev1RunningHibernationReason = "Running"
 )
 
 func (r *ReconcilePagerDutyIntegration) handleHibernation(pdclient pd.Client, pdi *pagerdutyv1alpha1.PagerDutyIntegration, cd *hivev1.ClusterDeployment) error {
@@ -78,8 +84,30 @@ func (r *ReconcilePagerDutyIntegration) handleHibernation(pdclient pd.Client, pd
 }
 
 func instancesAreRunning(cd *hivev1.ClusterDeployment) bool {
+	// Get hibernation PowerState a new ClusterDeployment Status field indicating if the cluster is running
+	// ie. The cluster is not "Resuming" if the PowerState is "Running", the cluster is operational.
+	// If the field is blank we move on and check the legacy reasons (It may be blank if the running version of
+	// Hive on cluster doesn't yet support it)
+	if cd.Status.PowerState == "Running" {
+		return true
+	}
+
+	// This can be removed once Hive is promoted past f73ed3e in all environments
+	// We can rely on ClusterDeployment.Status.PowerState
 	hibernatingCondition := getCondition(cd.Status.Conditions, hivev1.ClusterHibernatingCondition)
-	return hibernatingCondition != nil && hibernatingCondition.Status == corev1.ConditionFalse && hibernatingCondition.Reason == hivev1.RunningHibernationReason
+
+	// Verify the ClusterDeployment has a hibernation condition
+	if hibernatingCondition == nil {
+		return false
+	}
+
+	// Verify the hibernatingCondition is not active (ConditionTrue and ConditionUnknown are discarded)
+	if hibernatingCondition.Status != corev1.ConditionFalse {
+		return false
+	}
+
+	// Check legacy Hibernation condition reasons
+	return hibernatingCondition.Reason == legacyHivev1RunningHibernationReason
 }
 
 func getCondition(conditions []hivev1.ClusterDeploymentCondition, t hivev1.ClusterDeploymentConditionType) *hivev1.ClusterDeploymentCondition {

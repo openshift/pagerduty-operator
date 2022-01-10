@@ -9,16 +9,17 @@ require (
 	github.com/golang/mock v1.4.4
 	github.com/openshift/api v3.9.1-0.20191111211345-a27ff30ebf09+incompatible
 	github.com/openshift/hive v1.0.16-0.20201211144432-f97557354336
+	github.com/openshift/hive/apis v0.0.0-20211217134024-32a93e12e129
 	github.com/openshift/operator-custom-metrics v0.3.1-0.20200901174648-463079905232
 	github.com/operator-framework/operator-sdk v0.17.2
 	github.com/prometheus/client_golang v1.7.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.6.1
 	gotest.tools v2.2.0+incompatible
-	k8s.io/api v0.19.0
-	k8s.io/apimachinery v0.19.0
+	k8s.io/api v0.20.0
+	k8s.io/apimachinery v0.20.0
 	k8s.io/client-go v12.0.0+incompatible
-	k8s.io/kube-openapi v0.0.0-20200805222855-6aeccd4b50c6
+	k8s.io/kube-openapi v0.0.0-20201113171705-d219536bb9fd
 	sigs.k8s.io/controller-runtime v0.6.2
 )
 
@@ -39,6 +40,8 @@ replace (
 
 // needed because otherwise v12.0.0 is picked up as a more recent version
 replace k8s.io/client-go => k8s.io/client-go v0.19.0
+
+replace k8s.io/api => k8s.io/api v0.19.0
 
 // needed because otherwise installer fetches a library-go version that requires bitbucket.com/ww/goautoneg which is dead
 // Tagged version fetches github.com/munnerz/goautoneg instead
