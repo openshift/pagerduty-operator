@@ -164,7 +164,7 @@ func (r *ReconcilePagerDutyIntegration) Reconcile(request reconcile.Request) (re
 	if len(os.Getenv("FEDRAMP")) == 0 {
 		r.reqLogger.Info("FEDRAMP environment variable unset, defaulting to false")
 	} else {
-		r.reqLogger.Info("running in FedRAMP environment: %b", fedramp)
+		r.reqLogger.Info("running in FedRAMP environment:", fedramp)
 	}
 
 	defer func() {
