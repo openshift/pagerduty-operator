@@ -161,10 +161,10 @@ func (r *ReconcilePagerDutyIntegration) Reconcile(request reconcile.Request) (re
 
 	r.reqLogger = log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	r.reqLogger.Info("Reconciling PagerDutyIntegration")
-	if len(os.Getenv("FEDRAMP")) == 0 {
-		r.reqLogger.Info("FEDRAMP environment variable unset, defaulting to false")
+	if len(os.Getenv("FedRAMP")) == 0 {
+		r.reqLogger.Info("FedRAMP environment variable unset", "Default value", fedramp)
 	} else {
-		r.reqLogger.Info("running in FedRAMP environment:", fedramp)
+		r.reqLogger.Info("running in FedRAMP", "FedRamp environment:", fedramp)
 	}
 
 	defer func() {
