@@ -125,6 +125,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	err = operatorconfig.SetIsFedramp()
+	if err != nil {
+		log.Error(err, "Failed to get fedramp value")
+		os.Exit(1)
+	}
+	if operatorconfig.IsFedramp() {
+		log.Info("Running in fedramp environment.")
+	}
+
 	// Setup all Controllers
 	if err := controller.AddToManager(mgr); err != nil {
 		log.Error(err, "")
