@@ -16,7 +16,6 @@ package pagerdutyintegration
 
 import (
 	"context"
-	"os"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -43,7 +42,6 @@ const (
 	controllerName = "pagerdutyintegration"
 )
 
-var fedramp = os.Getenv("FEDRAMP") == "true"
 var log = logf.Log.WithName("controller_pagerdutyintegration")
 
 /**
