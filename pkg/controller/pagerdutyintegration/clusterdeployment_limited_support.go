@@ -39,7 +39,7 @@ func (r *ReconcilePagerDutyIntegration) handleLimitedSupport(pdclient pd.Client,
 			r.reqLogger.Error(err, "Error updating cluster config", "Name", configMapName)
 			return err
 		}
-	} else if ok && hasLimitedSupport == "false" {
+	} else if ok {
 		// Re-enable the pagerduty service if limited-support label set to false
 		r.reqLogger.Info("Limited-support set to false, enabling PD service", "ClusterID", pdData.ClusterID, "BaseDomain", pdData.BaseDomain)
 		if err := pdclient.EnableService(pdData); err != nil {
