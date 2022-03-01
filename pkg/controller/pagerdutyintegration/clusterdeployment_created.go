@@ -73,6 +73,9 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 	}
 
 	ClusterID := cd.Spec.ClusterName
+	if config.IsFedramp() {
+		ClusterID = utils.GetClusterID(cd.Namespace)
+	}
 
 	pdAPISecret := &corev1.Secret{}
 	err := r.client.Get(
@@ -93,7 +96,7 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 	}
 
 	pdData := &pd.Data{
-		ClusterID:          cd.Spec.ClusterName,
+		ClusterID:          ClusterID,
 		BaseDomain:         cd.Spec.BaseDomain,
 		EscalationPolicyID: pdi.Spec.EscalationPolicy,
 		AutoResolveTimeout: pdi.Spec.ResolveTimeout,

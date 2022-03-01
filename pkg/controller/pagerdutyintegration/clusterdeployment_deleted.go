@@ -58,6 +58,9 @@ func (r *ReconcilePagerDutyIntegration) handleDelete(pdclient pd.Client, pdi *pa
 	}
 
 	ClusterID := cd.Spec.ClusterName
+	if config.IsFedramp() {
+		ClusterID = utils.GetClusterID(cd.Namespace)
+	}
 
 	deletePDService := true
 
@@ -92,7 +95,7 @@ func (r *ReconcilePagerDutyIntegration) handleDelete(pdclient pd.Client, pdi *pa
 	}
 
 	pdData := &pd.Data{
-		ClusterID:          cd.Spec.ClusterName,
+		ClusterID:          ClusterID,
 		BaseDomain:         cd.Spec.BaseDomain,
 		EscalationPolicyID: pdi.Spec.EscalationPolicy,
 		AutoResolveTimeout: pdi.Spec.ResolveTimeout,
