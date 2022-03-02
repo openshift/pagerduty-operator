@@ -62,9 +62,9 @@ objects:
     source: pagerduty-operator-catalog
     sourceNamespace: pagerduty-operator
     config:
-    env:
-      - name: FEDRAMP
-        value: "${FEDRAMP}"
+      env:
+        - name: FEDRAMP
+          value: "${FEDRAMP}"
 
 - apiVersion: pagerduty.openshift.io/v1alpha1
   kind: PagerDutyIntegration
