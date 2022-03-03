@@ -2,6 +2,7 @@ package utils
 
 import (
 	"context"
+	"strings"
 
 	"github.com/go-logr/logr"
 	hivev1 "github.com/openshift/hive/apis/hive/v1"
@@ -129,4 +130,9 @@ func DeleteSecret(name string, namespace string, client client.Client, reqLogger
 	}
 
 	return nil
+}
+
+func GetClusterID(clusterNS string) string {
+	cns := strings.Split(clusterNS, "-")
+	return cns[len(cns)-1]
 }

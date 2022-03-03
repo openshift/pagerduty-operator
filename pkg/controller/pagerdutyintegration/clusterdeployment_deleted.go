@@ -59,7 +59,10 @@ func (r *ReconcilePagerDutyIntegration) handleDelete(pdclient pd.Client, pdi *pa
 		return nil
 	}
 
-	ClusterID := cd.Spec.ClusterName
+	clusterID := cd.Spec.ClusterName
+	if config.IsFedramp() {
+		clusterID = utils.GetClusterID(cd.Namespace)
+	}
 
 	deletePDService := true
 
@@ -94,7 +97,7 @@ func (r *ReconcilePagerDutyIntegration) handleDelete(pdclient pd.Client, pdi *pa
 	}
 
 	pdData := &pd.Data{
-		ClusterID:          cd.Spec.ClusterName,
+		ClusterID:          clusterID,
 		BaseDomain:         cd.Spec.BaseDomain,
 		EscalationPolicyID: pdi.Spec.EscalationPolicy,
 		AutoResolveTimeout: pdi.Spec.ResolveTimeout,
@@ -176,7 +179,7 @@ func (r *ReconcilePagerDutyIntegration) handleDelete(pdclient pd.Client, pdi *pa
 		utils.DeleteFinalizer(cd, finalizer)
 		if err := r.client.Patch(context.TODO(), cd, baseToPatch); err != nil {
 			r.reqLogger.Error(err, "Error deleting Finalizer from cluster deployment", "ClusterDeployment.Namespace", cd.Namespace, "ClusterDeployment Name", cd.Name)
-			metrics.UpdateMetricPagerDutyDeleteFailure(1, ClusterID, pdi.Name)
+			metrics.UpdateMetricPagerDutyDeleteFailure(1, clusterID, pdi.Name)
 			return err
 		}
 	}
@@ -186,12 +189,12 @@ func (r *ReconcilePagerDutyIntegration) handleDelete(pdclient pd.Client, pdi *pa
 		utils.DeleteFinalizer(cd, config.LegacyPagerDutyFinalizer)
 		err = r.client.Update(context.TODO(), cd)
 		if err != nil {
-			metrics.UpdateMetricPagerDutyDeleteFailure(1, ClusterID, pdi.Name)
+			metrics.UpdateMetricPagerDutyDeleteFailure(1, clusterID, pdi.Name)
 			return err
 		}
 	}
 
-	metrics.UpdateMetricPagerDutyDeleteFailure(0, ClusterID, pdi.Name)
+	metrics.UpdateMetricPagerDutyDeleteFailure(0, clusterID, pdi.Name)
 
 	return nil
 }
