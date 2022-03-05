@@ -143,6 +143,10 @@ objects:
       - key: ext-managed.openshift.io/noalerts
         operator: NotIn
         values: ["true"]
+      # ignore CD w/ limited-support label
+      - key: api.openshift.com/limited-support
+        operator: NotIn
+        values: ["true"]
     targetSecretRef:
       name: pd-secret
       namespace: openshift-monitoring
