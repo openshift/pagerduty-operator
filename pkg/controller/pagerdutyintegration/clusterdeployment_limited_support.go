@@ -1,6 +1,8 @@
 package pagerdutyintegration
 
 import (
+	"strconv"
+
 	hivev1 "github.com/openshift/hive/apis/hive/v1"
 	"github.com/openshift/pagerduty-operator/config"
 	pagerdutyv1alpha1 "github.com/openshift/pagerduty-operator/pkg/apis/pagerduty/v1alpha1"
@@ -26,26 +28,35 @@ func (r *ReconcilePagerDutyIntegration) handleLimitedSupport(pdclient pd.Client,
 	}
 
 	// Check if limited-support label exists in CD
-	hasLimitedSupport, ok := cd.Labels[config.ClusterDeploymentLimitedSupportLabel]
+	hasLimitedSupport := false
+	if val, err := strconv.ParseBool(cd.Labels[config.ClusterDeploymentLimitedSupportLabel]); err == nil {
+		hasLimitedSupport = val
+	}
 
-	if ok && hasLimitedSupport == "true" {
-		// Disable pagerduty service and resolve existing service alerts if limited-support label set to true
-		r.reqLogger.Info("Limited-support set to true, disabling pagerduty service", "ClusterID", pdData.ClusterID, "BaseDomain", pdData.BaseDomain)
+	if hasLimitedSupport && !pdData.ServiceDisabled {
+		// Disable PD service and resolve existing service alerts if limited-support label set to true
+		r.reqLogger.Info("The cluster is in limited-support, disabling PagerDuty service", "ClusterID", pdData.ClusterID, "BaseDomain", pdData.BaseDomain)
 		if err := pdclient.DisableService(pdData); err != nil {
 			r.reqLogger.Error(err, "Error disabling pagerduty service")
 			return err
 		}
+
+		pdData.ServiceDisabled = true
+
 		if err := pdData.SetClusterConfig(r.client, cd.Namespace, configMapName); err != nil {
 			r.reqLogger.Error(err, "Error updating cluster config", "Name", configMapName)
 			return err
 		}
-	} else if ok {
-		// Re-enable the pagerduty service if limited-support label set to false
-		r.reqLogger.Info("Limited-support set to false, enabling PD service", "ClusterID", pdData.ClusterID, "BaseDomain", pdData.BaseDomain)
+	} else if !hasLimitedSupport && pdData.ServiceDisabled {
+		// Enable PD service
+		r.reqLogger.Info("The cluster is not in limited-support, enabling PagerDuty service", "ClusterID", pdData.ClusterID, "BaseDomain", pdData.BaseDomain)
 		if err := pdclient.EnableService(pdData); err != nil {
 			r.reqLogger.Error(err, "Error enabling pagerduty service")
 			return err
 		}
+
+		pdData.ServiceDisabled = false
+
 		if err := pdData.SetClusterConfig(r.client, cd.Namespace, configMapName); err != nil {
 			r.reqLogger.Error(err, "Error updating pd cluster config", "Name", configMapName)
 			return err
