@@ -37,28 +37,28 @@ func (r *ReconcilePagerDutyIntegration) handleLimitedSupport(pdclient pd.Client,
 		// Disable PD service and resolve existing service alerts if limited-support label set to true
 		r.reqLogger.Info("The cluster is in limited-support, disabling PagerDuty service", "ClusterID", pdData.ClusterID, "BaseDomain", pdData.BaseDomain)
 		if err := pdclient.DisableService(pdData); err != nil {
-			r.reqLogger.Error(err, "Error disabling pagerduty service")
+			r.reqLogger.Error(err, "Error disabling PagerDuty service")
 			return err
 		}
 
 		pdData.LimitedSupport = true
 
 		if err := pdData.SetClusterConfig(r.client, cd.Namespace, configMapName); err != nil {
-			r.reqLogger.Error(err, "Error updating cluster config", "Name", configMapName)
+			r.reqLogger.Error(err, "Error updating PagerDuty cluster config", "Name", configMapName)
 			return err
 		}
 	} else if !hasLimitedSupport && pdData.LimitedSupport {
-		// Enable PD service
+		// Enable PagerDuty service if limited-support label is-not-true/does-not-exist
 		r.reqLogger.Info("The cluster is not in limited-support, enabling PagerDuty service", "ClusterID", pdData.ClusterID, "BaseDomain", pdData.BaseDomain)
 		if err := pdclient.EnableService(pdData); err != nil {
-			r.reqLogger.Error(err, "Error enabling pagerduty service")
+			r.reqLogger.Error(err, "Error enabling PagerDuty service")
 			return err
 		}
 
 		pdData.LimitedSupport = false
 
 		if err := pdData.SetClusterConfig(r.client, cd.Namespace, configMapName); err != nil {
-			r.reqLogger.Error(err, "Error updating pd cluster config", "Name", configMapName)
+			r.reqLogger.Error(err, "Error updating PagerDuty cluster config", "Name", configMapName)
 			return err
 		}
 	}
