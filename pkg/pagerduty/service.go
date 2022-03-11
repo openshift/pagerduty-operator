@@ -141,10 +141,10 @@ type Data struct {
 	ClusterID          string
 	BaseDomain         string
 
-	ServiceID       string
-	IntegrationID   string
-	Hibernating     bool
-	ServiceDisabled bool
+	ServiceID      string
+	IntegrationID  string
+	Hibernating    bool
+	LimitedSupport bool
 }
 
 // ParseClusterConfig parses the cluster specific config map and stores the IDs in the data struct
@@ -168,8 +168,8 @@ func (data *Data) ParseClusterConfig(osc client.Client, namespace string, cmName
 	val := pdAPIConfigMap.Data["HIBERNATING"]
 	data.Hibernating = val == "true"
 
-	isServiceDisabled := pdAPIConfigMap.Data["SERVICE_DISABLED"]
-	data.ServiceDisabled = isServiceDisabled == "true"
+	isInLimitedSupport := pdAPIConfigMap.Data["LIMITED_SUPPORT"]
+	data.LimitedSupport = isInLimitedSupport == "true"
 
 	return nil
 }
@@ -184,7 +184,7 @@ func (data *Data) SetClusterConfig(osc client.Client, namespace string, cmName s
 	pdAPIConfigMap.Data["SERVICE_ID"] = data.ServiceID
 	pdAPIConfigMap.Data["INTEGRATION_ID"] = data.IntegrationID
 	pdAPIConfigMap.Data["HIBERNATING"] = strconv.FormatBool(data.Hibernating)
-	pdAPIConfigMap.Data["SERVICE_DISABLED"] = strconv.FormatBool(data.ServiceDisabled)
+	pdAPIConfigMap.Data["LIMITED_SUPPORT"] = strconv.FormatBool(data.LimitedSupport)
 
 	if err := osc.Update(context.TODO(), pdAPIConfigMap); err != nil {
 		return err
