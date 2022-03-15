@@ -41,6 +41,10 @@ const (
 	// ClusterDeploymentManagedLabel is the label the clusterdeployment will have that determines
 	// if the cluster is OSD (managed) or not
 	ClusterDeploymentManagedLabel string = "api.openshift.com/managed"
+
+	// ClusterDeploymentLimitedSupportLabel is the label the clusterdeployment will have that determines
+	// if the cluster's pagerduty service needs to enabled/disabled for alerting
+	ClusterDeploymentLimitedSupportLabel string = "api.openshift.com/limited-support"
 )
 
 // Name is used to generate the name of secondary resources (SyncSets,
