@@ -428,6 +428,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
 				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
+				r.GetService(gomock.Any()).Return(nil, nil).Times(1)
 				r.DeleteService(gomock.Any()).Return(nil).Times(1)
 			},
 		},
@@ -487,6 +488,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
 				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
+				r.GetService(gomock.Any()).Return(nil, nil).Times(1)
 				r.DeleteService(gomock.Any()).Return(nil).Times(1)
 			},
 		},
@@ -504,6 +506,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
 				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
+				r.GetService(gomock.Any()).Return(nil, nil).Times(1)
 				r.DeleteService(gomock.Any()).Return(nil).Times(1)
 			},
 		},
@@ -535,6 +538,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
 				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
+				r.GetService(gomock.Any()).Return(nil, nil).Times(1)
 				r.DeleteService(gomock.Any()).Return(nil).Times(1)
 			},
 		},

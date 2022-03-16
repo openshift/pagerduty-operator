@@ -3,20 +3,25 @@ module github.com/openshift/pagerduty-operator
 go 1.13
 
 require (
+	cloud.google.com/go v0.57.0 // indirect
 	github.com/PagerDuty/go-pagerduty v1.2.0
 	github.com/go-logr/logr v0.2.1
 	github.com/go-openapi/spec v0.19.4
 	github.com/golang/mock v1.4.4
+	github.com/kr/text v0.2.0 // indirect
+	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/openshift/api v3.9.1-0.20191111211345-a27ff30ebf09+incompatible
-	github.com/openshift/hive v1.0.16-0.20201211144432-f97557354336
 	github.com/openshift/hive/apis v0.0.0-20211217134024-32a93e12e129
 	github.com/openshift/operator-custom-metrics v0.3.1-0.20200901174648-463079905232
 	github.com/operator-framework/operator-sdk v0.17.2
 	github.com/prometheus/client_golang v1.7.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.6.1
+	golang.org/x/tools v0.0.0-20200616195046-dc31b401abb5 // indirect
+	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gotest.tools v2.2.0+incompatible
 	k8s.io/api v0.20.0
+	k8s.io/apiextensions-apiserver v0.19.0 // indirect
 	k8s.io/apimachinery v0.20.0
 	k8s.io/client-go v12.0.0+incompatible
 	k8s.io/kube-openapi v0.0.0-20201113171705-d219536bb9fd
