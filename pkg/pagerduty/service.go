@@ -79,7 +79,7 @@ type PdClient interface {
 	ListServices(pdApi.ListServiceOptions) (*pdApi.ListServiceResponse, error)
 	ListIncidents(pdApi.ListIncidentsOptions) (*pdApi.ListIncidentsResponse, error)
 	ListIncidentAlerts(incidentId string) (*pdApi.ListAlertsResponse, error)
-	UpdateService(service pdApi.Service)  (*pdApi.Service, error)
+	UpdateService(service pdApi.Service) (*pdApi.Service, error)
 }
 
 type ManageEventFunc func(pdApi.V2Event) (*pdApi.V2EventResponse, error)
@@ -141,9 +141,10 @@ type Data struct {
 	ClusterID          string
 	BaseDomain         string
 
-	ServiceID     string
-	IntegrationID string
-	Hibernating   bool
+	ServiceID      string
+	IntegrationID  string
+	Hibernating    bool
+	LimitedSupport bool
 }
 
 // ParseClusterConfig parses the cluster specific config map and stores the IDs in the data struct
@@ -167,6 +168,9 @@ func (data *Data) ParseClusterConfig(osc client.Client, namespace string, cmName
 	val := pdAPIConfigMap.Data["HIBERNATING"]
 	data.Hibernating = val == "true"
 
+	isInLimitedSupport := pdAPIConfigMap.Data["LIMITED_SUPPORT"]
+	data.LimitedSupport = isInLimitedSupport == "true"
+
 	return nil
 }
 
@@ -180,6 +184,7 @@ func (data *Data) SetClusterConfig(osc client.Client, namespace string, cmName s
 	pdAPIConfigMap.Data["SERVICE_ID"] = data.ServiceID
 	pdAPIConfigMap.Data["INTEGRATION_ID"] = data.IntegrationID
 	pdAPIConfigMap.Data["HIBERNATING"] = strconv.FormatBool(data.Hibernating)
+	pdAPIConfigMap.Data["LIMITED_SUPPORT"] = strconv.FormatBool(data.LimitedSupport)
 
 	if err := osc.Update(context.TODO(), pdAPIConfigMap); err != nil {
 		return err
@@ -386,7 +391,7 @@ OUTER:
 				continue OUTER
 			}
 		}
-		return 
+		return
 	}
 	return errors.New("Incidents still pending")
 }

@@ -16,6 +16,8 @@ package pagerdutyintegration
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -115,6 +117,20 @@ func (r *ReconcilePagerDutyIntegration) handleDelete(pdclient pd.Client, pdi *pa
 				The missing object will never be created as we're in the handleDelete function.
 				Skip service deletion in this case and continue with deletion.
 			*/
+			deletePDService = false
+		}
+	}
+
+	// Check if the PD Service still exists, if its been deleted but the PD configmap still exists,
+	// reconcile will continue to try and delete the PD service and will generate 404 errors so just skip deleting
+	if deletePDService {
+		_, err = pdclient.GetService(pdData)
+
+		if err != nil {
+			if !strings.Contains(err.Error(), "Not Found") {
+				return err
+			}
+			r.reqLogger.Info(fmt.Sprintf("PD service %s-%s.%s not found...skipping PD service deletion", pdData.ServicePrefix, pdData.ClusterID, pdData.BaseDomain))
 			deletePDService = false
 		}
 	}

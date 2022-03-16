@@ -294,6 +294,10 @@ func (r *ReconcilePagerDutyIntegration) Reconcile(request reconcile.Request) (re
 			if err := r.handleHibernation(pdClient, pdi, &cd); err != nil {
 				return r.requeueOnErr(err)
 			}
+
+			if err := r.handleLimitedSupport(pdClient, pdi, &cd); err != nil {
+				return r.requeueOnErr(err)
+			}
 		}
 	}
 
