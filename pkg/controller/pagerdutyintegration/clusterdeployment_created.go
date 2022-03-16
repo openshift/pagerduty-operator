@@ -111,7 +111,7 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 	if err != nil || pdData.ServiceID == "" {
 		// unable to load configuration, therefore create the PD service
 		var createErr error
-		r.reqLogger.Info("Creating PD service", "ClusterID", pdData.ClusterID, "BaseDomain", pdData.BaseDomain)
+		r.reqLogger.Info("Creating PD service", "ClusterID", pdData.ClusterID, "BaseDomain", pdData.BaseDomain, "ClusterDeployment Namespace", cd.Namespace)
 		_, createErr = pdclient.CreateService(pdData)
 		if createErr != nil {
 			localmetrics.UpdateMetricPagerDutyCreateFailure(1, ClusterID, pdi.Name)
@@ -145,11 +145,11 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: secretName, Namespace: cd.Namespace}, sc)
 	if err == nil {
 		// successfully loaded secret, snag the integration key
-		r.reqLogger.Info("pdIntegrationKey found, skipping create", "ClusterID", pdData.ClusterID, "BaseDomain", pdData.BaseDomain)
+		r.reqLogger.Info("pdIntegrationKey found, skipping create", "ClusterID", pdData.ClusterID, "BaseDomain", pdData.BaseDomain, "ClusterDeployment Namespace", cd.Namespace)
 		pdIntegrationKey = string(sc.Data[config.PagerDutySecretKey])
 	} else {
 		// unable to load an integration key, create one.
-		r.reqLogger.Info("pdIntegrationKey not found, creating one", "ClusterID", pdData.ClusterID, "BaseDomain", pdData.BaseDomain)
+		r.reqLogger.Info("pdIntegrationKey not found, creating one", "ClusterID", pdData.ClusterID, "BaseDomain", pdData.BaseDomain, "ClusterDeployment Namespace", cd.Namespace)
 		pdIntegrationKey, err = pdclient.GetIntegrationKey(pdData)
 		if err != nil {
 			// unable to get an integration key
@@ -159,10 +159,10 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 
 	//add secret part
 	secret := kube.GeneratePdSecret(cd.Namespace, secretName, pdIntegrationKey)
-	r.reqLogger.Info("creating pd secret")
+	r.reqLogger.Info("creating pd secret", "ClusterDeployment Namespace", cd.Namespace)
 	//add reference
 	if err = controllerutil.SetControllerReference(cd, secret, r.scheme); err != nil {
-		r.reqLogger.Error(err, "Error setting controller reference on secret")
+		r.reqLogger.Error(err, "Error setting controller reference on secret", "ClusterDeployment Namespace", cd.Namespace)
 		return err
 	}
 	if err = r.client.Create(context.TODO(), secret); err != nil {
@@ -170,7 +170,7 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 			return err
 		}
 
-		r.reqLogger.Info("the pd secret exist, check if pdIntegrationKey is changed or not")
+		r.reqLogger.Info("the pd secret exist, check if pdIntegrationKey is changed or not", "ClusterDeployment Namespace", cd.Namespace)
 		sc := &corev1.Secret{}
 		err = r.client.Get(context.TODO(), types.NamespacedName{Name: secret.Name, Namespace: cd.Namespace}, sc)
 		if err != nil {
@@ -182,14 +182,14 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 				log.Info("failed to delete existing pd secret")
 				return err
 			}
-			r.reqLogger.Info("creating pd secret")
+			r.reqLogger.Info("creating pd secret", "ClusterDeployment Namespace", cd.Namespace)
 			if err = r.client.Create(context.TODO(), secret); err != nil {
 				return err
 			}
 		}
 	}
 
-	r.reqLogger.Info("Creating syncset")
+	r.reqLogger.Info("Creating syncset", "ClusterDeployment Namespace", cd.Namespace)
 	ss := &hivev1.SyncSet{}
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: secretName, Namespace: cd.Namespace}, ss)
 	if err != nil {
@@ -200,7 +200,7 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 		r.reqLogger.Info("syncset not found , create a new one on this ")
 		ss = kube.GenerateSyncSet(cd.Namespace, cd.Name, secret, pdi)
 		if err = controllerutil.SetControllerReference(cd, ss, r.scheme); err != nil {
-			r.reqLogger.Error(err, "Error setting controller reference on syncset")
+			r.reqLogger.Error(err, "Error setting controller reference on syncset", "ClusterDeployment Namespace", cd.Namespace)
 			return err
 		}
 		if err := r.client.Create(context.TODO(), ss); err != nil {

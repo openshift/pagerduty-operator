@@ -123,49 +123,49 @@ func (r *ReconcilePagerDutyIntegration) handleDelete(pdclient pd.Client, pdi *pa
 		// we have everything necessary to attempt deletion of the PD service
 		err = pdclient.DeleteService(pdData)
 		if err != nil {
-			r.reqLogger.Error(err, "Failed cleaning up pagerduty.")
+			r.reqLogger.Error(err, "Failed cleaning up pagerduty.", "ClusterDeployment Namespace", cd.Namespace)
 			return err
 		} else {
 			// NOTE: not deleting the configmap if we didn't delete
 			// the service with the assumption that the config can
 			// be used later for cleanup find the PD configmap and
 			// delete it
-			r.reqLogger.Info("Deleting PD ConfigMap", "Namespace", cd.Namespace, "Name", configMapName)
+			r.reqLogger.Info("Deleting PD ConfigMap", "ClusterDeployment Namespace", cd.Namespace, "Name", configMapName)
 			err = utils.DeleteConfigMap(configMapName, cd.Namespace, r.client, r.reqLogger)
 
 			if err != nil {
-				r.reqLogger.Error(err, "Error deleting ConfigMap", "Namespace", cd.Namespace, "Name", configMapName)
+				r.reqLogger.Error(err, "Error deleting ConfigMap", "ClusterDeployment Namespace", cd.Namespace, "Name", configMapName)
 			}
 		}
 	}
 	// find the pd secret and delete id
-	r.reqLogger.Info("Deleting PD secret", "Namespace", cd.Namespace, "Name", secretName)
+	r.reqLogger.Info("Deleting PD secret", "ClusterDeployment Namespace", cd.Namespace, "Name", secretName)
 	err = utils.DeleteSecret(secretName, cd.Namespace, r.client, r.reqLogger)
 	if err != nil {
-		r.reqLogger.Error(err, "Error deleting Secret", "Namespace", cd.Namespace, "Name", secretName)
+		r.reqLogger.Error(err, "Error deleting Secret", "ClusterDeployment Namespace", cd.Namespace, "Name", secretName)
 	}
 
 	// find the PD syncset and delete it
-	r.reqLogger.Info("Deleting PD SyncSet", "Namespace", cd.Namespace, "Name", secretName)
+	r.reqLogger.Info("Deleting PD SyncSet", "ClusterDeployment Namespace", cd.Namespace, "Name", secretName)
 	err = utils.DeleteSyncSet(secretName, cd.Namespace, r.client, r.reqLogger)
 
 	if err != nil {
-		r.reqLogger.Error(err, "Error deleting SyncSet", "Namespace", cd.Namespace, "Name", secretName)
+		r.reqLogger.Error(err, "Error deleting SyncSet", "ClusterDeployment Namespace", cd.Namespace, "Name", secretName)
 	}
 
 	if utils.HasFinalizer(cd, finalizer) {
-		r.reqLogger.Info("Deleting PD finalizer from ClusterDeployment", "Namespace", cd.Namespace, "Name", cd.Name)
+		r.reqLogger.Info("Deleting PD finalizer from ClusterDeployment", "ClusterDeployment Namespace", cd.Namespace, "ClusterDeployment Name", cd.Name)
 		baseToPatch := client.MergeFrom(cd.DeepCopy())
 		utils.DeleteFinalizer(cd, finalizer)
 		if err := r.client.Patch(context.TODO(), cd, baseToPatch); err != nil {
-			r.reqLogger.Error(err, "Error deleting Finalizer from cluster deployment", "Namespace", cd.Namespace, "Name", cd.Name)
+			r.reqLogger.Error(err, "Error deleting Finalizer from cluster deployment", "ClusterDeployment Namespace", cd.Namespace, "ClusterDeployment Name", cd.Name)
 			metrics.UpdateMetricPagerDutyDeleteFailure(1, ClusterID, pdi.Name)
 			return err
 		}
 	}
 
 	if utils.HasFinalizer(cd, config.LegacyPagerDutyFinalizer) {
-		r.reqLogger.Info("Deleting old PD finalizer from ClusterDeployment", "Namespace", cd.Namespace, "Name", cd.Name)
+		r.reqLogger.Info("Deleting old PD finalizer from ClusterDeployment", "ClusterDeployment Namespace", cd.Namespace, "ClusterDeployment Name", cd.Name)
 		utils.DeleteFinalizer(cd, config.LegacyPagerDutyFinalizer)
 		err = r.client.Update(context.TODO(), cd)
 		if err != nil {

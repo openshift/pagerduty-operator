@@ -57,24 +57,24 @@ func (r *ReconcilePagerDutyIntegration) handleHibernation(pdclient pd.Client, pd
 	specIsHIbernating := cd.Spec.PowerState == hivev1.HibernatingClusterPowerState
 
 	if specIsHIbernating && !pdData.Hibernating {
-		r.reqLogger.Info("Disabling PD service", "ClusterID", pdData.ClusterID, "BaseDomain", pdData.BaseDomain)
+		r.reqLogger.Info("Disabling PD service", "ClusterID", pdData.ClusterID, "BaseDomain", pdData.BaseDomain, "ClusterDeployment Namespace", cd.Namespace)
 		if err := pdclient.DisableService(pdData); err != nil {
 			return err
 		}
 		pdData.Hibernating = true
 		if err := pdData.SetClusterConfig(r.client, cd.Namespace, configMapName); err != nil {
-			r.reqLogger.Error(err, "Error updating pd cluster config", "Name", configMapName)
+			r.reqLogger.Error(err, "Error updating pd cluster config", "Name", configMapName, "ClusterDeployment Namespace", cd.Namespace)
 			return err
 		}
 	} else if !specIsHIbernating && pdData.Hibernating {
 		if instancesAreRunning(cd) {
-			r.reqLogger.Info("Enabling PD service", "ClusterID", pdData.ClusterID, "BaseDomain", pdData.BaseDomain)
+			r.reqLogger.Info("Enabling PD service", "ClusterID", pdData.ClusterID, "BaseDomain", pdData.BaseDomain, "ClusterDeployment Namespace", cd.Namespace)
 			if err := pdclient.EnableService(pdData); err != nil {
 				return err
 			}
 			pdData.Hibernating = false
 			if err := pdData.SetClusterConfig(r.client, cd.Namespace, configMapName); err != nil {
-				r.reqLogger.Error(err, "Error updating pd cluster config", "Name", configMapName)
+				r.reqLogger.Error(err, "Error updating pd cluster config", "Name", configMapName, "ClusterDeployment Namespace", cd.Namespace)
 				return err
 			}
 		}
