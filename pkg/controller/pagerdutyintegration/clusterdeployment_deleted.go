@@ -137,9 +137,10 @@ func (r *ReconcilePagerDutyIntegration) handleDelete(pdclient pd.Client, pdi *pa
 
 	if deletePDService {
 		// we have everything necessary to attempt deletion of the PD service
+		r.reqLogger.Info(fmt.Sprintf("Deleteing PD service %s-%s.%s", pdData.ServicePrefix, pdData.ClusterID, pdData.BaseDomain))
 		err = pdclient.DeleteService(pdData)
 		if err != nil {
-			r.reqLogger.Error(err, "Failed cleaning up pagerduty.", "ClusterDeployment.Namespace", cd.Namespace)
+			r.reqLogger.Error(err, "Failed cleaning up pagerduty.", "ClusterDeployment.Namespace", cd.Namespace, "ClusterID", pdData.ClusterID)
 			return err
 		} else {
 			// NOTE: not deleting the configmap if we didn't delete
