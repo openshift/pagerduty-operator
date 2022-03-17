@@ -49,7 +49,7 @@ func DeleteConfigMap(name string, namespace string, client client.Client, reqLog
 		return err
 	}
 
-	reqLogger.Info("Deleting ConfigMap", "Namespace", namespace, "Name", name)
+	reqLogger.Info("Deleting ConfigMap", "ClusterDeployment.Namespace", namespace, "Name", name)
 	err = client.Delete(context.TODO(), configmap)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -83,7 +83,7 @@ func DeleteSyncSet(name string, namespace string, client client.Client, reqLogge
 
 	// Only delete the syncset, this is just cleanup of the synced secret.
 	// The ClusterDeployment controller manages deletion of the pagerduty serivce.
-	reqLogger.Info("Deleting SyncSet", "Namespace", namespace, "Name", name)
+	reqLogger.Info("Deleting SyncSet", "ClusterDeployment.Namespace", namespace, "Name", name)
 	err = client.Delete(context.TODO(), syncset)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -115,7 +115,7 @@ func DeleteSecret(name string, namespace string, client client.Client, reqLogger
 		return err
 	}
 
-	reqLogger.Info("Deleting Secret", "Namespace", namespace, "Name", name)
+	reqLogger.Info("Deleting Secret", "ClusterDeployment.Namespace", namespace, "Name", name)
 	err = client.Delete(context.TODO(), secret)
 	if err != nil {
 		if errors.IsNotFound(err) {
