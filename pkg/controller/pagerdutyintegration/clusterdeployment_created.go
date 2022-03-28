@@ -72,7 +72,10 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 		return r.client.Patch(context.TODO(), cd, baseToPatch)
 	}
 
-	ClusterID := cd.Spec.ClusterName
+	clusterID := cd.Spec.ClusterName
+	if config.IsFedramp() {
+		clusterID = utils.GetClusterID(cd.Namespace)
+	}
 
 	pdAPISecret := &corev1.Secret{}
 	err := r.client.Get(
@@ -93,7 +96,7 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 	}
 
 	pdData := &pd.Data{
-		ClusterID:          cd.Spec.ClusterName,
+		ClusterID:          clusterID,
 		BaseDomain:         cd.Spec.BaseDomain,
 		EscalationPolicyID: pdi.Spec.EscalationPolicy,
 		AutoResolveTimeout: pdi.Spec.ResolveTimeout,
@@ -114,10 +117,10 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 		r.reqLogger.Info("Creating PD service", "ClusterID", pdData.ClusterID, "BaseDomain", pdData.BaseDomain, "ClusterDeployment.Namespace", cd.Namespace)
 		_, createErr = pdclient.CreateService(pdData)
 		if createErr != nil {
-			localmetrics.UpdateMetricPagerDutyCreateFailure(1, ClusterID, pdi.Name)
+			localmetrics.UpdateMetricPagerDutyCreateFailure(1, clusterID, pdi.Name)
 			return createErr
 		}
-		localmetrics.UpdateMetricPagerDutyCreateFailure(0, ClusterID, pdi.Name)
+		localmetrics.UpdateMetricPagerDutyCreateFailure(0, clusterID, pdi.Name)
 
 		r.reqLogger.Info("Creating configmap")
 
