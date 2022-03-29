@@ -97,13 +97,13 @@ func (r *ReconcilePagerDutyIntegration) handleDelete(pdclient pd.Client, pdi *pa
 	}
 
 	pdData := &pd.Data{
-		ClusterID:          clusterID,
-		BaseDomain:         cd.Spec.BaseDomain,
-		EscalationPolicyID: pdi.Spec.EscalationPolicy,
-		AutoResolveTimeout: pdi.Spec.ResolveTimeout,
-		AcknowledgeTimeOut: pdi.Spec.AcknowledgeTimeout,
-		ServicePrefix:      pdi.Spec.ServicePrefix,
-		APIKey:             apiKey,
+		ClusterID:             clusterID,
+		BaseDomain:            cd.Spec.BaseDomain,
+		PDIEscalationPolicyID: pdi.Spec.EscalationPolicy,
+		AutoResolveTimeout:    pdi.Spec.ResolveTimeout,
+		AcknowledgeTimeOut:    pdi.Spec.AcknowledgeTimeout,
+		ServicePrefix:         pdi.Spec.ServicePrefix,
+		APIKey:                apiKey,
 	}
 
 	if deletePDService {

@@ -96,13 +96,13 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 	}
 
 	pdData := &pd.Data{
-		ClusterID:          clusterID,
-		BaseDomain:         cd.Spec.BaseDomain,
-		EscalationPolicyID: pdi.Spec.EscalationPolicy,
-		AutoResolveTimeout: pdi.Spec.ResolveTimeout,
-		AcknowledgeTimeOut: pdi.Spec.AcknowledgeTimeout,
-		ServicePrefix:      pdi.Spec.ServicePrefix,
-		APIKey:             apiKey,
+		ClusterID:             clusterID,
+		BaseDomain:            cd.Spec.BaseDomain,
+		PDIEscalationPolicyID: pdi.Spec.EscalationPolicy,
+		AutoResolveTimeout:    pdi.Spec.ResolveTimeout,
+		AcknowledgeTimeOut:    pdi.Spec.AcknowledgeTimeout,
+		ServicePrefix:         pdi.Spec.ServicePrefix,
+		APIKey:                apiKey,
 	}
 
 	// To prevent scoping issues in the err check below.
@@ -125,7 +125,7 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 		r.reqLogger.Info("Creating configmap")
 
 		// save config map
-		newCM := kube.GenerateConfigMap(cd.Namespace, configMapName, pdData.ServiceID, pdData.IntegrationID, false, false)
+		newCM := kube.GenerateConfigMap(cd.Namespace, configMapName, pdData.ServiceID, pdData.IntegrationID, pdData.EsclationPolicyID, false, false)
 		if err = controllerutil.SetControllerReference(cd, newCM, r.scheme); err != nil {
 			r.reqLogger.Error(err, "Error setting controller reference on configmap")
 			return err
@@ -141,6 +141,26 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 			r.reqLogger.Error(err, "Error creating configmap", "Name", configMapName)
 			return err
 		}
+	}
+
+	// check if there is a change in PDI escalation policy
+	if pdData.PDIEscalationPolicyID != pdData.EsclationPolicyID {
+		r.reqLogger.Info("PDI EscalationPolicy changed, updating service")
+		err := pdclient.UpdateEscalationPolicy(pdData)
+		if err != nil {
+			r.reqLogger.Error(err, "Error updating PagerDuty service")
+			return err
+		}
+
+		pdData.EsclationPolicyID = pdData.PDIEscalationPolicyID
+
+		// Update configmap to reflect the new esclation policy changes
+		if err := pdData.SetClusterConfig(r.client, cd.Namespace, configMapName); err != nil {
+			r.reqLogger.Error(err, "Error updating PagerDuty cluster config", "Name", configMapName)
+			return err
+		}
+
+		return nil
 	}
 
 	// try to load integration key (secret)
