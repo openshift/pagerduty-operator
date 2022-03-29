@@ -111,10 +111,11 @@ func testCDConfigMap(isHibernating bool, hasLimitedSupport bool) *corev1.ConfigM
 			Name:      config.Name(testServicePrefix, testClusterName, config.ConfigMapSuffix),
 		},
 		Data: map[string]string{
-			"INTEGRATION_ID":  testIntegrationID,
-			"SERVICE_ID":      testServiceID,
-			"HIBERNATING":     strconv.FormatBool(isHibernating),
-			"LIMITED_SUPPORT": strconv.FormatBool(hasLimitedSupport),
+			"INTEGRATION_ID":       testIntegrationID,
+			"SERVICE_ID":           testServiceID,
+			"ESCALATION_POLICY_ID": testEscalationPolicy,
+			"HIBERNATING":          strconv.FormatBool(isHibernating),
+			"LIMITED_SUPPORT":      strconv.FormatBool(hasLimitedSupport),
 		},
 	}
 	return cm
@@ -167,6 +168,12 @@ func testPagerDutyIntegration() *pagerdutyv1alpha1.PagerDutyIntegration {
 			},
 		},
 	}
+}
+
+func updatedTestPagerDutyIntegration() *pagerdutyv1alpha1.PagerDutyIntegration {
+	testPDI := testPagerDutyIntegration()
+	testPDI.Spec.EscalationPolicy = "new-escalation-policy"
+	return testPDI
 }
 
 // testClusterDeployment returns a fake ClusterDeployment for an installed cluster to use in testing.
@@ -294,6 +301,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 					func(data *pd.Data) (string, error) {
 						data.ServiceID = "XYZ123"
 						data.IntegrationID = "LMN456"
+						data.EsclationPolicyID = testEscalationPolicy
 						return data.IntegrationID, nil
 					})
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(1)
@@ -315,9 +323,11 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 					func(data *pd.Data) (string, error) {
 						data.ServiceID = "XYZ123"
 						data.IntegrationID = "LMN456"
+						data.EsclationPolicyID = testEscalationPolicy
 						return data.IntegrationID, nil
 					})
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(1)
+				r.UpdateEscalationPolicy(gomock.Any()).Return(nil).Times(0)
 				r.DeleteService(gomock.Any()).Return(nil).Times(0)
 				r.DisableService(gomock.Any()).Return(nil).Times(0)
 				r.EnableService(gomock.Any()).Return(nil).Times(0)
@@ -355,9 +365,11 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 					func(data *pd.Data) (string, error) {
 						data.ServiceID = "XYZ123"
 						data.IntegrationID = "LMN456"
+						data.EsclationPolicyID = testEscalationPolicy
 						return data.IntegrationID, nil
 					}) // unit test not support "lookup"
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0) // secret already exists, won't recreate
+				r.UpdateEscalationPolicy(gomock.Any()).Return(nil).Times(0)
 				r.DeleteService(gomock.Any()).Return(nil).Times(0)
 				r.DisableService(gomock.Any()).Return(nil).Times(0)
 				r.EnableService(gomock.Any()).Return(nil).Times(0)
@@ -569,9 +581,11 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 					func(data *pd.Data) (string, error) {
 						data.ServiceID = "XYZ123"
 						data.IntegrationID = "LMN456"
+						data.EsclationPolicyID = testEscalationPolicy
 						return data.IntegrationID, nil
 					})
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(1)
+				r.UpdateEscalationPolicy(gomock.Any()).Return(nil).Times(0)
 				r.DisableService(gomock.Any()).Return(nil).Times(1)
 				r.EnableService(gomock.Any()).Return(nil).Times(0)
 			},
@@ -646,6 +660,24 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.EnableService(gomock.Any()).Return(nil).Times(1)
 				r.DisableService(gomock.Any()).Return(nil).Times(0)
+			},
+		},
+		{
+			name: "Test Not Managed, Finalizer, Not Deleting, PD Setup, Not Hibernating, Not in Limited Support, PDI escalation policy updated",
+			localObjects: []runtime.Object{
+				testClusterDeployment(true, true, true, false, false, false, false),
+				testPDISecret(),
+				updatedTestPagerDutyIntegration(),
+				testCDConfigMap(false, false),
+				testCDSyncSet(),
+				testCDSecret(),
+			},
+			expectPDSetup: true,
+			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
+				r.UpdateEscalationPolicy(gomock.Any()).Return(nil).Times(1)
+				r.GetService(gomock.Any()).Return(nil, nil).Times(0)
+				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
+				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 			},
 		},
 	}

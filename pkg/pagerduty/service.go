@@ -67,6 +67,7 @@ type Client interface {
 	DeleteService(data *Data) error
 	EnableService(data *Data) error
 	DisableService(data *Data) error
+	UpdateEscalationPolicy(data *Data) error
 }
 
 type PdClient interface {
@@ -133,18 +134,19 @@ func NewClient(APIKey string, controllerName string) Client {
 
 // Data describes the data that is needed for PagerDuty api calls
 type Data struct {
-	EscalationPolicyID string
-	AutoResolveTimeout uint
-	AcknowledgeTimeOut uint
-	ServicePrefix      string
-	APIKey             string
-	ClusterID          string
-	BaseDomain         string
+	PDIEscalationPolicyID string
+	AutoResolveTimeout    uint
+	AcknowledgeTimeOut    uint
+	ServicePrefix         string
+	APIKey                string
+	ClusterID             string
+	BaseDomain            string
 
-	ServiceID      string
-	IntegrationID  string
-	Hibernating    bool
-	LimitedSupport bool
+	ServiceID         string
+	IntegrationID     string
+	EsclationPolicyID string
+	Hibernating       bool
+	LimitedSupport    bool
 }
 
 // ParseClusterConfig parses the cluster specific config map and stores the IDs in the data struct
@@ -161,6 +163,11 @@ func (data *Data) ParseClusterConfig(osc client.Client, namespace string, cmName
 	}
 
 	data.IntegrationID, err = getConfigMapKey(pdAPIConfigMap.Data, "INTEGRATION_ID")
+	if err != nil {
+		return err
+	}
+
+	data.EsclationPolicyID, err = getConfigMapKey(pdAPIConfigMap.Data, "ESCALATION_POLICY_ID")
 	if err != nil {
 		return err
 	}
@@ -183,6 +190,7 @@ func (data *Data) SetClusterConfig(osc client.Client, namespace string, cmName s
 
 	pdAPIConfigMap.Data["SERVICE_ID"] = data.ServiceID
 	pdAPIConfigMap.Data["INTEGRATION_ID"] = data.IntegrationID
+	pdAPIConfigMap.Data["ESCALATION_POLICY_ID"] = data.EsclationPolicyID
 	pdAPIConfigMap.Data["HIBERNATING"] = strconv.FormatBool(data.Hibernating)
 	pdAPIConfigMap.Data["LIMITED_SUPPORT"] = strconv.FormatBool(data.LimitedSupport)
 
@@ -215,7 +223,7 @@ func (c *SvcClient) GetIntegrationKey(data *Data) (string, error) {
 
 // CreateService creates a service in pagerduty for the specified clusterid and returns the service key
 func (c *SvcClient) CreateService(data *Data) (string, error) {
-	escalationPolicy, err := c.PdClient.GetEscalationPolicy(string(data.EscalationPolicyID), nil)
+	escalationPolicy, err := c.PdClient.GetEscalationPolicy(string(data.PDIEscalationPolicyID), nil)
 	if err != nil {
 		return "", errors.New("Escalation policy not found in PagerDuty")
 	}
@@ -265,6 +273,8 @@ func (c *SvcClient) CreateService(data *Data) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
+	data.EsclationPolicyID = newSvc.EscalationPolicy.ID
 
 	return data.IntegrationID, err
 }
@@ -332,6 +342,28 @@ func (c *SvcClient) DisableService(data *Data) error {
 		if _, err = c.PdClient.UpdateService(*service); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+// UpdateEscalationPolicy will update the PD service escalation policy
+func (c *SvcClient) UpdateEscalationPolicy(data *Data) error {
+	escalationPolicy, err := c.PdClient.GetEscalationPolicy(data.PDIEscalationPolicyID, &pdApi.GetEscalationPolicyOptions{})
+	if err != nil {
+		return err
+	}
+
+	service, err := c.PdClient.GetService(data.ServiceID, nil)
+	if err != nil {
+		return err
+	}
+
+	service.EscalationPolicy.ID = escalationPolicy.ID
+
+	_, err = c.PdClient.UpdateService(*service)
+	if err != nil {
+		return err
 	}
 
 	return nil
