@@ -44,11 +44,6 @@ const (
 
 var log = logf.Log.WithName("controller_pagerdutyintegration")
 
-/**
-* USER ACTION REQUIRED: This is a scaffold file intended for the user to modify with their own Controller
-* business logic.  Delete these comments after modifying this file.*
- */
-
 // Add creates a new PagerDutyIntegration Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
@@ -183,13 +178,13 @@ func (r *ReconcilePagerDutyIntegration) Reconcile(request reconcile.Request) (re
 	// fetch all CDs so we can inspect if they're dropped out of the matching CD list
 	allClusterDeployments, err := r.getAllClusterDeployments()
 	if err != nil {
-		return reconcile.Result{}, err
+		return r.requeueOnErr(err)
 	}
 
 	// fetch matching CDs
 	matchingClusterDeployments, err := r.getMatchingClusterDeployments(pdi)
 	if err != nil {
-		return reconcile.Result{}, err
+		return r.requeueOnErr(err)
 	}
 
 	// the name of the finalizer for the PDI being reconciled
@@ -220,7 +215,7 @@ func (r *ReconcilePagerDutyIntegration) Reconcile(request reconcile.Request) (re
 				if utils.HasFinalizer(&clusterdeployment, clusterDeploymentFinalizerName) {
 					err = r.handleDelete(pdClient, pdi, &clusterdeployment)
 					if err != nil {
-						return reconcile.Result{}, err
+						return r.requeueOnErr(err)
 					}
 				}
 			}
@@ -246,7 +241,7 @@ func (r *ReconcilePagerDutyIntegration) Reconcile(request reconcile.Request) (re
 		}
 	}
 
-	// review all CD and see if PD service needs added or removed
+	// review all CD and see if PD service needs to be deleted
 	for _, cd := range allClusterDeployments.Items {
 		if utils.HasFinalizer(&cd, clusterDeploymentFinalizerName) {
 			if cd.DeletionTimestamp != nil {
