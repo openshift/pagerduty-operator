@@ -19,7 +19,6 @@ require (
 	github.com/stretchr/testify v1.6.1
 	golang.org/x/tools v0.0.0-20200616195046-dc31b401abb5 // indirect
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
-	gotest.tools v2.2.0+incompatible
 	k8s.io/api v0.20.0
 	k8s.io/apiextensions-apiserver v0.19.0 // indirect
 	k8s.io/apimachinery v0.20.0

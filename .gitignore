@@ -87,3 +87,6 @@ saas-pagerduty-operator-bundle/
 
 # Local docker configuration
 .docker/*
+
+# IntelliJ
+.idea/

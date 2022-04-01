@@ -410,22 +410,47 @@ func (c *SvcClient) getIncidents(data *Data) ([]pdApi.Incident, error) {
 	return incidentsRes.Incidents, err
 }
 
-func (c *SvcClient) waitForIncidentsToResolve(data *Data, maxWait time.Duration) (err error) {
+// waitForIncidentsToResolve checks if all incidents have been resolved every 2 seconds,
+// waiting for a maximum of maxWait
+func (c *SvcClient) waitForIncidentsToResolve(data *Data, maxWait time.Duration) error {
 	waitStep := 2 * time.Second
 	incidents, err := c.getIncidents(data)
+	if err != nil {
+		return err
+	}
 
-OUTER:
-	for i := 0; time.Duration(i)*waitStep < maxWait; i++ {
-		for _, incident := range incidents {
-			if incident.AlertCounts.Triggered > 0 {
-				c.Delay(waitStep)
-				incidents, err = c.getIncidents(data)
-				continue OUTER
+	totalIncidents := len(incidents)
+
+	start := time.Now()
+	for _, incident := range incidents {
+		if time.Since(start) > maxWait {
+			return fmt.Errorf("timed out waiting for %d incidents to resolve, %d left: %v",
+				totalIncidents,
+				len(incidents),
+				parseIncidentNumbers(incidents),
+			)
+		}
+
+		if incident.AlertCounts.Triggered > 0 {
+			c.Delay(waitStep)
+			incidents, err = c.getIncidents(data)
+			if err != nil {
+				return err
 			}
 		}
-		return
 	}
-	return errors.New("Incidents still pending")
+
+	return nil
+}
+
+// parseIncidentNumbers returns a slice of PagerDuty incident numbers
+func parseIncidentNumbers(incidents []pdApi.Incident) []uint {
+	var incidentNumbers []uint
+	for _, incident := range incidents {
+		incidentNumbers = append(incidentNumbers, incident.IncidentNumber)
+	}
+
+	return incidentNumbers
 }
 
 func (c *SvcClient) resolveIncident(serviceKey, incidentKey string) error {
