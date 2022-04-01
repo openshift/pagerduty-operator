@@ -16,6 +16,7 @@ package pagerdutyintegration
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -43,6 +44,22 @@ const (
 )
 
 var log = logf.Log.WithName("controller_pagerdutyintegration")
+
+// pdiReconcileErrors implements the builtin error interface
+type pdiReconcileErrors []error
+
+// Error causes pdiReconcileErrors to convert the error to a string like normal unless its length is more than one.
+// Then it will print the first error and report the remaining number of errors.
+func (p pdiReconcileErrors) Error() string {
+	switch len(p) {
+	case 0:
+		return ""
+	case 1:
+		return p[0].Error()
+	default:
+		return fmt.Sprintf("%s - %d other errors", p[0].Error(), len(p)-1)
+	}
+}
 
 // Add creates a new PagerDutyIntegration Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
@@ -181,7 +198,7 @@ func (r *ReconcilePagerDutyIntegration) Reconcile(request reconcile.Request) (re
 		return r.requeueOnErr(err)
 	}
 
-	// fetch matching CDs
+	// Fetch ClusterDeployments matching the PDI's ClusterDeployment label selector
 	matchingClusterDeployments, err := r.getMatchingClusterDeployments(pdi)
 	if err != nil {
 		return r.requeueOnErr(err)
@@ -205,12 +222,9 @@ func (r *ReconcilePagerDutyIntegration) Reconcile(request reconcile.Request) (re
 	localmetrics.UpdateMetricPagerDutyIntegrationSecretLoaded(1, pdi.Name)
 	pdClient := r.pdclient(pdApiKey, controllerName)
 
-	// check if PDI is being deleted, if so we cleanup all CD w/ matching finalizers
+	// If the PDI is being deleted, clean up all ClusterDeployments with matching finalizers
 	if pdi.DeletionTimestamp != nil {
 		if utils.HasFinalizer(pdi, config.PagerDutyIntegrationFinalizer) {
-			// review _all_ CD, cleanup anything w/ this PDI finalizer
-
-			// do the CD cleanup
 			for _, clusterdeployment := range allClusterDeployments.Items {
 				if utils.HasFinalizer(&clusterdeployment, clusterDeploymentFinalizerName) {
 					err = r.handleDelete(pdClient, pdi, &clusterdeployment)
@@ -222,7 +236,7 @@ func (r *ReconcilePagerDutyIntegration) Reconcile(request reconcile.Request) (re
 
 			localmetrics.DeleteMetricPagerDutyIntegrationSecretLoaded(pdi.Name)
 
-			// do the PDI cleanup
+			// Once all ClusterDeployments have been cleaned up, delete the PDI finalizer
 			utils.DeleteFinalizer(pdi, config.PagerDutyIntegrationFinalizer)
 			err = r.client.Update(context.TODO(), pdi)
 			if err != nil {
@@ -232,7 +246,7 @@ func (r *ReconcilePagerDutyIntegration) Reconcile(request reconcile.Request) (re
 		return r.doNotRequeue()
 	}
 
-	// add finalizer to PDI if it's not there (if we get here, it's not being deleted)
+	// Ensure the PDI has a finalizer to protect it from deletion
 	if !utils.HasFinalizer(pdi, config.PagerDutyIntegrationFinalizer) {
 		utils.AddFinalizer(pdi, config.PagerDutyIntegrationFinalizer)
 		err := r.client.Update(context.TODO(), pdi)
@@ -241,18 +255,18 @@ func (r *ReconcilePagerDutyIntegration) Reconcile(request reconcile.Request) (re
 		}
 	}
 
-	// review all CD and see if PD service needs to be deleted
+	var reconcileErrors pdiReconcileErrors
+	// Process all ClusterDeployments with the PDI finalizer for PD service deletion
 	for _, cd := range allClusterDeployments.Items {
 		if utils.HasFinalizer(&cd, clusterDeploymentFinalizerName) {
 			if cd.DeletionTimestamp != nil {
-				// it has a finalizer and is being deleted.  clean up PD things!
+				// The ClusterDeployment is being deleted, so delete the PD service
 				err := r.handleDelete(pdClient, pdi, &cd)
 				if err != nil {
-					return r.requeueOnErr(err)
+					reconcileErrors = append(reconcileErrors, err)
 				}
 			} else {
-				// it has a finalizer and is NOT being deleted.
-				// check if it should have PD setup or not (did it drop out of the PDI?)
+				// The ClusterDeployment is NOT being deleted, is it one of our matched ClusterDeployments?
 				cdIsMatching := false
 				for _, mcd := range matchingClusterDeployments.Items {
 					if cd.Namespace == mcd.Namespace && cd.Name == mcd.Name {
@@ -261,11 +275,12 @@ func (r *ReconcilePagerDutyIntegration) Reconcile(request reconcile.Request) (re
 					}
 				}
 
+				// It's not a matched ClusterDeployment, delete the PagerDuty service because it shouldn't exist
 				if !cdIsMatching {
-					// the CD has a finalizer but is NOT matching the PDI. clean it up.
+					r.reqLogger.Info(fmt.Sprintf("cleaning up %s as it has a finalizer but no matching label", cd.Name))
 					err := r.handleDelete(pdClient, pdi, &cd)
 					if err != nil {
-						return r.requeueOnErr(err)
+						reconcileErrors = append(reconcileErrors, err)
 					}
 				}
 			}
@@ -276,20 +291,20 @@ func (r *ReconcilePagerDutyIntegration) Reconcile(request reconcile.Request) (re
 	for _, cd := range matchingClusterDeployments.Items {
 		if cd.DeletionTimestamp == nil {
 			if err := r.handleCreate(pdClient, pdi, &cd); err != nil {
-				return r.requeueOnErr(err)
+				reconcileErrors = append(reconcileErrors, err)
 			}
 
 			if err := r.handleHibernation(pdClient, pdi, &cd); err != nil {
-				return r.requeueOnErr(err)
+				reconcileErrors = append(reconcileErrors, err)
 			}
 
 			if err := r.handleLimitedSupport(pdClient, pdi, &cd); err != nil {
-				return r.requeueOnErr(err)
+				reconcileErrors = append(reconcileErrors, err)
 			}
 		}
 	}
 
-	return r.doNotRequeue()
+	return r.requeueOnErr(reconcileErrors)
 }
 
 func (r *ReconcilePagerDutyIntegration) getAllClusterDeployments() (*hivev1.ClusterDeploymentList, error) {

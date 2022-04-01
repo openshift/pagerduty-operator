@@ -78,6 +78,7 @@ func (r *ReconcilePagerDutyIntegration) handleDelete(pdclient pd.Client, pdi *pa
 
 	// Check if the PD Service still exists, if not DeleteService returns errors
 	if deletePDService {
+		// Check if the PD service still exists
 		_, err = pdclient.GetService(pdData)
 
 		if err != nil {
@@ -85,6 +86,8 @@ func (r *ReconcilePagerDutyIntegration) handleDelete(pdclient pd.Client, pdi *pa
 				return err
 			}
 			r.reqLogger.Info(fmt.Sprintf("PD service %s-%s.%s not found...skipping PD service deletion", pdData.ServicePrefix, pdData.ClusterID, pdData.BaseDomain))
+
+			// If the PagerDuty service is not found, don't try deleting it and continue cleaning up
 			deletePDService = false
 		}
 	}
