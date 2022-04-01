@@ -8,8 +8,8 @@ import (
 	"github.com/golang/mock/gomock"
 	s "github.com/openshift/pagerduty-operator/pkg/pagerduty"
 	mockpd "github.com/openshift/pagerduty-operator/pkg/pagerduty/mock"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"gotest.tools/assert"
 )
 
 type functionMock struct {
@@ -46,14 +46,6 @@ func NewPdData() *s.Data {
 		ServiceID:     "test-service-id",
 		IntegrationID: "test-integration-id",
 	}
-}
-
-func TestDeleteServiceNoPendingIncidents(t *testing.T) {
-	c, mockPdClient, _ := NewTestClient(t)
-	mockPdClient.EXPECT().ListIncidents(gomock.Any()).Return(&pdApi.ListIncidentsResponse{}, nil).Times(2)
-	mockPdClient.EXPECT().DeleteService(gomock.Any()).Return(nil).Times(1)
-	err := c.DeleteService(NewPdData())
-	assert.Assert(t, err, nil, "Unexpected error occured")
 }
 
 func setupMockWithIncidents(mockPdClient *mockpd.MockPdClient, funcMock *functionMock, eventDelay int) {
@@ -97,30 +89,35 @@ func incident(name string, triggeredCount uint) pdApi.Incident {
 
 }
 
-func TestDeleteServiceTwoPendingIncidents(t *testing.T) {
-	c, mockPdClient, funcMock := NewTestClient(t)
-	setupMockWithIncidents(mockPdClient, funcMock, 1)
-	err := c.DeleteService(NewPdData())
-	assert.Equal(t, err, nil, "Unexpected error occured")
-	funcMock.AssertNumberOfCalls(t, "manageEvents", 2)
-}
+func TestDeleteService(t *testing.T) {
+	tests := []struct {
+		name             string
+		eventDelay       int
+		initialDelay     int
+		expectError      bool
+		expectedNumCalls int
+	}{
+		{
+			name:             "Two pending incidents",
+			eventDelay:       1,
+			initialDelay:     0,
+			expectError:      false,
+			expectedNumCalls: 2,
+		},
+	}
 
-func TestDeleteServiceTwoPendingIncidentsResolveDelayed(t *testing.T) {
-	c, mockPdClient, funcMock := NewTestClient(t)
-	setupMockWithIncidents(mockPdClient, funcMock, 3)
-	funcMock.On("delay").Times(2)
-	err := c.DeleteService(NewPdData())
-	assert.Equal(t, err, nil, "Unexpected error occured")
-	funcMock.AssertNumberOfCalls(t, "manageEvents", 2)
-	funcMock.AssertNumberOfCalls(t, "delay", 2)
-}
+	for _, test := range tests {
+		c, mockPdClient, funcMock := NewTestClient(t)
+		setupMockWithIncidents(mockPdClient, funcMock, test.eventDelay)
+		funcMock.On("delay").Times(test.initialDelay)
+		err := c.DeleteService(NewPdData())
+		if test.expectError {
+			assert.NotNilf(t, err, "expected '%s' to return an error", test.name)
+		} else {
+			assert.Nilf(t, err, "expected '%s' to return nil", test.name)
+		}
 
-func TestDeleteServiceTwoPendingIncidentsResolveTimeout(t *testing.T) {
-	c, mockPdClient, funcMock := NewTestClient(t)
-	setupMockWithIncidents(mockPdClient, funcMock, 10)
-	funcMock.On("delay").Times(5)
-	err := c.DeleteService(NewPdData())
-	assert.Error(t, err, "Incidents still pending")
-	funcMock.AssertNumberOfCalls(t, "manageEvents", 2)
-	funcMock.AssertNumberOfCalls(t, "delay", 5)
+		funcMock.AssertNumberOfCalls(t, "manageEvents", test.expectedNumCalls)
+		funcMock.AssertNumberOfCalls(t, "delay", test.initialDelay)
+	}
 }
