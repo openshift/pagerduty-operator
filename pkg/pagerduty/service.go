@@ -32,29 +32,27 @@ import (
 )
 
 func getConfigMapKey(data map[string]string, key string) (string, error) {
-	if _, ok := data[key]; !ok {
-		errorStr := fmt.Sprintf("%v does not exist", key)
-		return "", errors.New(errorStr)
+	retString, ok := data[key]
+	if !ok {
+		return "", fmt.Errorf("%v does not exist", key)
 	}
-	retString := data[key]
-	if len(retString) <= 0 {
-		errorStr := fmt.Sprintf("%v is empty", key)
-		return "", errors.New(errorStr)
+	if len(retString) == 0 {
+		return "", fmt.Errorf("%v is empty", key)
 	}
+
 	return retString, nil
 }
 
 func GetSecretKey(data map[string][]byte, key string) (string, error) {
-	if _, ok := data[key]; !ok {
-		errorStr := fmt.Sprintf("%v does not exist", key)
-		return "", errors.New(errorStr)
+	retString, ok := data[key]
+	if !ok {
+		return "", fmt.Errorf("%v does not exist", key)
 	}
-	retString := string(data[key])
-	if len(retString) <= 0 {
-		errorStr := fmt.Sprintf("%v is empty", key)
-		return "", errors.New(errorStr)
+	if len(retString) == 0 {
+		return "", fmt.Errorf("%v is empty", key)
 	}
-	return retString, nil
+
+	return string(retString), nil
 }
 
 //Client is a wrapper interface for the SvcClient to allow for easier testing
