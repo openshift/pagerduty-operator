@@ -1,4 +1,4 @@
-package pagerduty_test
+package pagerduty
 
 import (
 	"testing"
@@ -6,8 +6,6 @@ import (
 
 	pdApi "github.com/PagerDuty/go-pagerduty"
 	"github.com/golang/mock/gomock"
-	s "github.com/openshift/pagerduty-operator/pkg/pagerduty"
-	mockpd "github.com/openshift/pagerduty-operator/pkg/pagerduty/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -25,10 +23,10 @@ func (m *functionMock) delay(d time.Duration) {
 	m.Called()
 }
 
-func NewTestClient(t *testing.T) (s.Client, *mockpd.MockPdClient, *functionMock) {
-	mockClient := mockpd.NewMockPdClient(gomock.NewController(t))
+func NewTestClient(t *testing.T) (Client, *MockPdClient, *functionMock) {
+	mockClient := NewMockPdClient(gomock.NewController(t))
 	funcMock := new(functionMock)
-	return &s.SvcClient{
+	return &SvcClient{
 			APIKey:      "test-key",
 			PdClient:    mockClient,
 			ManageEvent: func(ev pdApi.V2Event) (*pdApi.V2EventResponse, error) { return funcMock.manageEvents(ev) },
@@ -38,8 +36,8 @@ func NewTestClient(t *testing.T) (s.Client, *mockpd.MockPdClient, *functionMock)
 		funcMock
 }
 
-func NewPdData() *s.Data {
-	return &s.Data{
+func NewPdData() *Data {
+	return &Data{
 		APIKey:        "test-api-key",
 		ClusterID:     "test-cluster-id",
 		BaseDomain:    "test.domain",
@@ -48,7 +46,7 @@ func NewPdData() *s.Data {
 	}
 }
 
-func setupMockWithIncidents(mockPdClient *mockpd.MockPdClient, funcMock *functionMock, eventDelay int) {
+func setupMockWithIncidents(mockPdClient *MockPdClient, funcMock *functionMock, eventDelay int) {
 	incidentsResponse := &pdApi.ListIncidentsResponse{
 		Incidents: []pdApi.Incident{
 			incident("test-incident-1", 1),

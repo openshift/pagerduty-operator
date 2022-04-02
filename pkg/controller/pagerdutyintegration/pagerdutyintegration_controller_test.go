@@ -28,7 +28,6 @@ import (
 	pagerdutyv1alpha1 "github.com/openshift/pagerduty-operator/pkg/apis/pagerduty/v1alpha1"
 	"github.com/openshift/pagerduty-operator/pkg/kube"
 	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
-	mockpd "github.com/openshift/pagerduty-operator/pkg/pagerduty/mock"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -75,7 +74,7 @@ type ClusterDeploymentEntry struct {
 type mocks struct {
 	fakeKubeClient client.Client
 	mockCtrl       *gomock.Controller
-	mockPDClient   *mockpd.MockClient
+	mockPDClient   *pd.MockClient
 }
 
 func setupDefaultMocks(t *testing.T, localObjects []runtime.Object) *mocks {
@@ -84,7 +83,7 @@ func setupDefaultMocks(t *testing.T, localObjects []runtime.Object) *mocks {
 		mockCtrl:       gomock.NewController(t),
 	}
 
-	mocks.mockPDClient = mockpd.NewMockClient(mocks.mockCtrl)
+	mocks.mockPDClient = pd.NewMockClient(mocks.mockCtrl)
 
 	return mocks
 }
@@ -258,7 +257,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 		localObjects            []runtime.Object
 		expectPDSetup           bool
 		verifyClusterDeployment func(client.Client, *ClusterDeploymentEntry) bool
-		setupPDMock             func(*mockpd.MockClientMockRecorder)
+		setupPDMock             func(*pd.MockClientMockRecorder)
 	}{
 		{
 			name: "Test Not Installed",
@@ -268,7 +267,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testPagerDutyIntegration(),
 			},
 			expectPDSetup: false,
-			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
+			setupPDMock: func(r *pd.MockClientMockRecorder) {
 				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.DeleteService(gomock.Any()).Return(nil).Times(0)
@@ -282,7 +281,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testPagerDutyIntegration(),
 			},
 			expectPDSetup: false,
-			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
+			setupPDMock: func(r *pd.MockClientMockRecorder) {
 				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.DeleteService(gomock.Any()).Return(nil).Times(0)
@@ -296,7 +295,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testPagerDutyIntegration(),
 			},
 			expectPDSetup: true,
-			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
+			setupPDMock: func(r *pd.MockClientMockRecorder) {
 				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(1).DoAndReturn(
 					func(data *pd.Data) (string, error) {
 						data.ServiceID = "XYZ123"
@@ -318,7 +317,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testPagerDutyIntegration(),
 			},
 			expectPDSetup: true,
-			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
+			setupPDMock: func(r *pd.MockClientMockRecorder) {
 				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(1).DoAndReturn(
 					func(data *pd.Data) (string, error) {
 						data.ServiceID = "XYZ123"
@@ -344,7 +343,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testCDSecret(),
 			},
 			expectPDSetup: true,
-			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
+			setupPDMock: func(r *pd.MockClientMockRecorder) {
 				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.DeleteService(gomock.Any()).Return(nil).Times(0)
@@ -360,7 +359,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testCDSecret(),
 			},
 			expectPDSetup: true,
-			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
+			setupPDMock: func(r *pd.MockClientMockRecorder) {
 				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(1).DoAndReturn(
 					func(data *pd.Data) (string, error) {
 						data.ServiceID = "XYZ123"
@@ -385,7 +384,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testCDSecret(),
 			},
 			expectPDSetup: true,
-			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
+			setupPDMock: func(r *pd.MockClientMockRecorder) {
 				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.DeleteService(gomock.Any()).Return(nil).Times(0)
@@ -404,7 +403,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testCDSecret(),
 			},
 			expectPDSetup: true,
-			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
+			setupPDMock: func(r *pd.MockClientMockRecorder) {
 				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.DeleteService(gomock.Any()).Return(nil).Times(0)
@@ -420,7 +419,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testPagerDutyIntegration(),
 			},
 			expectPDSetup: false,
-			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
+			setupPDMock: func(r *pd.MockClientMockRecorder) {
 				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.DeleteService(gomock.Any()).Return(nil).Times(0)
@@ -437,7 +436,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testCDSecret(),
 			},
 			expectPDSetup: false,
-			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
+			setupPDMock: func(r *pd.MockClientMockRecorder) {
 				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.GetService(gomock.Any()).Return(nil, nil).Times(1)
@@ -452,7 +451,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testPagerDutyIntegration(),
 			},
 			expectPDSetup: false,
-			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
+			setupPDMock: func(r *pd.MockClientMockRecorder) {
 				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.DeleteService(gomock.Any()).Return(nil).Times(0)
@@ -466,7 +465,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testPagerDutyIntegration(),
 			},
 			expectPDSetup: false,
-			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
+			setupPDMock: func(r *pd.MockClientMockRecorder) {
 				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.DeleteService(gomock.Any()).Return(nil).Times(0)
@@ -480,7 +479,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testPagerDutyIntegration(),
 			},
 			expectPDSetup: false,
-			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
+			setupPDMock: func(r *pd.MockClientMockRecorder) {
 				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.DeleteService(gomock.Any()).Return(nil).Times(0)
@@ -497,7 +496,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testCDSecret(),
 			},
 			expectPDSetup: false,
-			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
+			setupPDMock: func(r *pd.MockClientMockRecorder) {
 				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.GetService(gomock.Any()).Return(nil, nil).Times(1)
@@ -515,7 +514,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testCDSecret(),
 			},
 			expectPDSetup: false,
-			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
+			setupPDMock: func(r *pd.MockClientMockRecorder) {
 				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.GetService(gomock.Any()).Return(nil, nil).Times(1)
@@ -530,7 +529,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testPagerDutyIntegration(),
 			},
 			expectPDSetup: false,
-			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
+			setupPDMock: func(r *pd.MockClientMockRecorder) {
 				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.DeleteService(gomock.Any()).Return(nil).Times(0)
@@ -547,7 +546,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testCDSecret(),
 			},
 			expectPDSetup: false,
-			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
+			setupPDMock: func(r *pd.MockClientMockRecorder) {
 				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.GetService(gomock.Any()).Return(nil, nil).Times(1)
@@ -562,7 +561,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testPagerDutyIntegration(),
 			},
 			expectPDSetup: false,
-			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
+			setupPDMock: func(r *pd.MockClientMockRecorder) {
 				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.DeleteService(gomock.Any()).Return(nil).Times(0)
@@ -576,7 +575,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testPagerDutyIntegration(),
 			},
 			expectPDSetup: true,
-			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
+			setupPDMock: func(r *pd.MockClientMockRecorder) {
 				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(1).DoAndReturn(
 					func(data *pd.Data) (string, error) {
 						data.ServiceID = "XYZ123"
@@ -601,7 +600,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testCDSecret(),
 			},
 			expectPDSetup: true,
-			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
+			setupPDMock: func(r *pd.MockClientMockRecorder) {
 				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.EnableService(gomock.Any()).Return(nil).Times(1)
@@ -619,7 +618,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testCDSecret(),
 			},
 			expectPDSetup: true,
-			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
+			setupPDMock: func(r *pd.MockClientMockRecorder) {
 				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.DisableService(gomock.Any()).Return(nil).Times(1)
@@ -637,7 +636,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testCDConfigMap(false, false),
 			},
 			expectPDSetup: true,
-			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
+			setupPDMock: func(r *pd.MockClientMockRecorder) {
 				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.DisableService(gomock.Any()).Return(nil).Times(1)
@@ -655,7 +654,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testCDConfigMap(false, true),
 			},
 			expectPDSetup: true,
-			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
+			setupPDMock: func(r *pd.MockClientMockRecorder) {
 				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.EnableService(gomock.Any()).Return(nil).Times(1)
@@ -673,7 +672,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testCDSecret(),
 			},
 			expectPDSetup: true,
-			setupPDMock: func(r *mockpd.MockClientMockRecorder) {
+			setupPDMock: func(r *pd.MockClientMockRecorder) {
 				r.UpdateEscalationPolicy(gomock.Any()).Return(nil).Times(1)
 				r.GetService(gomock.Any()).Return(nil, nil).Times(0)
 				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
