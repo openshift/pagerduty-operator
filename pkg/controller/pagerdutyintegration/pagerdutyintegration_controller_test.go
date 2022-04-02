@@ -300,7 +300,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 					func(data *pd.Data) (string, error) {
 						data.ServiceID = "XYZ123"
 						data.IntegrationID = "LMN456"
-						data.EsclationPolicyID = testEscalationPolicy
+						data.EscalationPolicyID = testEscalationPolicy
 						return data.IntegrationID, nil
 					})
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(1)
@@ -322,7 +322,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 					func(data *pd.Data) (string, error) {
 						data.ServiceID = "XYZ123"
 						data.IntegrationID = "LMN456"
-						data.EsclationPolicyID = testEscalationPolicy
+						data.EscalationPolicyID = testEscalationPolicy
 						return data.IntegrationID, nil
 					})
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(1)
@@ -364,7 +364,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 					func(data *pd.Data) (string, error) {
 						data.ServiceID = "XYZ123"
 						data.IntegrationID = "LMN456"
-						data.EsclationPolicyID = testEscalationPolicy
+						data.EscalationPolicyID = testEscalationPolicy
 						return data.IntegrationID, nil
 					}) // unit test not support "lookup"
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0) // secret already exists, won't recreate
@@ -580,7 +580,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 					func(data *pd.Data) (string, error) {
 						data.ServiceID = "XYZ123"
 						data.IntegrationID = "LMN456"
-						data.EsclationPolicyID = testEscalationPolicy
+						data.EscalationPolicyID = testEscalationPolicy
 						return data.IntegrationID, nil
 					})
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(1)

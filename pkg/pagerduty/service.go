@@ -21,13 +21,11 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-
-	"github.com/openshift/pagerduty-operator/config"
-	"github.com/openshift/pagerduty-operator/pkg/localmetrics"
-
 	"time"
 
 	pdApi "github.com/PagerDuty/go-pagerduty"
+	"github.com/openshift/pagerduty-operator/config"
+	"github.com/openshift/pagerduty-operator/pkg/localmetrics"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -142,11 +140,11 @@ type Data struct {
 	ClusterID             string
 	BaseDomain            string
 
-	ServiceID         string
-	IntegrationID     string
-	EsclationPolicyID string
-	Hibernating       bool
-	LimitedSupport    bool
+	ServiceID          string
+	IntegrationID      string
+	EscalationPolicyID string
+	Hibernating        bool
+	LimitedSupport     bool
 }
 
 // ParseClusterConfig parses the cluster specific config map and stores the IDs in the data struct
@@ -167,7 +165,7 @@ func (data *Data) ParseClusterConfig(osc client.Client, namespace string, cmName
 		return err
 	}
 
-	data.EsclationPolicyID, err = getConfigMapKey(pdAPIConfigMap.Data, "ESCALATION_POLICY_ID")
+	data.EscalationPolicyID, err = getConfigMapKey(pdAPIConfigMap.Data, "ESCALATION_POLICY_ID")
 	if err != nil {
 		return err
 	}
@@ -181,7 +179,7 @@ func (data *Data) ParseClusterConfig(osc client.Client, namespace string, cmName
 	return nil
 }
 
-// ParseClusterConfig parses the cluster specific config map and stores the IDs in the data struct
+// SetClusterConfig parses the cluster specific config map and stores the IDs in the data struct
 func (data *Data) SetClusterConfig(osc client.Client, namespace string, cmName string) error {
 	pdAPIConfigMap := &corev1.ConfigMap{}
 	if err := osc.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: cmName}, pdAPIConfigMap); err != nil {
@@ -190,7 +188,7 @@ func (data *Data) SetClusterConfig(osc client.Client, namespace string, cmName s
 
 	pdAPIConfigMap.Data["SERVICE_ID"] = data.ServiceID
 	pdAPIConfigMap.Data["INTEGRATION_ID"] = data.IntegrationID
-	pdAPIConfigMap.Data["ESCALATION_POLICY_ID"] = data.EsclationPolicyID
+	pdAPIConfigMap.Data["ESCALATION_POLICY_ID"] = data.EscalationPolicyID
 	pdAPIConfigMap.Data["HIBERNATING"] = strconv.FormatBool(data.Hibernating)
 	pdAPIConfigMap.Data["LIMITED_SUPPORT"] = strconv.FormatBool(data.LimitedSupport)
 
@@ -223,7 +221,7 @@ func (c *SvcClient) GetIntegrationKey(data *Data) (string, error) {
 
 // CreateService creates a service in pagerduty for the specified clusterid and returns the service key
 func (c *SvcClient) CreateService(data *Data) (string, error) {
-	escalationPolicy, err := c.PdClient.GetEscalationPolicy(string(data.PDIEscalationPolicyID), nil)
+	escalationPolicy, err := c.PdClient.GetEscalationPolicy(data.PDIEscalationPolicyID, nil)
 	if err != nil {
 		return "", errors.New("Escalation policy not found in PagerDuty")
 	}
@@ -274,7 +272,7 @@ func (c *SvcClient) CreateService(data *Data) (string, error) {
 		return "", err
 	}
 
-	data.EsclationPolicyID = newSvc.EscalationPolicy.ID
+	data.EscalationPolicyID = newSvc.EscalationPolicy.ID
 
 	return data.IntegrationID, err
 }
