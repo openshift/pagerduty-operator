@@ -229,8 +229,8 @@ func (c *SvcClient) CreateService(data *Data) (string, error) {
 	}
 
 	clusterService := pdApi.Service{
-		Name:                   data.ServicePrefix + "-" + data.ClusterID + "." + data.BaseDomain + "-hive-cluster",
-		Description:            data.ClusterID + " - A managed hive created cluster",
+		Name:                   generatePDServiceName(data),
+		Description:            generatePDServiceDescription(data),
 		EscalationPolicy:       *escalationPolicy,
 		AutoResolveTimeout:     &data.AutoResolveTimeout,
 		AcknowledgementTimeout: &data.AcknowledgeTimeOut,
@@ -451,6 +451,26 @@ func parseIncidentNumbers(incidents []pdApi.Incident) []uint {
 	}
 
 	return incidentNumbers
+}
+
+// generateServiceName checks if FedRamp is enabled. If it is, it returns
+// an anonymized PD service name.
+func generatePDServiceName(data *Data) string {
+	if config.IsFedramp() {
+		return data.ClusterID
+	} else {
+		return data.ServicePrefix + "-" + data.ClusterID + "." + data.BaseDomain + "-hive-cluster"
+	}
+}
+
+// generateServiceDescription checks if FedRamp is enabled. If it is, it returns
+// an empty PD service description
+func generatePDServiceDescription(data *Data) string {
+	if config.IsFedramp() {
+		return ""
+	} else {
+		return data.ClusterID + " - A managed hive created cluster"
+	}
 }
 
 func (c *SvcClient) resolveIncident(serviceKey, incidentKey string) error {
