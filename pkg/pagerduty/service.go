@@ -457,7 +457,7 @@ func parseIncidentNumbers(incidents []pdApi.Incident) []uint {
 // an anonymized PD service name.
 func generatePDServiceName(data *Data) string {
 	if config.IsFedramp() {
-		return data.ClusterID
+		return data.ServicePrefix + "-" + data.ClusterID
 	} else {
 		return data.ServicePrefix + "-" + data.ClusterID + "." + data.BaseDomain + "-hive-cluster"
 	}
