@@ -369,28 +369,26 @@ func (c *SvcClient) UpdateEscalationPolicy(data *Data) error {
 
 // resolvePendingIncidents loops over all unresolved incidents to resolve all contained alerts
 func (c *SvcClient) resolvePendingIncidents(data *Data) error {
-
 	incidents, err := c.getIncidents(data)
 	if err != nil {
 		return err
 	}
 
-	if len(incidents) > 0 {
-		serviceKey, err := c.GetIntegrationKey(data)
+	for _, incident := range incidents {
+		alerts, err := c.PdClient.ListIncidentAlerts(incident.Id)
 		if err != nil {
 			return err
 		}
 
-		for _, incident := range incidents {
-			alerts, err := c.PdClient.ListIncidentAlerts(incident.Id)
+		for _, alert := range alerts.Alerts {
+			integration, err := c.PdClient.GetIntegration(data.ServiceID, alert.Integration.ID, pdApi.GetIntegrationOptions{})
 			if err != nil {
 				return err
 			}
-			for _, alert := range alerts.Alerts {
-				err = c.resolveAlert(serviceKey, alert.AlertKey)
-				if err != nil {
-					return err
-				}
+
+			err = c.resolveAlert(integration.IntegrationKey, alert.AlertKey)
+			if err != nil {
+				return err
 			}
 		}
 	}
