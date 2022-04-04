@@ -8,6 +8,10 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 type functionMock struct {
@@ -117,5 +121,170 @@ func TestDeleteService(t *testing.T) {
 
 		funcMock.AssertNumberOfCalls(t, "manageEvents", test.expectedNumCalls)
 		funcMock.AssertNumberOfCalls(t, "delay", test.initialDelay)
+	}
+}
+
+func TestGetConfigMapKey(t *testing.T) {
+	tests := []struct {
+		name        string
+		data        map[string]string
+		key         string
+		expected    string
+		expectError bool
+	}{
+		{
+			name: "Normal",
+			data: map[string]string{
+				"key": "value",
+			},
+			key:         "key",
+			expected:    "value",
+			expectError: false,
+		},
+		{
+			name: "Empty",
+			data: map[string]string{
+				"key": "",
+			},
+			key:         "key",
+			expectError: true,
+		},
+		{
+			name:        "Does not exist",
+			data:        map[string]string{},
+			key:         "key",
+			expectError: true,
+		},
+	}
+
+	for _, test := range tests {
+		actual, err := getConfigMapKey(test.data, test.key)
+		if test.expectError {
+			assert.NotNil(t, err)
+		} else {
+			assert.Equal(t, test.expected, actual)
+			assert.Nil(t, err)
+		}
+	}
+}
+
+func TestGetSecretKey(t *testing.T) {
+	tests := []struct {
+		name        string
+		data        map[string][]byte
+		key         string
+		expected    string
+		expectError bool
+	}{
+		{
+			name: "Normal",
+			data: map[string][]byte{
+				"key": []byte("value"),
+			},
+			key:         "key",
+			expected:    "value",
+			expectError: false,
+		},
+		{
+			name: "Empty",
+			data: map[string][]byte{
+				"key": []byte(""),
+			},
+			key:         "key",
+			expectError: true,
+		},
+		{
+			name:        "Does not exist",
+			data:        map[string][]byte{},
+			key:         "key",
+			expectError: true,
+		},
+	}
+
+	for _, test := range tests {
+		actual, err := GetSecretKey(test.data, test.key)
+		if test.expectError {
+			assert.NotNil(t, err)
+		} else {
+			assert.Equal(t, test.expected, actual)
+			assert.Nil(t, err)
+		}
+	}
+}
+
+func TestParseSetClusterConfig(t *testing.T) {
+	tests := []struct {
+		name                   string
+		cmName                 string
+		namespace              string
+		data                   map[string]string
+		expectedHibernating    bool
+		expectedLimitedSupport bool
+		expectErr              bool
+	}{
+		{
+			name:      "working",
+			cmName:    "cluster-pd-config",
+			namespace: "namespace",
+			data: map[string]string{
+				"SERVICE_ID":           "abcd",
+				"INTEGRATION_ID":       "abcd",
+				"ESCALATION_POLICY_ID": "abcd",
+			},
+			expectedHibernating:    false,
+			expectedLimitedSupport: false,
+			expectErr:              false,
+		},
+		{
+			name:      "hibernating",
+			cmName:    "cluster-pd-config",
+			namespace: "namespace",
+			data: map[string]string{
+				"SERVICE_ID":           "abcd",
+				"INTEGRATION_ID":       "abcd",
+				"ESCALATION_POLICY_ID": "abcd",
+				"HIBERNATING":          "true",
+			},
+			expectedHibernating:    true,
+			expectedLimitedSupport: false,
+			expectErr:              false,
+		},
+		{
+			name:      "missing values",
+			cmName:    "cluster-pd-config",
+			namespace: "namespace",
+			data: map[string]string{
+				"SERVICE_ID": "abcd",
+			},
+			expectErr: true,
+		},
+	}
+
+	for _, test := range tests {
+		cm := &v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      test.cmName,
+				Namespace: test.namespace,
+			},
+			Data: test.data,
+		}
+
+		s := runtime.NewScheme()
+		s.AddKnownTypes(v1.SchemeGroupVersion, &v1.ConfigMap{})
+		client := fake.NewFakeClientWithScheme(s, cm)
+
+		var testData Data
+		parseErr := testData.ParseClusterConfig(client, test.namespace, test.cmName)
+
+		if test.expectErr {
+			assert.NotNil(t, parseErr)
+		} else {
+			assert.Nil(t, parseErr)
+			assert.Equal(t, test.expectedHibernating, testData.Hibernating)
+			assert.Equal(t, test.expectedLimitedSupport, testData.LimitedSupport)
+		}
+
+		setErr := testData.SetClusterConfig(client, test.namespace, test.cmName)
+		assert.Nil(t, setErr)
 	}
 }
