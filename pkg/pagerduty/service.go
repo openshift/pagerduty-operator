@@ -146,6 +146,8 @@ type Data struct {
 }
 
 // ParseClusterConfig parses the cluster specific config map and stores the IDs in the data struct
+// SERVICE_ID, INTEGRATION_ID, and ESCALATION_POLICY_ID are required ConfigMap data fields, while
+// HIBERNATING and LIMITED_SUPPORT are optional.
 func (data *Data) ParseClusterConfig(osc client.Client, namespace string, cmName string) error {
 	pdAPIConfigMap := &corev1.ConfigMap{}
 	err := osc.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: cmName}, pdAPIConfigMap)
@@ -365,6 +367,7 @@ func (c *SvcClient) UpdateEscalationPolicy(data *Data) error {
 	return nil
 }
 
+// resolvePendingIncidents loops over all unresolved incidents to resolve all contained alerts
 func (c *SvcClient) resolvePendingIncidents(data *Data) error {
 
 	incidents, err := c.getIncidents(data)
@@ -384,7 +387,7 @@ func (c *SvcClient) resolvePendingIncidents(data *Data) error {
 				return err
 			}
 			for _, alert := range alerts.Alerts {
-				err = c.resolveIncident(serviceKey, alert.AlertKey)
+				err = c.resolveAlert(serviceKey, alert.AlertKey)
 				if err != nil {
 					return err
 				}
@@ -395,9 +398,11 @@ func (c *SvcClient) resolvePendingIncidents(data *Data) error {
 	return nil
 }
 
+// getIncidents returns a slice of unresolved incidents for the provided Service ID
 func (c *SvcClient) getIncidents(data *Data) ([]pdApi.Incident, error) {
-	listServiceIncidentOptions := pdApi.ListIncidentsOptions{}
-	listServiceIncidentOptions.ServiceIDs = []string{data.ServiceID}
+	listServiceIncidentOptions := pdApi.ListIncidentsOptions{
+		ServiceIDs: []string{data.ServiceID},
+	}
 
 	incidentsRes, err := c.PdClient.ListIncidents(listServiceIncidentOptions)
 	if err != nil {
@@ -469,15 +474,26 @@ func generatePDServiceDescription(data *Data) string {
 	}
 }
 
-func (c *SvcClient) resolveIncident(serviceKey, incidentKey string) error {
-	event := pdApi.V2Event{}
-	event.Payload = &pdApi.V2Payload{}
-	event.RoutingKey = serviceKey
-	event.Action = "resolve"
-	event.DedupKey = incidentKey
-	event.Payload.Summary = "Cluster does not exist anymore"
-	event.Payload.Source = "pagerduty-operator"
-	event.Payload.Severity = "info"
+// resolveAlert sends an event to the V2 Events API to (eventually) resolve a specific alert.
+// Each service can contain many integration keys, which represent specific integrations
+// enabled for a service. The integration key for the integration that generated the alert
+// identified by the alertKey must be used to successfully delete the alert.
+func (c *SvcClient) resolveAlert(integrationKey, alertKey string) error {
+	event := pdApi.V2Event{
+		RoutingKey: integrationKey,
+		Action:     "resolve",
+		DedupKey:   alertKey,
+		Payload: &pdApi.V2Payload{
+			Summary:  "Cluster does not exist anymore",
+			Source:   "pagerduty-operator",
+			Severity: "info",
+		},
+	}
+
+	// TODO: If the response status is 429 (TooManyRequests) we should probably wait for longer
+	// Note: A 202 (StatusAccepted) is returned when the event is accepted by PagerDuty,
+	// this does not mean the alert will be successfully resolved, i.e. if an incorrect
+	// integration key is provided.
 	_, err := c.ManageEvent(event)
 	return err
 }
