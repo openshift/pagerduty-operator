@@ -125,7 +125,7 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 		r.reqLogger.Info("Creating configmap")
 
 		// save config map
-		newCM := kube.GenerateConfigMap(cd.Namespace, configMapName, pdData.ServiceID, pdData.IntegrationID, pdData.EsclationPolicyID, false, false)
+		newCM := kube.GenerateConfigMap(cd.Namespace, configMapName, pdData.ServiceID, pdData.IntegrationID, pdData.EscalationPolicyID, false, false)
 		if err = controllerutil.SetControllerReference(cd, newCM, r.scheme); err != nil {
 			r.reqLogger.Error(err, "Error setting controller reference on configmap")
 			return err
@@ -144,7 +144,7 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 	}
 
 	// check if there is a change in PDI escalation policy
-	if pdData.PDIEscalationPolicyID != pdData.EsclationPolicyID {
+	if pdData.PDIEscalationPolicyID != pdData.EscalationPolicyID {
 		r.reqLogger.Info("PDI EscalationPolicy changed, updating service")
 		err := pdclient.UpdateEscalationPolicy(pdData)
 		if err != nil {
@@ -152,9 +152,9 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 			return err
 		}
 
-		pdData.EsclationPolicyID = pdData.PDIEscalationPolicyID
+		pdData.EscalationPolicyID = pdData.PDIEscalationPolicyID
 
-		// Update configmap to reflect the new esclation policy changes
+		// Update configmap to reflect the new escalation policy changes
 		if err := pdData.SetClusterConfig(r.client, cd.Namespace, configMapName); err != nil {
 			r.reqLogger.Error(err, "Error updating PagerDuty cluster config", "Name", configMapName)
 			return err
