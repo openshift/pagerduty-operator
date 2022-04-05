@@ -4,7 +4,7 @@ go 1.13
 
 require (
 	cloud.google.com/go v0.57.0 // indirect
-	github.com/PagerDuty/go-pagerduty v1.2.0
+	github.com/PagerDuty/go-pagerduty v1.4.0
 	github.com/go-logr/logr v0.2.1
 	github.com/go-openapi/spec v0.19.4
 	github.com/golang/mock v1.4.4

@@ -76,18 +76,17 @@ type PdClient interface {
 	ListServices(pdApi.ListServiceOptions) (*pdApi.ListServiceResponse, error)
 	ListIncidents(pdApi.ListIncidentsOptions) (*pdApi.ListIncidentsResponse, error)
 	ListIncidentAlerts(incidentId string) (*pdApi.ListAlertsResponse, error)
+	ManageEvent(e *pdApi.V2Event) (*pdApi.V2EventResponse, error)
 	UpdateService(service pdApi.Service) (*pdApi.Service, error)
 }
 
-type ManageEventFunc func(pdApi.V2Event) (*pdApi.V2EventResponse, error)
 type DelayFunc func(time.Duration)
 
 //SvcClient wraps pdApi.Client
 type SvcClient struct {
-	APIKey      string
-	PdClient    PdClient
-	ManageEvent ManageEventFunc
-	Delay       DelayFunc
+	APIKey   string
+	PdClient PdClient
+	Delay    DelayFunc
 }
 
 type customHTTPClient struct {
@@ -121,10 +120,9 @@ func WithCustomHTTPClient(controllerName string) pdApi.ClientOptions {
 //NewClient creates out client wrapper object for the actual pdApi.Client we use.
 func NewClient(APIKey string, controllerName string) Client {
 	return &SvcClient{
-		APIKey:      APIKey,
-		PdClient:    pdApi.NewClient(APIKey, WithCustomHTTPClient(controllerName)),
-		ManageEvent: pdApi.ManageEvent,
-		Delay:       time.Sleep,
+		APIKey:   APIKey,
+		PdClient: pdApi.NewClient(APIKey, WithCustomHTTPClient(controllerName)),
+		Delay:    time.Sleep,
 	}
 }
 
@@ -477,7 +475,7 @@ func generatePDServiceDescription(data *Data) string {
 // enabled for a service. The integration key for the integration that generated the alert
 // identified by the alertKey must be used to successfully delete the alert.
 func (c *SvcClient) resolveAlert(integrationKey, alertKey string) error {
-	event := pdApi.V2Event{
+	event := &pdApi.V2Event{
 		RoutingKey: integrationKey,
 		Action:     "resolve",
 		DedupKey:   alertKey,
@@ -492,6 +490,6 @@ func (c *SvcClient) resolveAlert(integrationKey, alertKey string) error {
 	// Note: A 202 (StatusAccepted) is returned when the event is accepted by PagerDuty,
 	// this does not mean the alert will be successfully resolved, i.e. if an incorrect
 	// integration key is provided.
-	_, err := c.ManageEvent(event)
+	_, err := c.PdClient.ManageEvent(event)
 	return err
 }
