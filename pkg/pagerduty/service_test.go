@@ -3,7 +3,6 @@ package pagerduty
 import (
 	"testing"
 
-	pd "github.com/PagerDuty/go-pagerduty"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -177,21 +176,12 @@ func TestParseSetClusterConfig(t *testing.T) {
 }
 
 func TestSvcClient_GetService(t *testing.T) {
-	mockServices := []*pd.Service{
-		{
-			APIObject: pd.APIObject{
-				ID: "1",
-			},
-			Name: "one",
-		},
-	}
-
 	tests := []struct {
 		serviceId string
 		expectErr bool
 	}{
 		{
-			serviceId: "1",
+			serviceId: mockServiceId,
 			expectErr: false,
 		},
 		{
@@ -200,39 +190,20 @@ func TestSvcClient_GetService(t *testing.T) {
 		},
 	}
 
-	mock, server, _ := setupMockWithServices(mockServices)
+	mock := defaultMockApi()
+	defer mock.cleanup()
 
 	for _, test := range tests {
-		_, err := mock.GetService(&Data{ServiceID: test.serviceId})
+		_, err := mock.Client.GetService(&Data{ServiceID: test.serviceId})
 		if test.expectErr {
 			assert.NotNil(t, err)
 		} else {
 			assert.Nil(t, err)
 		}
 	}
-
-	server.Close()
 }
 
 func TestSvcClient_GetIntegrationKey(t *testing.T) {
-	mockServices := []*pd.Service{
-		{
-			APIObject: pd.APIObject{
-				ID: "1",
-			},
-			Name: "one",
-			Integrations: []pd.Integration{
-				{
-					APIObject: pd.APIObject{
-						ID: "1",
-					},
-					Name:           "oneIntegration",
-					IntegrationKey: "oneIntegrationKey",
-				},
-			},
-		},
-	}
-
 	tests := []struct {
 		serviceId     string
 		integrationId string
@@ -240,22 +211,23 @@ func TestSvcClient_GetIntegrationKey(t *testing.T) {
 		expectErr     bool
 	}{
 		{
-			serviceId:     "1",
-			integrationId: "1",
-			expected:      "oneIntegrationKey",
+			serviceId:     mockServiceId,
+			integrationId: mockIntegrationId,
+			expected:      mockIntegrationKey,
 			expectErr:     false,
 		},
 		{
-			serviceId:     "1",
+			serviceId:     mockServiceId,
 			integrationId: "notfound",
 			expectErr:     true,
 		},
 	}
 
-	mock, server, _ := setupMockWithServices(mockServices)
+	mock := defaultMockApi()
+	defer mock.cleanup()
 
 	for _, test := range tests {
-		actual, err := mock.GetIntegrationKey(&Data{ServiceID: test.serviceId, IntegrationID: test.integrationId})
+		actual, err := mock.Client.GetIntegrationKey(&Data{ServiceID: test.serviceId, IntegrationID: test.integrationId})
 		if test.expectErr {
 			assert.NotNil(t, err)
 			assert.Equal(t, test.expected, actual)
@@ -263,20 +235,9 @@ func TestSvcClient_GetIntegrationKey(t *testing.T) {
 			assert.Nil(t, err)
 		}
 	}
-
-	server.Close()
 }
 
 func TestSvcClient_CreateIntegration(t *testing.T) {
-	mockServices := []*pd.Service{
-		{
-			APIObject: pd.APIObject{
-				ID: "1",
-			},
-			Name: "one",
-		},
-	}
-
 	tests := []struct {
 		serviceId       string
 		integrationName string
@@ -284,30 +245,30 @@ func TestSvcClient_CreateIntegration(t *testing.T) {
 		expectErr       bool
 	}{
 		{
-			serviceId:       "1",
+			serviceId:       mockServiceId,
 			integrationName: "integrationName",
 			integrationType: "events_api_v2_inbound_integration",
 			expectErr:       false,
 		},
 		{
-			serviceId: "2",
+			serviceId: "notfound",
 			expectErr: true,
 		},
 	}
 
-	mock, server, _ := setupMockWithServices(mockServices)
+	mock := defaultMockApi()
+	defer mock.cleanup()
 
 	for _, test := range tests {
-		actual, err := mock.createIntegration(test.serviceId, test.integrationName, test.integrationType)
+		actual, err := mock.Client.createIntegration(test.serviceId, test.integrationName, test.integrationType)
 		if test.expectErr {
 			assert.NotNil(t, err)
 		} else {
 			assert.Nil(t, err)
-			assert.Equal(t, mockIntegrationId, actual)
+			// mock always creates an integration with ID mockIntegrationId3 when successful
+			assert.Equal(t, mockIntegrationId3, actual)
 		}
 	}
-
-	server.Close()
 }
 
 func TestSvcClient_CreateService(t *testing.T) {
@@ -337,18 +298,17 @@ func TestSvcClient_CreateService(t *testing.T) {
 		},
 	}
 
-	mock, server, _ := setupMock()
+	mock := defaultMockApi()
+	defer mock.cleanup()
 
 	for _, test := range tests {
-		_, err := mock.CreateService(test.data)
+		_, err := mock.Client.CreateService(test.data)
 		if test.expectErr {
 			assert.NotNil(t, err)
 		} else {
 			assert.Nil(t, err)
 		}
 	}
-
-	server.Close()
 }
 
 func TestSvcClient_EnableService(t *testing.T) {
@@ -373,18 +333,17 @@ func TestSvcClient_EnableService(t *testing.T) {
 		},
 	}
 
-	mock, server, _ := setupMock()
+	mock := defaultMockApi()
+	defer mock.cleanup()
 
 	for _, test := range tests {
-		err := mock.EnableService(test.data)
+		err := mock.Client.EnableService(test.data)
 		if test.expectErr {
 			assert.NotNil(t, err)
 		} else {
 			assert.Nil(t, err)
 		}
 	}
-
-	server.Close()
 }
 
 func TestSvcClient_UpdateEscalationPolicy(t *testing.T) {
@@ -396,7 +355,7 @@ func TestSvcClient_UpdateEscalationPolicy(t *testing.T) {
 		{
 			name: "normal",
 			data: &Data{
-				PDIEscalationPolicyID: mockEscalationPolicyId,
+				PDIEscalationPolicyID: mockEscalationPolicyId2,
 				ServiceID:             mockServiceId,
 			},
 			expectErr: false,
@@ -418,15 +377,111 @@ func TestSvcClient_UpdateEscalationPolicy(t *testing.T) {
 		},
 	}
 
-	mock, server, _ := setupMock()
+	mock := defaultMockApi()
+	defer mock.cleanup()
+
 	for _, test := range tests {
-		err := mock.UpdateEscalationPolicy(test.data)
+		err := mock.Client.UpdateEscalationPolicy(test.data)
 		if test.expectErr {
 			assert.NotNil(t, err)
 		} else {
 			assert.Nil(t, err)
 		}
 	}
+}
 
-	server.Close()
+func TestSvcClient_GetUnresolvedIncidents(t *testing.T) {
+	tests := []struct {
+		name              string
+		data              *Data
+		expectedIncidents int
+		expectErr         bool
+	}{
+		{
+			name: "mockServiceId has two incidents, only one unresolved",
+			data: &Data{
+				ServiceID: mockServiceId,
+			},
+			expectedIncidents: 1,
+			expectErr:         false,
+		},
+	}
+
+	mock := defaultMockApi()
+	defer mock.cleanup()
+
+	for _, test := range tests {
+		actual, err := mock.Client.getUnresolvedIncidents(test.data)
+		if test.expectErr {
+			assert.NotNil(t, err)
+		} else {
+			assert.Nil(t, err)
+			assert.Equal(t, test.expectedIncidents, len(actual))
+		}
+
+	}
+}
+
+func TestSvcClient_GetUnresolvedAlerts(t *testing.T) {
+	tests := []struct {
+		name           string
+		incidentId     string
+		expectedAlerts int
+		expectErr      bool
+	}{
+		{
+			name:           "mockIncidentId has one unresolved alert",
+			incidentId:     mockIncidentId,
+			expectedAlerts: 1,
+			expectErr:      false,
+		},
+		{
+			name:           "mockIncidentId2 has one resolved alert",
+			incidentId:     mockIncidentId2,
+			expectedAlerts: 0,
+			expectErr:      false,
+		},
+	}
+
+	mock := defaultMockApi()
+	defer mock.cleanup()
+
+	for _, test := range tests {
+		actual, err := mock.Client.getUnresolvedAlerts(test.incidentId)
+		if test.expectErr {
+			assert.NotNil(t, err)
+		} else {
+			assert.Nil(t, err)
+			assert.Equal(t, test.expectedAlerts, len(actual))
+		}
+
+	}
+}
+
+func TestSvcClient_ResolvePendingIncidents(t *testing.T) {
+	tests := []struct {
+		name      string
+		data      *Data
+		expectErr bool
+	}{
+		{
+			name: "Resolve mockServiceId incidents",
+			data: &Data{
+				ServiceID: mockServiceId,
+			},
+			expectErr: false,
+		},
+	}
+
+	mock := defaultMockApi()
+	defer mock.cleanup()
+
+	for _, test := range tests {
+		err := mock.Client.resolvePendingIncidents(test.data)
+		if test.expectErr {
+			assert.NotNil(t, err)
+		} else {
+			assert.Nil(t, err)
+		}
+	}
 }
