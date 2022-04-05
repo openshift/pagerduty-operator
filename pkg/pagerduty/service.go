@@ -75,19 +75,18 @@ type PdClient interface {
 	CreateIntegration(serviceID string, integration pdApi.Integration) (*pdApi.Integration, error)
 	ListServices(pdApi.ListServiceOptions) (*pdApi.ListServiceResponse, error)
 	ListIncidents(pdApi.ListIncidentsOptions) (*pdApi.ListIncidentsResponse, error)
-	ListIncidentAlerts(incidentId string) (*pdApi.ListAlertsResponse, error)
+	ListIncidentAlertsWithOpts(incidentId string, o pdApi.ListIncidentAlertsOptions) (*pdApi.ListAlertsResponse, error)
+	ManageEvent(e *pdApi.V2Event) (*pdApi.V2EventResponse, error)
 	UpdateService(service pdApi.Service) (*pdApi.Service, error)
 }
 
-type ManageEventFunc func(pdApi.V2Event) (*pdApi.V2EventResponse, error)
 type DelayFunc func(time.Duration)
 
 //SvcClient wraps pdApi.Client
 type SvcClient struct {
-	APIKey      string
-	PdClient    PdClient
-	ManageEvent ManageEventFunc
-	Delay       DelayFunc
+	APIKey   string
+	PdClient PdClient
+	Delay    DelayFunc
 }
 
 type customHTTPClient struct {
@@ -121,10 +120,9 @@ func WithCustomHTTPClient(controllerName string) pdApi.ClientOptions {
 //NewClient creates out client wrapper object for the actual pdApi.Client we use.
 func NewClient(APIKey string, controllerName string) Client {
 	return &SvcClient{
-		APIKey:      APIKey,
-		PdClient:    pdApi.NewClient(APIKey, WithCustomHTTPClient(controllerName)),
-		ManageEvent: pdApi.ManageEvent,
-		Delay:       time.Sleep,
+		APIKey:   APIKey,
+		PdClient: pdApi.NewClient(APIKey, WithCustomHTTPClient(controllerName)),
+		Delay:    time.Sleep,
 	}
 }
 
@@ -276,6 +274,7 @@ func (c *SvcClient) CreateService(data *Data) (string, error) {
 
 	return data.IntegrationID, err
 }
+
 func (c *SvcClient) createIntegration(serviceId, name, integrationType string) (string, error) {
 	newIntegration := pdApi.Integration{
 		Name: name,
@@ -369,18 +368,18 @@ func (c *SvcClient) UpdateEscalationPolicy(data *Data) error {
 
 // resolvePendingIncidents loops over all unresolved incidents to resolve all contained alerts
 func (c *SvcClient) resolvePendingIncidents(data *Data) error {
-	incidents, err := c.getIncidents(data)
+	incidents, err := c.getUnresolvedIncidents(data)
 	if err != nil {
 		return err
 	}
 
 	for _, incident := range incidents {
-		alerts, err := c.PdClient.ListIncidentAlerts(incident.Id)
+		alerts, err := c.getUnresolvedAlerts(incident.Id)
 		if err != nil {
 			return err
 		}
 
-		for _, alert := range alerts.Alerts {
+		for _, alert := range alerts {
 			integration, err := c.PdClient.GetIntegration(data.ServiceID, alert.Integration.ID, pdApi.GetIntegrationOptions{})
 			if err != nil {
 				return err
@@ -396,10 +395,12 @@ func (c *SvcClient) resolvePendingIncidents(data *Data) error {
 	return nil
 }
 
-// getIncidents returns a slice of unresolved incidents for the provided Service ID
-func (c *SvcClient) getIncidents(data *Data) ([]pdApi.Incident, error) {
+// getUnresolvedIncidents returns a slice of unresolved incidents for the provided Service ID
+func (c *SvcClient) getUnresolvedIncidents(data *Data) ([]pdApi.Incident, error) {
+	// Possible statuses are: "acknowledged", "triggered", and "resolved"
 	listServiceIncidentOptions := pdApi.ListIncidentsOptions{
 		ServiceIDs: []string{data.ServiceID},
+		Statuses:   []string{"acknowledged", "triggered"},
 	}
 
 	incidentsRes, err := c.PdClient.ListIncidents(listServiceIncidentOptions)
@@ -409,11 +410,25 @@ func (c *SvcClient) getIncidents(data *Data) ([]pdApi.Incident, error) {
 	return incidentsRes.Incidents, err
 }
 
+// getUnresolvedAlerts returns a slice of unresolved incidents for the provided Service ID
+func (c *SvcClient) getUnresolvedAlerts(incidentId string) ([]pdApi.IncidentAlert, error) {
+	// Possible statuses are: "triggered" and "resolved"
+	listIncidentAlertsOptions := pdApi.ListIncidentAlertsOptions{
+		Statuses: []string{"triggered"},
+	}
+
+	alerts, err := c.PdClient.ListIncidentAlertsWithOpts(incidentId, listIncidentAlertsOptions)
+	if err != nil {
+		return []pdApi.IncidentAlert{}, err
+	}
+	return alerts.Alerts, err
+}
+
 // waitForIncidentsToResolve checks if all incidents have been resolved every 2 seconds,
 // waiting for a maximum of maxWait
 func (c *SvcClient) waitForIncidentsToResolve(data *Data, maxWait time.Duration) error {
 	waitStep := 2 * time.Second
-	incidents, err := c.getIncidents(data)
+	incidents, err := c.getUnresolvedIncidents(data)
 	if err != nil {
 		return err
 	}
@@ -432,7 +447,7 @@ func (c *SvcClient) waitForIncidentsToResolve(data *Data, maxWait time.Duration)
 
 		if incident.AlertCounts.Triggered > 0 {
 			c.Delay(waitStep)
-			incidents, err = c.getIncidents(data)
+			incidents, err = c.getUnresolvedIncidents(data)
 			if err != nil {
 				return err
 			}
@@ -477,7 +492,7 @@ func generatePDServiceDescription(data *Data) string {
 // enabled for a service. The integration key for the integration that generated the alert
 // identified by the alertKey must be used to successfully delete the alert.
 func (c *SvcClient) resolveAlert(integrationKey, alertKey string) error {
-	event := pdApi.V2Event{
+	event := &pdApi.V2Event{
 		RoutingKey: integrationKey,
 		Action:     "resolve",
 		DedupKey:   alertKey,
@@ -492,6 +507,6 @@ func (c *SvcClient) resolveAlert(integrationKey, alertKey string) error {
 	// Note: A 202 (StatusAccepted) is returned when the event is accepted by PagerDuty,
 	// this does not mean the alert will be successfully resolved, i.e. if an incorrect
 	// integration key is provided.
-	_, err := c.ManageEvent(event)
+	_, err := c.PdClient.ManageEvent(event)
 	return err
 }
