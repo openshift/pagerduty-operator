@@ -20,8 +20,12 @@ func (r *ReconcilePagerDutyIntegration) handleLimitedSupport(pdclient pd.Client,
 	}
 
 	// PagerDuty data
-	pdData := &pd.Data{}
-	err := pdData.ParseClusterConfig(r.client, cd.Namespace, configMapName)
+	pdData, err := pd.NewData(pdi)
+	if err != nil {
+		return err
+	}
+
+	err = pdData.ParseClusterConfig(r.client, cd.Namespace, configMapName)
 	if err != nil || pdData.ServiceID == "" {
 		// pagerduty service isn't created yet, return
 		return nil
