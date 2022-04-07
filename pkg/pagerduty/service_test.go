@@ -3,6 +3,7 @@ package pagerduty
 import (
 	"testing"
 
+	pagerdutyv1alpha1 "github.com/openshift/pagerduty-operator/pkg/apis/pagerduty/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -98,6 +99,40 @@ func TestGetSecretKey(t *testing.T) {
 	}
 }
 
+func TestNewData(t *testing.T) {
+	tests := []struct {
+		name      string
+		pdi       *pagerdutyv1alpha1.PagerDutyIntegration
+		expectErr bool
+	}{
+		{
+			name: "escalation policy defined",
+			pdi: &pagerdutyv1alpha1.PagerDutyIntegration{
+				Spec: pagerdutyv1alpha1.PagerDutyIntegrationSpec{
+					EscalationPolicy: mockEscalationPolicyId,
+				},
+			},
+			expectErr: false,
+		},
+		{
+			name: "escalation policy undefined",
+			pdi: &pagerdutyv1alpha1.PagerDutyIntegration{
+				Spec: pagerdutyv1alpha1.PagerDutyIntegrationSpec{},
+			},
+			expectErr: true,
+		},
+	}
+
+	for _, test := range tests {
+		_, err := NewData(test.pdi)
+		if test.expectErr {
+			assert.NotNil(t, err)
+		} else {
+			assert.Nil(t, err)
+		}
+	}
+}
+
 func TestParseSetClusterConfig(t *testing.T) {
 	tests := []struct {
 		name                   string
@@ -116,6 +151,18 @@ func TestParseSetClusterConfig(t *testing.T) {
 				"SERVICE_ID":           "abcd",
 				"INTEGRATION_ID":       "abcd",
 				"ESCALATION_POLICY_ID": "abcd",
+			},
+			expectedHibernating:    false,
+			expectedLimitedSupport: false,
+			expectErr:              false,
+		},
+		{
+			name:      "missing escalation policy id",
+			cmName:    "cluster-pd-config",
+			namespace: "namespace",
+			data: map[string]string{
+				"SERVICE_ID":     "abcd",
+				"INTEGRATION_ID": "abcd",
 			},
 			expectedHibernating:    false,
 			expectedLimitedSupport: false,
@@ -159,7 +206,9 @@ func TestParseSetClusterConfig(t *testing.T) {
 		s.AddKnownTypes(v1.SchemeGroupVersion, &v1.ConfigMap{})
 		client := fake.NewFakeClientWithScheme(s, cm)
 
-		var testData Data
+		testData := Data{
+			PDIEscalationPolicyID: mockEscalationPolicyId,
+		}
 		parseErr := testData.ParseClusterConfig(client, test.namespace, test.cmName)
 
 		if test.expectErr {

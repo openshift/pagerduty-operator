@@ -95,15 +95,14 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 		return err
 	}
 
-	pdData := &pd.Data{
-		ClusterID:             clusterID,
-		BaseDomain:            cd.Spec.BaseDomain,
-		PDIEscalationPolicyID: pdi.Spec.EscalationPolicy,
-		AutoResolveTimeout:    pdi.Spec.ResolveTimeout,
-		AcknowledgeTimeOut:    pdi.Spec.AcknowledgeTimeout,
-		ServicePrefix:         pdi.Spec.ServicePrefix,
-		APIKey:                apiKey,
+	pdData, err := pd.NewData(pdi)
+	if err != nil {
+		return err
 	}
+
+	pdData.BaseDomain = cd.Spec.BaseDomain
+	pdData.ClusterID = clusterID
+	pdData.APIKey = apiKey
 
 	// To prevent scoping issues in the err check below.
 	var pdIntegrationKey string

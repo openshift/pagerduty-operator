@@ -41,7 +41,11 @@ func (r *ReconcilePagerDutyIntegration) handleHibernation(pdclient pd.Client, pd
 		return nil
 	}
 
-	pdData := &pd.Data{}
+	pdData, err := pd.NewData(pdi)
+	if err != nil {
+		return err
+	}
+
 	if err := pdData.ParseClusterConfig(r.client, cd.Namespace, configMapName); err != nil {
 		if errors.IsNotFound(err) {
 			// service isn't created yet, return

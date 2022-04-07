@@ -25,6 +25,7 @@ import (
 
 	pdApi "github.com/PagerDuty/go-pagerduty"
 	"github.com/openshift/pagerduty-operator/config"
+	pagerdutyv1alpha1 "github.com/openshift/pagerduty-operator/pkg/apis/pagerduty/v1alpha1"
 	"github.com/openshift/pagerduty-operator/pkg/localmetrics"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -143,8 +144,24 @@ type Data struct {
 	LimitedSupport     bool
 }
 
+// NewData initializes a Data struct from a v1alpha1 PagerDutyIntegration spec
+// pdi.Spec.EscalationPolicy is required
+func NewData(pdi *pagerdutyv1alpha1.PagerDutyIntegration) (*Data, error) {
+	if pdi.Spec.EscalationPolicy == "" {
+		return nil, fmt.Errorf("found empty escalation policy in the pagerdutyintegration spec")
+	}
+
+	return &Data{
+		PDIEscalationPolicyID: pdi.Spec.EscalationPolicy,
+		AutoResolveTimeout:    pdi.Spec.ResolveTimeout,
+		AcknowledgeTimeOut:    pdi.Spec.AcknowledgeTimeout,
+		ServicePrefix:         pdi.Spec.ServicePrefix,
+	}, nil
+}
+
 // ParseClusterConfig parses the cluster specific config map and stores the IDs in the data struct
-// SERVICE_ID, INTEGRATION_ID, and ESCALATION_POLICY_ID are required ConfigMap data fields, while
+// SERVICE_ID and INTEGRATION_ID are required ConfigMap data fields,
+// ESCALATION_POLICY_ID defaults to the PDI defined escalation policy id, and
 // HIBERNATING and LIMITED_SUPPORT are optional.
 func (data *Data) ParseClusterConfig(osc client.Client, namespace string, cmName string) error {
 	pdAPIConfigMap := &corev1.ConfigMap{}
@@ -165,7 +182,11 @@ func (data *Data) ParseClusterConfig(osc client.Client, namespace string, cmName
 
 	data.EscalationPolicyID, err = getConfigMapKey(pdAPIConfigMap.Data, "ESCALATION_POLICY_ID")
 	if err != nil {
-		return err
+		// If data.PDIEscalationPolicyID exists, use that as a default
+		if data.PDIEscalationPolicyID == "" {
+			return err
+		}
+		data.EscalationPolicyID = data.PDIEscalationPolicyID
 	}
 
 	val := pdAPIConfigMap.Data["HIBERNATING"]
