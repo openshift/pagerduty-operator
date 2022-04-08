@@ -16,12 +16,12 @@ package pagerdutyintegration
 
 import (
 	hivev1 "github.com/openshift/hive/apis/hive/v1"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
-
 	"github.com/openshift/pagerduty-operator/config"
 	pagerdutyv1alpha1 "github.com/openshift/pagerduty-operator/pkg/apis/pagerduty/v1alpha1"
 	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
+	"github.com/openshift/pagerduty-operator/pkg/utils"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 )
 
 const (
@@ -41,7 +41,8 @@ func (r *ReconcilePagerDutyIntegration) handleHibernation(pdclient pd.Client, pd
 		return nil
 	}
 
-	pdData, err := pd.NewData(pdi)
+	clusterID := utils.GetClusterID(cd)
+	pdData, err := pd.NewData(pdi, clusterID, cd.Spec.BaseDomain)
 	if err != nil {
 		return err
 	}
@@ -58,9 +59,9 @@ func (r *ReconcilePagerDutyIntegration) handleHibernation(pdclient pd.Client, pd
 		return nil
 	}
 
-	specIsHIbernating := cd.Spec.PowerState == hivev1.HibernatingClusterPowerState
+	specIsHibernating := cd.Spec.PowerState == hivev1.HibernatingClusterPowerState
 
-	if specIsHIbernating && !pdData.Hibernating {
+	if specIsHibernating && !pdData.Hibernating {
 		r.reqLogger.Info("Disabling PD service", "ClusterID", pdData.ClusterID, "BaseDomain", pdData.BaseDomain, "ClusterDeployment.Namespace", cd.Namespace)
 		if err := pdclient.DisableService(pdData); err != nil {
 			return err
@@ -70,7 +71,7 @@ func (r *ReconcilePagerDutyIntegration) handleHibernation(pdclient pd.Client, pd
 			r.reqLogger.Error(err, "Error updating pd cluster config", "Name", configMapName, "ClusterDeployment.Namespace", cd.Namespace)
 			return err
 		}
-	} else if !specIsHIbernating && pdData.Hibernating {
+	} else if !specIsHibernating && pdData.Hibernating {
 		if instancesAreRunning(cd) {
 			r.reqLogger.Info("Enabling PD service", "ClusterID", pdData.ClusterID, "BaseDomain", pdData.BaseDomain, "ClusterDeployment.Namespace", cd.Namespace)
 			if err := pdclient.EnableService(pdData); err != nil {

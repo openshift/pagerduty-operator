@@ -17,6 +17,8 @@ package pagerdutyintegration
 import (
 	"context"
 	"fmt"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"strings"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -27,9 +29,7 @@ import (
 	metrics "github.com/openshift/pagerduty-operator/pkg/localmetrics"
 	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
 	"github.com/openshift/pagerduty-operator/pkg/utils"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/types"
 )
 
 func (r *ReconcilePagerDutyIntegration) handleDelete(pdclient pd.Client, pdi *pagerdutyv1alpha1.PagerDutyIntegration, cd *hivev1.ClusterDeployment) error {
@@ -57,11 +57,6 @@ func (r *ReconcilePagerDutyIntegration) handleDelete(pdclient pd.Client, pdi *pa
 
 	if !utils.HasFinalizer(cd, finalizer) {
 		return nil
-	}
-
-	clusterID := cd.Spec.ClusterName
-	if config.IsFedramp() {
-		clusterID = utils.GetClusterID(cd.Namespace)
 	}
 
 	deletePDService := true
@@ -96,31 +91,26 @@ func (r *ReconcilePagerDutyIntegration) handleDelete(pdclient pd.Client, pdi *pa
 		return err
 	}
 
-	pdData, err := pd.NewData(pdi)
+	clusterID := utils.GetClusterID(cd)
+	pdData, err := pd.NewData(pdi, clusterID, cd.Spec.BaseDomain)
 	if err != nil {
 		return err
 	}
 
-	pdData.BaseDomain = cd.Spec.BaseDomain
-	pdData.ClusterID = clusterID
 	pdData.APIKey = apiKey
 
-	if deletePDService {
-		err = pdData.ParseClusterConfig(r.client, cd.Namespace, configMapName)
-
-		if err != nil {
-			if !errors.IsNotFound(err) {
-				// some error other than not found, requeue
-				return err
-			}
-			/*
-				Something was not found if we are here.
-
-				The missing object will never be created as we're in the handleDelete function.
-				Skip service deletion in this case and continue with deletion.
-			*/
-			deletePDService = false
+	if err := pdData.ParseClusterConfig(r.client, cd.Namespace, configMapName); err != nil {
+		if !errors.IsNotFound(err) {
+			// some error other than not found, requeue
+			return err
 		}
+		/*
+			Something was not found if we are here.
+
+			The missing object will never be created as we're in the handleDelete function.
+			Skip service deletion in this case and continue with deletion.
+		*/
+		deletePDService = false
 	}
 
 	// Check if the PD Service still exists, if its been deleted but the PD configmap still exists,

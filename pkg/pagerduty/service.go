@@ -118,7 +118,7 @@ func WithCustomHTTPClient(controllerName string) pdApi.ClientOptions {
 	}
 }
 
-//NewClient creates out client wrapper object for the actual pdApi.Client we use.
+// NewClient creates out client wrapper object for the actual pdApi.Client we use.
 func NewClient(APIKey string, controllerName string) Client {
 	return &SvcClient{
 		APIKey:   APIKey,
@@ -129,14 +129,19 @@ func NewClient(APIKey string, controllerName string) Client {
 
 // Data describes the data that is needed for PagerDuty api calls
 type Data struct {
+	// These fields are parsed from the PagerDutyIntegration CR
 	PDIEscalationPolicyID string
-	AutoResolveTimeout    uint
+	ResolveTimeout        uint
 	AcknowledgeTimeOut    uint
 	ServicePrefix         string
 	APIKey                string
-	ClusterID             string
-	BaseDomain            string
 
+	// ClusterID and BaseDomain are required during service creation for naming
+	ClusterID  string
+	BaseDomain string
+
+	// These fields are stored when the PagerDuty service is created and stored
+	// in a Configmap in the ClusterDeployment's namespace
 	ServiceID          string
 	IntegrationID      string
 	EscalationPolicyID string
@@ -146,16 +151,18 @@ type Data struct {
 
 // NewData initializes a Data struct from a v1alpha1 PagerDutyIntegration spec
 // pdi.Spec.EscalationPolicy is required
-func NewData(pdi *pagerdutyv1alpha1.PagerDutyIntegration) (*Data, error) {
+func NewData(pdi *pagerdutyv1alpha1.PagerDutyIntegration, clusterId string, baseDomain string) (*Data, error) {
 	if pdi.Spec.EscalationPolicy == "" {
 		return nil, fmt.Errorf("found empty escalation policy in the pagerdutyintegration spec")
 	}
 
 	return &Data{
 		PDIEscalationPolicyID: pdi.Spec.EscalationPolicy,
-		AutoResolveTimeout:    pdi.Spec.ResolveTimeout,
+		ResolveTimeout:        pdi.Spec.ResolveTimeout,
 		AcknowledgeTimeOut:    pdi.Spec.AcknowledgeTimeout,
 		ServicePrefix:         pdi.Spec.ServicePrefix,
+		ClusterID:             clusterId,
+		BaseDomain:            baseDomain,
 	}, nil
 }
 
@@ -198,7 +205,7 @@ func (data *Data) ParseClusterConfig(osc client.Client, namespace string, cmName
 	return nil
 }
 
-// SetClusterConfig parses the cluster specific config map and stores the IDs in the data struct
+// SetClusterConfig updates a specific ClusterDeployment's PagerDuty Configmap with the contents of the data struct
 func (data *Data) SetClusterConfig(osc client.Client, namespace string, cmName string) error {
 	pdAPIConfigMap := &corev1.ConfigMap{}
 	if err := osc.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: cmName}, pdAPIConfigMap); err != nil {
@@ -249,7 +256,7 @@ func (c *SvcClient) CreateService(data *Data) (string, error) {
 		Name:                   generatePDServiceName(data),
 		Description:            generatePDServiceDescription(data),
 		EscalationPolicy:       *escalationPolicy,
-		AutoResolveTimeout:     &data.AutoResolveTimeout,
+		AutoResolveTimeout:     &data.ResolveTimeout,
 		AcknowledgementTimeout: &data.AcknowledgeTimeOut,
 		AlertCreation:          "create_alerts_and_incidents",
 		IncidentUrgencyRule: &pdApi.IncidentUrgencyRule{

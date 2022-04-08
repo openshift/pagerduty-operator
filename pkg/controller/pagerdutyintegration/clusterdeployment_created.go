@@ -72,11 +72,6 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 		return r.client.Patch(context.TODO(), cd, baseToPatch)
 	}
 
-	clusterID := cd.Spec.ClusterName
-	if config.IsFedramp() {
-		clusterID = utils.GetClusterID(cd.Namespace)
-	}
-
 	pdAPISecret := &corev1.Secret{}
 	err := r.client.Get(
 		context.TODO(),
@@ -95,17 +90,13 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 		return err
 	}
 
-	pdData, err := pd.NewData(pdi)
+	clusterID := utils.GetClusterID(cd)
+	pdData, err := pd.NewData(pdi, clusterID, cd.Spec.BaseDomain)
 	if err != nil {
 		return err
 	}
 
-	pdData.BaseDomain = cd.Spec.BaseDomain
-	pdData.ClusterID = clusterID
 	pdData.APIKey = apiKey
-
-	// To prevent scoping issues in the err check below.
-	var pdIntegrationKey string
 
 	// load configuration
 	err = pdData.ParseClusterConfig(r.client, cd.Namespace, configMapName)
@@ -162,9 +153,13 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 		return nil
 	}
 
+	// To prevent scoping issues in the err check below.
+	var pdIntegrationKey string
+
 	// try to load integration key (secret)
 	sc := &corev1.Secret{}
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: secretName, Namespace: cd.Namespace}, sc)
+
 	if err == nil {
 		// successfully loaded secret, snag the integration key
 		r.reqLogger.Info("pdIntegrationKey found, skipping create", "ClusterID", pdData.ClusterID, "BaseDomain", pdData.BaseDomain, "ClusterDeployment.Namespace", cd.Namespace)

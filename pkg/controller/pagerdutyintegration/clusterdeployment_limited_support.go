@@ -7,6 +7,7 @@ import (
 	"github.com/openshift/pagerduty-operator/config"
 	pagerdutyv1alpha1 "github.com/openshift/pagerduty-operator/pkg/apis/pagerduty/v1alpha1"
 	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
+	"github.com/openshift/pagerduty-operator/pkg/utils"
 )
 
 func (r *ReconcilePagerDutyIntegration) handleLimitedSupport(pdclient pd.Client, pdi *pagerdutyv1alpha1.PagerDutyIntegration, cd *hivev1.ClusterDeployment) error {
@@ -20,7 +21,8 @@ func (r *ReconcilePagerDutyIntegration) handleLimitedSupport(pdclient pd.Client,
 	}
 
 	// PagerDuty data
-	pdData, err := pd.NewData(pdi)
+	clusterID := utils.GetClusterID(cd)
+	pdData, err := pd.NewData(pdi, clusterID, cd.Spec.BaseDomain)
 	if err != nil {
 		return err
 	}
