@@ -124,7 +124,7 @@ func TestNewData(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		_, err := NewData(test.pdi)
+		_, err := NewData(test.pdi, "clusterId", "baseDomain")
 		if test.expectErr {
 			assert.NotNil(t, err)
 		} else {
@@ -330,7 +330,7 @@ func TestSvcClient_CreateService(t *testing.T) {
 			name: "Works",
 			data: &Data{
 				PDIEscalationPolicyID: mockEscalationPolicyId,
-				AutoResolveTimeout:    30,
+				ResolveTimeout:        30,
 				AcknowledgeTimeOut:    30,
 				ServicePrefix:         "servicePrefix",
 				ClusterID:             "clusterID",

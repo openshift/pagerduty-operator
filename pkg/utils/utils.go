@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-logr/logr"
 	hivev1 "github.com/openshift/hive/apis/hive/v1"
+	"github.com/openshift/pagerduty-operator/config"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -132,7 +133,11 @@ func DeleteSecret(name string, namespace string, client client.Client, reqLogger
 	return nil
 }
 
-func GetClusterID(clusterNS string) string {
-	cns := strings.Split(clusterNS, "-")
-	return cns[len(cns)-1]
+func GetClusterID(cd *hivev1.ClusterDeployment) string {
+	if config.IsFedramp() {
+		cns := strings.Split(cd.Namespace, "-")
+		return cns[len(cns)-1]
+	} else {
+		return cd.Spec.ClusterName
+	}
 }
