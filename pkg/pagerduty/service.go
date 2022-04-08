@@ -134,7 +134,6 @@ type Data struct {
 	ResolveTimeout        uint
 	AcknowledgeTimeOut    uint
 	ServicePrefix         string
-	APIKey                string
 
 	// ClusterID and BaseDomain are required during service creation for naming
 	ClusterID  string

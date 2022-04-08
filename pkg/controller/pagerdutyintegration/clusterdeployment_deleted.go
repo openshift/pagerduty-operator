@@ -17,8 +17,6 @@ package pagerdutyintegration
 import (
 	"context"
 	"fmt"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"strings"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -59,62 +57,26 @@ func (r *ReconcilePagerDutyIntegration) handleDelete(pdclient pd.Client, pdi *pa
 		return nil
 	}
 
-	deletePDService := true
-
-	pdAPISecret := &corev1.Secret{}
-	err := r.client.Get(
-		context.TODO(),
-		types.NamespacedName{
-			Name:      pdi.Spec.PagerdutyApiKeySecretRef.Name,
-			Namespace: pdi.Spec.PagerdutyApiKeySecretRef.Namespace,
-		},
-		pdAPISecret,
-	)
-	if err != nil {
-		if !errors.IsNotFound(err) {
-			// some error other than not found, requeue
-			return err
-		}
-		/*
-			The PD config was not found.
-
-			If the error is a missing PD Config we must not fail or requeue.
-			If we are deleting (we're in handleDelete) and we cannot find the PD config
-			it will never be created.  We cannot recover so just skip the PD service
-			deletion.
-		*/
-		deletePDService = false
-	}
-
-	apiKey, err := pd.GetSecretKey(pdAPISecret.Data, config.PagerDutyAPISecretKey)
-	if err != nil {
-		return err
-	}
-
 	clusterID := utils.GetClusterID(cd)
 	pdData, err := pd.NewData(pdi, clusterID, cd.Spec.BaseDomain)
 	if err != nil {
 		return err
 	}
 
-	pdData.APIKey = apiKey
+	// Evaluate edge-cases where the PagerDuty service no longer needs to be deleted
+	deletePDService := true
 
+	// If the Configmap containing the PagerDuty service parameters is missing, the controller has no hope
+	// of deleting the service, so just cleanup the rest of the Kubernetes resources
 	if err := pdData.ParseClusterConfig(r.client, cd.Namespace, configMapName); err != nil {
 		if !errors.IsNotFound(err) {
 			// some error other than not found, requeue
 			return err
 		}
-		/*
-			Something was not found if we are here.
-
-			The missing object will never be created as we're in the handleDelete function.
-			Skip service deletion in this case and continue with deletion.
-		*/
 		deletePDService = false
 	}
 
-	// Check if the PD Service still exists, if its been deleted but the PD configmap still exists,
-	// reconcile will continue to try and delete the PD service and will generate 404 errors so just skip deleting
+	// Check if the PD Service still exists, if not DeleteService returns errors
 	if deletePDService {
 		_, err = pdclient.GetService(pdData)
 
@@ -127,9 +89,9 @@ func (r *ReconcilePagerDutyIntegration) handleDelete(pdclient pd.Client, pdi *pa
 		}
 	}
 
+	// None of the edge cases apply, delete the PagerDuty service
 	if deletePDService {
-		// we have everything necessary to attempt deletion of the PD service
-		r.reqLogger.Info(fmt.Sprintf("Deleteing PD service %s-%s.%s", pdData.ServicePrefix, pdData.ClusterID, pdData.BaseDomain))
+		r.reqLogger.Info(fmt.Sprintf("Deleting PD service %s-%s.%s", pdData.ServicePrefix, pdData.ClusterID, pdData.BaseDomain))
 		err = pdclient.DeleteService(pdData)
 		if err != nil {
 			r.reqLogger.Error(err, "Failed cleaning up pagerduty.", "ClusterDeployment.Namespace", cd.Namespace, "ClusterID", pdData.ClusterID)

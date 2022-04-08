@@ -72,31 +72,11 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 		return r.client.Patch(context.TODO(), cd, baseToPatch)
 	}
 
-	pdAPISecret := &corev1.Secret{}
-	err := r.client.Get(
-		context.TODO(),
-		types.NamespacedName{
-			Name:      pdi.Spec.PagerdutyApiKeySecretRef.Name,
-			Namespace: pdi.Spec.PagerdutyApiKeySecretRef.Namespace,
-		},
-		pdAPISecret,
-	)
-	if err != nil {
-		return err
-	}
-
-	apiKey, err := pd.GetSecretKey(pdAPISecret.Data, config.PagerDutyAPISecretKey)
-	if err != nil {
-		return err
-	}
-
 	clusterID := utils.GetClusterID(cd)
 	pdData, err := pd.NewData(pdi, clusterID, cd.Spec.BaseDomain)
 	if err != nil {
 		return err
 	}
-
-	pdData.APIKey = apiKey
 
 	// load configuration
 	err = pdData.ParseClusterConfig(r.client, cd.Namespace, configMapName)
