@@ -720,9 +720,9 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			})
 
 			// Assert
-			assert.NoError(t, err1, "Unexpected Error with Reconcile (1 of 3)")
-			assert.NoError(t, err2, "Unexpected Error with Reconcile (2 of 3)")
-			assert.NoError(t, err3, "Unexpected Error with Reconcile (3 of 3)")
+			assert.Nil(t, err1, "Unexpected Error with Reconcile (1 of 3)")
+			assert.Nil(t, err2, "Unexpected Error with Reconcile (2 of 3)")
+			assert.Nil(t, err3, "Unexpected Error with Reconcile (3 of 3)")
 			if test.expectPDSetup {
 				// should see a syncset, secret, configmap, and finalizer on CD
 				assert.True(t, verifySyncSetExists(mocks.fakeKubeClient, expectedSyncSet), "verifySyncSets: "+test.name)

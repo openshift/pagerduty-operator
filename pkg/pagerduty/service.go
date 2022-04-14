@@ -44,18 +44,6 @@ func getConfigMapKey(data map[string]string, key string) (string, error) {
 	return retString, nil
 }
 
-func GetSecretKey(data map[string][]byte, key string) (string, error) {
-	retString, ok := data[key]
-	if !ok {
-		return "", fmt.Errorf("%v does not exist", key)
-	}
-	if len(retString) == 0 {
-		return "", fmt.Errorf("%v is empty", key)
-	}
-
-	return string(retString), nil
-}
-
 //Client is a wrapper interface for the SvcClient to allow for easier testing
 type Client interface {
 	GetService(data *Data) (*pdApi.Service, error)

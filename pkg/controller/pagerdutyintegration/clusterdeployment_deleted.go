@@ -19,8 +19,6 @@ import (
 	"fmt"
 	"strings"
 
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	hivev1 "github.com/openshift/hive/apis/hive/v1"
 	"github.com/openshift/pagerduty-operator/config"
 	pagerdutyv1alpha1 "github.com/openshift/pagerduty-operator/pkg/apis/pagerduty/v1alpha1"
@@ -28,6 +26,7 @@ import (
 	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
 	"github.com/openshift/pagerduty-operator/pkg/utils"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func (r *ReconcilePagerDutyIntegration) handleDelete(pdclient pd.Client, pdi *pagerdutyv1alpha1.PagerDutyIntegration, cd *hivev1.ClusterDeployment) error {
@@ -92,23 +91,19 @@ func (r *ReconcilePagerDutyIntegration) handleDelete(pdclient pd.Client, pdi *pa
 	// None of the edge cases apply, delete the PagerDuty service
 	if deletePDService {
 		r.reqLogger.Info(fmt.Sprintf("Deleting PD service %s-%s.%s", pdData.ServicePrefix, pdData.ClusterID, pdData.BaseDomain))
-		err = pdclient.DeleteService(pdData)
-		if err != nil {
+		if err := pdclient.DeleteService(pdData); err != nil {
 			r.reqLogger.Error(err, "Failed cleaning up pagerduty.", "ClusterDeployment.Namespace", cd.Namespace, "ClusterID", pdData.ClusterID)
 			return err
-		} else {
-			// NOTE: not deleting the configmap if we didn't delete
-			// the service with the assumption that the config can
-			// be used later for cleanup find the PD configmap and
-			// delete it
-			r.reqLogger.Info("Deleting PD ConfigMap", "ClusterDeployment.Namespace", cd.Namespace, "Name", configMapName)
-			err = utils.DeleteConfigMap(configMapName, cd.Namespace, r.client, r.reqLogger)
+		}
 
-			if err != nil {
-				r.reqLogger.Error(err, "Error deleting ConfigMap", "ClusterDeployment.Namespace", cd.Namespace, "Name", configMapName)
-			}
+		// Only delete the configmap if the PagerDuty service was successfully deleted because
+		// it contains the service ID which can be used to find and delete the service next time.
+		r.reqLogger.Info("Deleting PD ConfigMap", "ClusterDeployment.Namespace", cd.Namespace, "Name", configMapName)
+		if err := utils.DeleteConfigMap(configMapName, cd.Namespace, r.client, r.reqLogger); err != nil {
+			r.reqLogger.Error(err, "Error deleting ConfigMap", "ClusterDeployment.Namespace", cd.Namespace, "Name", configMapName)
 		}
 	}
+
 	// find the pd secret and delete id
 	r.reqLogger.Info("Deleting PD secret", "ClusterDeployment.Namespace", cd.Namespace, "Name", secretName)
 	err = utils.DeleteSecret(secretName, cd.Namespace, r.client, r.reqLogger)

@@ -55,50 +55,6 @@ func TestGetConfigMapKey(t *testing.T) {
 	}
 }
 
-func TestGetSecretKey(t *testing.T) {
-	tests := []struct {
-		name        string
-		data        map[string][]byte
-		key         string
-		expected    string
-		expectError bool
-	}{
-		{
-			name: "Normal",
-			data: map[string][]byte{
-				"key": []byte("value"),
-			},
-			key:         "key",
-			expected:    "value",
-			expectError: false,
-		},
-		{
-			name: "Empty",
-			data: map[string][]byte{
-				"key": []byte(""),
-			},
-			key:         "key",
-			expectError: true,
-		},
-		{
-			name:        "Does not exist",
-			data:        map[string][]byte{},
-			key:         "key",
-			expectError: true,
-		},
-	}
-
-	for _, test := range tests {
-		actual, err := GetSecretKey(test.data, test.key)
-		if test.expectError {
-			assert.NotNil(t, err)
-		} else {
-			assert.Equal(t, test.expected, actual)
-			assert.Nil(t, err)
-		}
-	}
-}
-
 func TestNewData(t *testing.T) {
 	tests := []struct {
 		name      string
