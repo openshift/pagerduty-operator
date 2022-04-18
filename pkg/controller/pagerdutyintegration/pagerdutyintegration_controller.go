@@ -304,7 +304,11 @@ func (r *ReconcilePagerDutyIntegration) Reconcile(request reconcile.Request) (re
 		}
 	}
 
-	return r.requeueOnErr(reconcileErrors)
+	if len(reconcileErrors) > 0 {
+		return r.requeueOnErr(reconcileErrors)
+	}
+
+	return r.doNotRequeue()
 }
 
 func (r *ReconcilePagerDutyIntegration) getAllClusterDeployments() (*hivev1.ClusterDeploymentList, error) {
