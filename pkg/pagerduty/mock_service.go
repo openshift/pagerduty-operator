@@ -134,6 +134,21 @@ func (mr *MockClientMockRecorder) UpdateEscalationPolicy(data interface{}) *gomo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateEscalationPolicy", reflect.TypeOf((*MockClient)(nil).UpdateEscalationPolicy), data)
 }
 
+// UpdateService mocks base method
+func (m *MockClient) UpdateService(service *go_pagerduty.Service) (*go_pagerduty.Service, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateService", service)
+	ret0, _ := ret[0].(*go_pagerduty.Service)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpdateService indicates an expected call of UpdateService
+func (mr *MockClientMockRecorder) UpdateService(service interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateService", reflect.TypeOf((*MockClient)(nil).UpdateService), service)
+}
+
 // MockPdClient is a mock of PdClient interface
 type MockPdClient struct {
 	ctrl     *gomock.Controller
@@ -276,19 +291,34 @@ func (mr *MockPdClientMockRecorder) ListIncidents(arg0 interface{}) *gomock.Call
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListIncidents", reflect.TypeOf((*MockPdClient)(nil).ListIncidents), arg0)
 }
 
-// ListIncidentAlerts mocks base method
-func (m *MockPdClient) ListIncidentAlerts(incidentId string) (*go_pagerduty.ListAlertsResponse, error) {
+// ListIncidentAlertsWithOpts mocks base method
+func (m *MockPdClient) ListIncidentAlertsWithOpts(incidentId string, o go_pagerduty.ListIncidentAlertsOptions) (*go_pagerduty.ListAlertsResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ListIncidentAlerts", incidentId)
+	ret := m.ctrl.Call(m, "ListIncidentAlertsWithOpts", incidentId, o)
 	ret0, _ := ret[0].(*go_pagerduty.ListAlertsResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ListIncidentAlerts indicates an expected call of ListIncidentAlerts
-func (mr *MockPdClientMockRecorder) ListIncidentAlerts(incidentId interface{}) *gomock.Call {
+// ListIncidentAlertsWithOpts indicates an expected call of ListIncidentAlertsWithOpts
+func (mr *MockPdClientMockRecorder) ListIncidentAlertsWithOpts(incidentId, o interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListIncidentAlerts", reflect.TypeOf((*MockPdClient)(nil).ListIncidentAlerts), incidentId)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListIncidentAlertsWithOpts", reflect.TypeOf((*MockPdClient)(nil).ListIncidentAlertsWithOpts), incidentId, o)
+}
+
+// ManageEvent mocks base method
+func (m *MockPdClient) ManageEvent(e *go_pagerduty.V2Event) (*go_pagerduty.V2EventResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ManageEvent", e)
+	ret0, _ := ret[0].(*go_pagerduty.V2EventResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ManageEvent indicates an expected call of ManageEvent
+func (mr *MockPdClientMockRecorder) ManageEvent(e interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ManageEvent", reflect.TypeOf((*MockPdClient)(nil).ManageEvent), e)
 }
 
 // UpdateService mocks base method
