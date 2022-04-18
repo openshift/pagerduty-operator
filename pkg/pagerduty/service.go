@@ -293,7 +293,9 @@ func (c *SvcClient) CreateService(data *Data) (string, error) {
 func (c *SvcClient) createIntegration(serviceId, name, integrationType string) (string, error) {
 	newIntegration := pdApi.Integration{
 		Name: name,
-		Type: integrationType,
+		APIObject: pdApi.APIObject{
+			Type: integrationType,
+		},
 	}
 
 	newInt, err := c.PdClient.CreateIntegration(serviceId, newIntegration)
@@ -389,7 +391,7 @@ func (c *SvcClient) resolvePendingIncidents(data *Data) error {
 	}
 
 	for _, incident := range incidents {
-		alerts, err := c.getUnresolvedAlerts(incident.Id)
+		alerts, err := c.getUnresolvedAlerts(incident.APIObject.ID)
 		if err != nil {
 			return err
 		}

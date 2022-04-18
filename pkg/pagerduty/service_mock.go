@@ -85,7 +85,6 @@ func defaultMockPagerdutyState() *mockState {
 		},
 		Incidents: []*pd.Incident{
 			{
-				Id:        mockIncidentId,
 				APIObject: pd.APIObject{ID: mockIncidentId},
 				Service:   pd.APIObject{ID: mockServiceId},
 				Status:    "triggered",
@@ -96,7 +95,6 @@ func defaultMockPagerdutyState() *mockState {
 				},
 			},
 			{
-				Id:        mockIncidentId2,
 				APIObject: pd.APIObject{ID: mockIncidentId2},
 				Service:   pd.APIObject{ID: mockServiceId},
 				Status:    "resolved",
