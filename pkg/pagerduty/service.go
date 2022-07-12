@@ -119,10 +119,10 @@ func NewClient(APIKey string, controllerName string) Client {
 // Data describes the data that is needed for PagerDuty api calls
 type Data struct {
 	// These fields are parsed from the PagerDutyIntegration CR
-	PDIEscalationPolicyID string
-	ResolveTimeout        uint
-	AcknowledgeTimeOut    uint
-	ServicePrefix         string
+	EscalationPolicyID string
+	ResolveTimeout     uint
+	AcknowledgeTimeOut uint
+	ServicePrefix      string
 
 	// ClusterID and BaseDomain are required during service creation for naming
 	ClusterID  string
@@ -130,11 +130,11 @@ type Data struct {
 
 	// These fields are stored when the PagerDuty service is created and stored
 	// in a Configmap in the ClusterDeployment's namespace
-	ServiceID          string
-	IntegrationID      string
-	EscalationPolicyID string
-	Hibernating        bool
-	LimitedSupport     bool
+	// There is also an EscalationPolicyID field which is parsed fron the PDI CR
+	ServiceID      string
+	IntegrationID  string
+	Hibernating    bool
+	LimitedSupport bool
 }
 
 // NewData initializes a Data struct from a v1alpha1 PagerDutyIntegration spec
@@ -145,18 +145,17 @@ func NewData(pdi *pagerdutyv1alpha1.PagerDutyIntegration, clusterId string, base
 	}
 
 	return &Data{
-		PDIEscalationPolicyID: pdi.Spec.EscalationPolicy,
-		ResolveTimeout:        pdi.Spec.ResolveTimeout,
-		AcknowledgeTimeOut:    pdi.Spec.AcknowledgeTimeout,
-		ServicePrefix:         pdi.Spec.ServicePrefix,
-		ClusterID:             clusterId,
-		BaseDomain:            baseDomain,
+		EscalationPolicyID: pdi.Spec.EscalationPolicy,
+		ResolveTimeout:     pdi.Spec.ResolveTimeout,
+		AcknowledgeTimeOut: pdi.Spec.AcknowledgeTimeout,
+		ServicePrefix:      pdi.Spec.ServicePrefix,
+		ClusterID:          clusterId,
+		BaseDomain:         baseDomain,
 	}, nil
 }
 
 // ParseClusterConfig parses the cluster specific config map and stores the IDs in the data struct
-// SERVICE_ID and INTEGRATION_ID are required ConfigMap data fields,
-// ESCALATION_POLICY_ID defaults to the PDI defined escalation policy id, and
+// SERVICE_ID and INTEGRATION_ID are required ConfigMap data fields
 // HIBERNATING and LIMITED_SUPPORT are optional.
 func (data *Data) ParseClusterConfig(osc client.Client, namespace string, cmName string) error {
 	pdAPIConfigMap := &corev1.ConfigMap{}
@@ -176,12 +175,9 @@ func (data *Data) ParseClusterConfig(osc client.Client, namespace string, cmName
 	}
 
 	data.EscalationPolicyID, err = getConfigMapKey(pdAPIConfigMap.Data, "ESCALATION_POLICY_ID")
+	// do not return error, allow EscalationPolicyID to be empty string
 	if err != nil {
-		// If data.PDIEscalationPolicyID exists, use that as a default
-		if data.PDIEscalationPolicyID == "" {
-			return err
-		}
-		data.EscalationPolicyID = data.PDIEscalationPolicyID
+		data.EscalationPolicyID = ""
 	}
 
 	val := pdAPIConfigMap.Data["HIBERNATING"]
@@ -235,7 +231,7 @@ func (c *SvcClient) GetIntegrationKey(data *Data) (string, error) {
 
 // CreateService creates a service in pagerduty for the specified clusterid and returns the service key
 func (c *SvcClient) CreateService(data *Data) (string, error) {
-	escalationPolicy, err := c.PdClient.GetEscalationPolicy(data.PDIEscalationPolicyID, nil)
+	escalationPolicy, err := c.PdClient.GetEscalationPolicy(data.EscalationPolicyID, nil)
 	if err != nil {
 		return "", errors.New("Escalation policy not found in PagerDuty")
 	}
@@ -377,7 +373,7 @@ func (c *SvcClient) DisableService(data *Data) error {
 
 // UpdateEscalationPolicy will update the PD service escalation policy
 func (c *SvcClient) UpdateEscalationPolicy(data *Data) error {
-	escalationPolicy, err := c.PdClient.GetEscalationPolicy(data.PDIEscalationPolicyID, &pdApi.GetEscalationPolicyOptions{})
+	escalationPolicy, err := c.PdClient.GetEscalationPolicy(data.EscalationPolicyID, &pdApi.GetEscalationPolicyOptions{})
 	if err != nil {
 		return err
 	}

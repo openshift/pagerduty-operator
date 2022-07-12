@@ -113,24 +113,35 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 		}
 	}
 
-	// check if there is a change in PDI escalation policy
-	if pdData.PDIEscalationPolicyID != pdData.EscalationPolicyID {
-		r.reqLogger.Info("PDI EscalationPolicy changed, updating service")
-		err := pdclient.UpdateEscalationPolicy(pdData)
-		if err != nil {
-			r.reqLogger.Error(err, "Error updating PagerDuty service")
-			return err
-		}
-
-		pdData.EscalationPolicyID = pdData.PDIEscalationPolicyID
-
-		// Update configmap to reflect the new escalation policy changes
-		if err := pdData.SetClusterConfig(r.client, cd.Namespace, configMapName); err != nil {
+	// If no value in ConfigMap for EscalationPolicyID set it from pdi.EscalationPolicyID
+	if pdData.EscalationPolicyID == "" {
+		// update policy ID from PDI, it is used in next set call
+		pdData.EscalationPolicyID = pdi.Spec.EscalationPolicy
+		if err = pdData.SetClusterConfig(r.client, cd.Namespace, configMapName); err != nil {
 			r.reqLogger.Error(err, "Error updating PagerDuty cluster config", "Name", configMapName)
 			return err
 		}
+	} else {
+		// ConfigMap has a value for EscalationPolicyID
+		// Check if the value is the same EscalationPolicyID as from PDI
+		if pdData.EscalationPolicyID != pdi.Spec.EscalationPolicy {
+			r.reqLogger.Info("PDI EscalationPolicy changed, updating service", "ClusterID", pdData.ClusterID, "ServiceID", pdData.ServiceID, "ClusterDeployment.Namespace", cd.Namespace)
+			// update policy ID from PDI, it is used in next update call
+			pdData.EscalationPolicyID = pdi.Spec.EscalationPolicy
+			err := pdclient.UpdateEscalationPolicy(pdData)
+			if err != nil {
+				r.reqLogger.Error(err, "Error updating PagerDuty service", "ClusterID", pdData.ClusterID, "ServiceID", pdData.ServiceID, "ClusterDeployment.Namespace", cd.Namespace)
+				return err
+			}
 
-		return nil
+			// Update ConfigMap to reflect the new escalation policy changes
+			if err := pdData.SetClusterConfig(r.client, cd.Namespace, configMapName); err != nil {
+				r.reqLogger.Error(err, "Error updating PagerDuty cluster config", "Name", configMapName)
+				return err
+			}
+
+			return nil
+		}
 	}
 
 	// To prevent scoping issues in the err check below.
