@@ -24,7 +24,7 @@ This operator runs on [Hive](https://github.com/openshift/hive) and watches for 
 * The PagerDutyIntegration controller watches for changes to PagerDutyIntegration CRs, and also for changes to appropriately labeled ClusterDeployment CRs (and ConfigMap/Secret/SyncSet resources owned by such a ClusterDeployment).
 * For each PagerDutyIntegration CR, it will get a list of matching ClusterDeployments that have the `spec.installed` field set to true.
 * For each of these ClusterDeployments, PagerDuty creates a secret which contains the integration key required to communicate with PagerDuty Web application.
-* The PagerDuty operator then creates [syncset](https://github.com/openshift/hive/blob/master/config/crds/hive_v1_syncset.yaml) with the relevant information for hive to send the PagerDuty secret to the newly provisioned cluster .
+* The PagerDuty operator then creates [syncset](https://github.com/openshift/hive/blob/master/config/crds/hive.openshift.io_syncsets.yaml) with the relevant information for hive to send the PagerDuty secret to the newly provisioned cluster .
 * This syncset is used by hive to deploy the pagerduty secret to the provisioned cluster so that the relevant SRE team get notified of alerts on the cluster.
 * The pagerduty secret is deployed to the coordinates specified in the `spec.targetSecretRef` field of the PagerDutyIntegration CR.
 

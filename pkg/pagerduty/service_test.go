@@ -163,7 +163,7 @@ func TestParseSetClusterConfig(t *testing.T) {
 		client := fake.NewFakeClientWithScheme(s, cm)
 
 		testData := Data{
-			PDIEscalationPolicyID: mockEscalationPolicyId,
+			EscalationPolicyID: mockEscalationPolicyId,
 		}
 		parseErr := testData.ParseClusterConfig(client, test.namespace, test.cmName)
 
@@ -285,19 +285,19 @@ func TestSvcClient_CreateService(t *testing.T) {
 		{
 			name: "Works",
 			data: &Data{
-				PDIEscalationPolicyID: mockEscalationPolicyId,
-				ResolveTimeout:        30,
-				AcknowledgeTimeOut:    30,
-				ServicePrefix:         "servicePrefix",
-				ClusterID:             "clusterID",
-				BaseDomain:            "baseDomain",
+				EscalationPolicyID: mockEscalationPolicyId,
+				ResolveTimeout:     30,
+				AcknowledgeTimeOut: 30,
+				ServicePrefix:      "servicePrefix",
+				ClusterID:          "clusterID",
+				BaseDomain:         "baseDomain",
 			},
 			expectErr: false,
 		},
 		{
 			name: "Can't find escalation policy",
 			data: &Data{
-				PDIEscalationPolicyID: "notfound",
+				EscalationPolicyID: "notfound",
 			},
 			expectErr: true,
 		},
@@ -360,23 +360,23 @@ func TestSvcClient_UpdateEscalationPolicy(t *testing.T) {
 		{
 			name: "normal",
 			data: &Data{
-				PDIEscalationPolicyID: mockEscalationPolicyId2,
-				ServiceID:             mockServiceId,
+				EscalationPolicyID: mockEscalationPolicyId2,
+				ServiceID:          mockServiceId,
 			},
 			expectErr: false,
 		},
 		{
 			name: "missing escalation policy",
 			data: &Data{
-				PDIEscalationPolicyID: "notfound",
+				EscalationPolicyID: "notfound",
 			},
 			expectErr: true,
 		},
 		{
 			name: "missing service",
 			data: &Data{
-				PDIEscalationPolicyID: mockEscalationPolicyId,
-				ServiceID:             "notfound",
+				EscalationPolicyID: mockEscalationPolicyId,
+				ServiceID:          "notfound",
 			},
 			expectErr: true,
 		},

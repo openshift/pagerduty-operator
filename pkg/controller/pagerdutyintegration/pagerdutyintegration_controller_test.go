@@ -120,6 +120,23 @@ func testCDConfigMap(isHibernating bool, hasLimitedSupport bool) *corev1.ConfigM
 	return cm
 }
 
+// testCDConfigMap returns a fake configmap without ESCALATION_POLICY_ID key for a deployed cluster for testing.
+func testCDConfigMapWithoutEscalationPolicy(isHibernating bool, hasLimitedSupport bool) *corev1.ConfigMap {
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: testNamespace,
+			Name:      config.Name(testServicePrefix, testClusterName, config.ConfigMapSuffix),
+		},
+		Data: map[string]string{
+			"INTEGRATION_ID":  testIntegrationID,
+			"SERVICE_ID":      testServiceID,
+			"HIBERNATING":     strconv.FormatBool(isHibernating),
+			"LIMITED_SUPPORT": strconv.FormatBool(hasLimitedSupport),
+		},
+	}
+	return cm
+}
+
 // testCDSecret returns a Secret that will go in the SyncSet for a deployed cluster to use in testing.
 func testCDSecret() *corev1.Secret {
 	s := &corev1.Secret{
@@ -662,7 +679,23 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			},
 		},
 		{
-			name: "Test Not Managed, Finalizer, Not Deleting, PD Setup, Not Hibernating, Not in Limited Support, PDI escalation policy updated",
+			name: "Test Managed, Finalizer, Not Deleting, PD Setup, Not Hibernating, Not in Limited Support, CM PDI escalation policy missing",
+			localObjects: []runtime.Object{
+				testClusterDeployment(true, true, true, false, false, false, false),
+				testPDISecret(),
+				testPagerDutyIntegration(),
+				testCDConfigMapWithoutEscalationPolicy(false, false),
+				testCDSyncSet(),
+				testCDSecret(),
+			},
+			expectPDSetup: true,
+			setupPDMock: func(r *pd.MockClientMockRecorder) {
+				r.UpdateEscalationPolicy(gomock.Any()).Return(nil).Times(0)
+				r.GetService(gomock.Any()).Return(nil, nil).Times(0)
+			},
+		},
+		{
+			name: "Test Managed, Finalizer, Not Deleting, PD Setup, Not Hibernating/Limited Support, CM PDI escalation policy exists, PDI escalation policy changed",
 			localObjects: []runtime.Object{
 				testClusterDeployment(true, true, true, false, false, false, false),
 				testPDISecret(),
@@ -674,6 +707,24 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			expectPDSetup: true,
 			setupPDMock: func(r *pd.MockClientMockRecorder) {
 				r.UpdateEscalationPolicy(gomock.Any()).Return(nil).Times(1)
+				r.GetService(gomock.Any()).Return(nil, nil).Times(0)
+				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
+				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
+			},
+		},
+		{
+			name: "Test Managed, Finalizer, Not Deleting, PD Setup, Not Hibernating/Limited Support, CM PDI escalation policy missing, PDI escalation policy changed",
+			localObjects: []runtime.Object{
+				testClusterDeployment(true, true, true, false, false, false, false),
+				testPDISecret(),
+				updatedTestPagerDutyIntegration(),
+				testCDConfigMapWithoutEscalationPolicy(false, false),
+				testCDSyncSet(),
+				testCDSecret(),
+			},
+			expectPDSetup: true,
+			setupPDMock: func(r *pd.MockClientMockRecorder) {
+				r.UpdateEscalationPolicy(gomock.Any()).Return(nil).Times(0)
 				r.GetService(gomock.Any()).Return(nil, nil).Times(0)
 				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
