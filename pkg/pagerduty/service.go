@@ -53,7 +53,6 @@ type Client interface {
 	EnableService(data *Data) error
 	DisableService(data *Data) error
 	UpdateEscalationPolicy(data *Data) error
-	UpdateService(service *pdApi.Service) (*pdApi.Service, error)
 }
 
 type PdClient interface {
@@ -330,24 +329,11 @@ func (c *SvcClient) EnableService(data *Data) error {
 
 	if service.Status != "active" {
 		service.Status = "active"
-		_, err = c.UpdateService(service)
+		_, err = c.PdClient.UpdateService(*service)
 		return err
 	}
 
 	return nil
-}
-
-// UpdateService is a temporary wrapper until an upstream bug is fixed
-// AlertGroupingParameters.Type incorrectly defaults to "" when unset
-// https://github.com/PagerDuty/go-pagerduty/issues/438
-func (c *SvcClient) UpdateService(service *pdApi.Service) (*pdApi.Service, error) {
-	if service.AlertGroupingParameters != nil {
-		if service.AlertGroupingParameters.Type == "" {
-			service.AlertGroupingParameters = nil
-		}
-	}
-
-	return c.PdClient.UpdateService(*service)
 }
 
 // DisableService will set the PD service disabled
@@ -367,7 +353,7 @@ func (c *SvcClient) DisableService(data *Data) error {
 
 	if service.Status != "disabled" {
 		service.Status = "disabled"
-		if _, err = c.UpdateService(service); err != nil {
+		if _, err = c.PdClient.UpdateService(*service); err != nil {
 			return err
 		}
 	}
@@ -389,7 +375,7 @@ func (c *SvcClient) UpdateEscalationPolicy(data *Data) error {
 
 	service.EscalationPolicy.ID = escalationPolicy.ID
 
-	_, err = c.UpdateService(service)
+	_, err = c.PdClient.UpdateService(*service)
 	if err != nil {
 		return err
 	}

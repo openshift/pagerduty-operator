@@ -4,10 +4,11 @@ go 1.13
 
 require (
 	cloud.google.com/go v0.57.0 // indirect
-	github.com/PagerDuty/go-pagerduty v1.5.0
+	github.com/PagerDuty/go-pagerduty v1.5.1-0.20220711135237-1c427f9a1638
 	github.com/go-logr/logr v0.2.1
 	github.com/go-openapi/spec v0.19.4
 	github.com/golang/mock v1.4.4
+	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/openshift/api v3.9.1-0.20191111211345-a27ff30ebf09+incompatible
