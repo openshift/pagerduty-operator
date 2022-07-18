@@ -24,9 +24,9 @@ const (
 	OperatorConfigMapName  string = "pagerduty-config"
 	OperatorName           string = "pagerduty-operator"
 	OperatorNamespace      string = "pagerduty-operator"
-	PagerDutyAPISecretName string = "pagerduty-api-key"
-	PagerDutyAPISecretKey  string = "PAGERDUTY_API_KEY"
-	PagerDutySecretKey     string = "PAGERDUTY_KEY"
+	PagerDutyAPISecretName string = "pagerduty-api-key" // #nosec G101 -- This is a false positive
+	PagerDutyAPISecretKey  string = "PAGERDUTY_API_KEY" // #nosec G101 -- This is a false positive
+	PagerDutySecretKey     string = "PAGERDUTY_KEY"     // #nosec G101 -- This is a false positive
 	// PagerDutyFinalizerPrefix prefix used for finalizers on resources other than PDI
 	PagerDutyFinalizerPrefix string = "pd.managed.openshift.io/"
 	// PagerDutyIntegrationFinalizer name of finalizer used for PDI

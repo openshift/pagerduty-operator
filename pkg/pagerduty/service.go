@@ -263,6 +263,7 @@ func (c *SvcClient) CreateService(data *Data) (string, error) {
 
 		if len(currentSvcs.Services) > 0 {
 			for _, svc := range currentSvcs.Services {
+				svc := svc
 				if svc.Name == clusterService.Name {
 					newSvc = &svc
 					break
