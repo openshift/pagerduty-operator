@@ -19,26 +19,25 @@ package pagerdutyintegration
 import (
 	"context"
 	"fmt"
-	"github.com/go-logr/logr"
-	"github.com/openshift/pagerduty-operator/config"
-	"github.com/openshift/pagerduty-operator/pkg/localmetrics"
-	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
-	"github.com/openshift/pagerduty-operator/pkg/utils"
-	corev1 "k8s.io/api/core/v1"
 	"time"
 
+	"github.com/go-logr/logr"
 	hivev1 "github.com/openshift/hive/apis/hive/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	pagerdutyv1alpha1 "github.com/openshift/pagerduty-operator/api/v1alpha1"
+	"github.com/openshift/pagerduty-operator/config"
+	"github.com/openshift/pagerduty-operator/pkg/localmetrics"
+	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
+	"github.com/openshift/pagerduty-operator/pkg/utils"
 )
 
 const controllerName = "pagerdutyintegration"
@@ -64,7 +63,8 @@ func (p pdiReconcileErrors) Error() string {
 // PagerDutyIntegrationReconciler reconciles a PagerDutyIntegration object
 type PagerDutyIntegrationReconciler struct {
 	client.Client
-	Scheme    *runtime.Scheme
+	Scheme *runtime.Scheme
+
 	reqLogger logr.Logger
 	pdclient  func(APIKey string, controllerName string) pd.Client
 }
@@ -81,6 +81,9 @@ type PagerDutyIntegrationReconciler struct {
 func (r *PagerDutyIntegrationReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	start := time.Now()
 
+	if r.pdclient == nil {
+		r.pdclient = pd.NewClient
+	}
 	r.reqLogger = log.WithValues("Request.Namespace", req.Namespace, "Request.Name", req.Name)
 	r.reqLogger.Info("Reconciling PagerDutyIntegration")
 
@@ -92,7 +95,7 @@ func (r *PagerDutyIntegrationReconciler) Reconcile(ctx context.Context, req ctrl
 
 	// Fetch the PagerDutyIntegration instance
 	pdi := &pagerdutyv1alpha1.PagerDutyIntegration{}
-	err := r.Client.Get(context.TODO(), req.NamespacedName, pdi)
+	err := r.Get(context.TODO(), req.NamespacedName, pdi)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -151,7 +154,7 @@ func (r *PagerDutyIntegrationReconciler) Reconcile(ctx context.Context, req ctrl
 
 			// Once all ClusterDeployments have been cleaned up, delete the PDI finalizer
 			utils.DeleteFinalizer(pdi, config.PagerDutyIntegrationFinalizer)
-			err = r.Client.Update(context.TODO(), pdi)
+			err = r.Update(context.TODO(), pdi)
 			if err != nil {
 				return r.requeueOnErr(err)
 			}
@@ -162,7 +165,7 @@ func (r *PagerDutyIntegrationReconciler) Reconcile(ctx context.Context, req ctrl
 	// Ensure the PDI has a finalizer to protect it from deletion
 	if !utils.HasFinalizer(pdi, config.PagerDutyIntegrationFinalizer) {
 		utils.AddFinalizer(pdi, config.PagerDutyIntegrationFinalizer)
-		err := r.Client.Update(context.TODO(), pdi)
+		err := r.Update(context.TODO(), pdi)
 		if err != nil {
 			return r.requeueOnErr(err)
 		}
@@ -228,7 +231,7 @@ func (r *PagerDutyIntegrationReconciler) Reconcile(ctx context.Context, req ctrl
 
 func (r *PagerDutyIntegrationReconciler) getAllClusterDeployments() (*hivev1.ClusterDeploymentList, error) {
 	allClusterDeployments := &hivev1.ClusterDeploymentList{}
-	err := r.Client.List(context.TODO(), allClusterDeployments, &client.ListOptions{})
+	err := r.List(context.TODO(), allClusterDeployments, &client.ListOptions{})
 	return allClusterDeployments, err
 }
 
@@ -240,7 +243,7 @@ func (r *PagerDutyIntegrationReconciler) getMatchingClusterDeployments(pdi *page
 
 	matchingClusterDeployments := &hivev1.ClusterDeploymentList{}
 	listOpts := &client.ListOptions{LabelSelector: selector}
-	err = r.Client.List(context.TODO(), matchingClusterDeployments, listOpts)
+	err = r.List(context.TODO(), matchingClusterDeployments, listOpts)
 	return matchingClusterDeployments, err
 }
 
@@ -257,12 +260,26 @@ func (r *PagerDutyIntegrationReconciler) requeueAfter(t time.Duration) (reconcil
 }
 
 // SetupWithManager sets up the controller with the Manager.
+// Custom event handlers are utilized here such that when a ClusterDeployment event is created, only associated
+// PagerDutyIntegration CRs are reconciled. Likewise, when events for SyncSets, ConfigMaps, or Secrets are created,
+// if they're owned by a ClusterDeployment, then associated PagerDutyIntegration CRs are reconciled.
 func (r *PagerDutyIntegrationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&pagerdutyv1alpha1.PagerDutyIntegration{}).
-		Watches(&source.Kind{Type: &hivev1.ClusterDeployment{}}, &handler.EnqueueRequestForObject{}).
-		Watches(&source.Kind{Type: &hivev1.SyncSet{}}, &handler.EnqueueRequestForObject{}).
-		Watches(&source.Kind{Type: &corev1.ConfigMap{}}, &handler.EnqueueRequestForObject{}).
-		Watches(&source.Kind{Type: &corev1.Secret{}}, &handler.EnqueueRequestForObject{}).
+		Watches(&source.Kind{Type: &hivev1.ClusterDeployment{}}, &enqueueRequestForClusterDeployment{
+			Client: mgr.GetClient(),
+		}).
+		Watches(&source.Kind{Type: &hivev1.SyncSet{}}, &enqueueRequestForClusterDeploymentOwner{
+			Client: mgr.GetClient(),
+			Scheme: mgr.GetScheme(),
+		}).
+		Watches(&source.Kind{Type: &corev1.ConfigMap{}}, &enqueueRequestForClusterDeploymentOwner{
+			Client: mgr.GetClient(),
+			Scheme: mgr.GetScheme(),
+		}).
+		Watches(&source.Kind{Type: &corev1.Secret{}}, &enqueueRequestForClusterDeploymentOwner{
+			Client: mgr.GetClient(),
+			Scheme: mgr.GetScheme(),
+		}).
 		Complete(r)
 }

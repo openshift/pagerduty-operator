@@ -23,7 +23,6 @@ import (
 	"os"
 	"runtime"
 
-	routev1 "github.com/openshift/api/route/v1"
 	hivev1 "github.com/openshift/hive/apis/hive/v1"
 	"github.com/openshift/operator-custom-metrics/pkg/metrics"
 	pagerdutyv1alpha1 "github.com/openshift/pagerduty-operator/api/v1alpha1"
@@ -59,7 +58,6 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	utilruntime.Must(routev1.Install(scheme))
 	utilruntime.Must(hivev1.AddToScheme(scheme))
 	utilruntime.Must(pagerdutyv1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
@@ -85,7 +83,15 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
+	// Print configuration info
 	printVersion()
+	if err := operatorconfig.SetIsFedramp(); err != nil {
+		setupLog.Error(err, "failed to get fedramp value")
+		os.Exit(1)
+	}
+	if operatorconfig.IsFedramp() {
+		setupLog.Info("running in fedramp environment.")
+	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
@@ -129,14 +135,6 @@ func main() {
 	if err := metrics.ConfigureMetrics(context.TODO(), *metricsServer); err != nil {
 		setupLog.Error(err, "failed to configure custom metrics")
 		os.Exit(1)
-	}
-
-	if err := operatorconfig.SetIsFedramp(); err != nil {
-		setupLog.Error(err, "failed to get fedramp value")
-		os.Exit(1)
-	}
-	if operatorconfig.IsFedramp() {
-		setupLog.Info("running in fedramp environment.")
 	}
 
 	// Add runnable custom metrics

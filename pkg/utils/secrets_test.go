@@ -88,7 +88,7 @@ func TestLoadSecretData(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			s := runtime.NewScheme()
 			s.AddKnownTypes(corev1.SchemeGroupVersion, &corev1.Secret{})
-			client := fake.NewFakeClientWithScheme(s, test.secret)
+			client := fake.NewClientBuilder().WithScheme(s).WithObjects(test.secret).Build()
 
 			result, err := LoadSecretData(client, testSecretName, testNamespace, testDataKey)
 			if err != nil && !test.expectError {

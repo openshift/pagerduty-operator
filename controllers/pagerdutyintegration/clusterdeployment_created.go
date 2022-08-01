@@ -69,7 +69,7 @@ func (r *PagerDutyIntegrationReconciler) handleCreate(pdclient pd.Client, pdi *p
 	if !utils.HasFinalizer(cd, finalizer) {
 		baseToPatch := client.MergeFrom(cd.DeepCopy())
 		utils.AddFinalizer(cd, finalizer)
-		return r.Client.Patch(context.TODO(), cd, baseToPatch)
+		return r.Patch(context.TODO(), cd, baseToPatch)
 	}
 
 	clusterID := utils.GetClusterID(cd)
@@ -100,9 +100,9 @@ func (r *PagerDutyIntegrationReconciler) handleCreate(pdclient pd.Client, pdi *p
 			r.reqLogger.Error(err, "Error setting controller reference on configmap")
 			return err
 		}
-		if err := r.Client.Create(context.TODO(), newCM); err != nil {
+		if err := r.Create(context.TODO(), newCM); err != nil {
 			if errors.IsAlreadyExists(err) {
-				if updateErr := r.Client.Update(context.TODO(), newCM); updateErr != nil {
+				if updateErr := r.Update(context.TODO(), newCM); updateErr != nil {
 					r.reqLogger.Error(err, "Error updating existing configmap", "Name", configMapName)
 					return err
 				}
@@ -149,7 +149,7 @@ func (r *PagerDutyIntegrationReconciler) handleCreate(pdclient pd.Client, pdi *p
 
 	// try to load integration key (secret)
 	sc := &corev1.Secret{}
-	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: secretName, Namespace: cd.Namespace}, sc)
+	err = r.Get(context.TODO(), types.NamespacedName{Name: secretName, Namespace: cd.Namespace}, sc)
 
 	if err == nil {
 		// successfully loaded secret, snag the integration key
@@ -173,25 +173,25 @@ func (r *PagerDutyIntegrationReconciler) handleCreate(pdclient pd.Client, pdi *p
 		r.reqLogger.Error(err, "Error setting controller reference on secret", "ClusterDeployment.Namespace", cd.Namespace)
 		return err
 	}
-	if err = r.Client.Create(context.TODO(), secret); err != nil {
+	if err = r.Create(context.TODO(), secret); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return err
 		}
 
 		r.reqLogger.Info("the pd secret exist, check if pdIntegrationKey is changed or not", "ClusterDeployment.Namespace", cd.Namespace)
 		sc := &corev1.Secret{}
-		err = r.Client.Get(context.TODO(), types.NamespacedName{Name: secret.Name, Namespace: cd.Namespace}, sc)
+		err = r.Get(context.TODO(), types.NamespacedName{Name: secret.Name, Namespace: cd.Namespace}, sc)
 		if err != nil {
 			return nil
 		}
 		if string(sc.Data[config.PagerDutySecretKey]) != pdIntegrationKey {
 			r.reqLogger.Info("pdIntegrationKey is changed, delete the secret first")
-			if err = r.Client.Delete(context.TODO(), secret); err != nil {
+			if err = r.Delete(context.TODO(), secret); err != nil {
 				log.Info("failed to delete existing pd secret")
 				return err
 			}
 			r.reqLogger.Info("creating pd secret", "ClusterDeployment.Namespace", cd.Namespace)
-			if err = r.Client.Create(context.TODO(), secret); err != nil {
+			if err = r.Create(context.TODO(), secret); err != nil {
 				return err
 			}
 		}
@@ -199,7 +199,7 @@ func (r *PagerDutyIntegrationReconciler) handleCreate(pdclient pd.Client, pdi *p
 
 	r.reqLogger.Info("Creating syncset", "ClusterDeployment.Namespace", cd.Namespace)
 	ss := &hivev1.SyncSet{}
-	err = r.Client.Get(context.TODO(), types.NamespacedName{Name: secretName, Namespace: cd.Namespace}, ss)
+	err = r.Get(context.TODO(), types.NamespacedName{Name: secretName, Namespace: cd.Namespace}, ss)
 	if err != nil {
 		r.reqLogger.Info("error finding the old syncset")
 		if !errors.IsNotFound(err) {
@@ -211,7 +211,7 @@ func (r *PagerDutyIntegrationReconciler) handleCreate(pdclient pd.Client, pdi *p
 			r.reqLogger.Error(err, "Error setting controller reference on syncset", "ClusterDeployment.Namespace", cd.Namespace)
 			return err
 		}
-		if err := r.Client.Create(context.TODO(), ss); err != nil {
+		if err := r.Create(context.TODO(), ss); err != nil {
 			return err
 		}
 	}
