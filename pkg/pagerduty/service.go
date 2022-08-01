@@ -24,8 +24,8 @@ import (
 	"time"
 
 	pdApi "github.com/PagerDuty/go-pagerduty"
+	pagerdutyv1alpha1 "github.com/openshift/pagerduty-operator/api/v1alpha1"
 	"github.com/openshift/pagerduty-operator/config"
-	pagerdutyv1alpha1 "github.com/openshift/pagerduty-operator/pkg/apis/pagerduty/v1alpha1"
 	"github.com/openshift/pagerduty-operator/pkg/localmetrics"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"

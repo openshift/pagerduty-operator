@@ -3,7 +3,7 @@ package pagerduty
 import (
 	"testing"
 
-	pagerdutyv1alpha1 "github.com/openshift/pagerduty-operator/pkg/apis/pagerduty/v1alpha1"
+	pagerdutyv1alpha1 "github.com/openshift/pagerduty-operator/api/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

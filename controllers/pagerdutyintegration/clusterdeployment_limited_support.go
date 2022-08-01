@@ -4,13 +4,13 @@ import (
 	"strconv"
 
 	hivev1 "github.com/openshift/hive/apis/hive/v1"
+	pagerdutyv1alpha1 "github.com/openshift/pagerduty-operator/api/v1alpha1"
 	"github.com/openshift/pagerduty-operator/config"
-	pagerdutyv1alpha1 "github.com/openshift/pagerduty-operator/pkg/apis/pagerduty/v1alpha1"
 	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
 	"github.com/openshift/pagerduty-operator/pkg/utils"
 )
 
-func (r *ReconcilePagerDutyIntegration) handleLimitedSupport(pdclient pd.Client, pdi *pagerdutyv1alpha1.PagerDutyIntegration, cd *hivev1.ClusterDeployment) error {
+func (r *PagerDutyIntegrationReconciler) handleLimitedSupport(pdclient pd.Client, pdi *pagerdutyv1alpha1.PagerDutyIntegration, cd *hivev1.ClusterDeployment) error {
 	// configMapName is the name of the ConfigMap of the relevant service
 	var configMapName = config.Name(pdi.Spec.ServicePrefix, cd.Name, config.ConfigMapSuffix)
 
@@ -27,7 +27,7 @@ func (r *ReconcilePagerDutyIntegration) handleLimitedSupport(pdclient pd.Client,
 		return err
 	}
 
-	err = pdData.ParseClusterConfig(r.client, cd.Namespace, configMapName)
+	err = pdData.ParseClusterConfig(r.Client, cd.Namespace, configMapName)
 	if err != nil || pdData.ServiceID == "" {
 		// pagerduty service isn't created yet, return
 		return nil
@@ -49,7 +49,7 @@ func (r *ReconcilePagerDutyIntegration) handleLimitedSupport(pdclient pd.Client,
 
 		pdData.LimitedSupport = true
 
-		if err := pdData.SetClusterConfig(r.client, cd.Namespace, configMapName); err != nil {
+		if err := pdData.SetClusterConfig(r.Client, cd.Namespace, configMapName); err != nil {
 			r.reqLogger.Error(err, "Error updating PagerDuty cluster config", "Name", configMapName)
 			return err
 		}
@@ -63,7 +63,7 @@ func (r *ReconcilePagerDutyIntegration) handleLimitedSupport(pdclient pd.Client,
 
 		pdData.LimitedSupport = false
 
-		if err := pdData.SetClusterConfig(r.client, cd.Namespace, configMapName); err != nil {
+		if err := pdData.SetClusterConfig(r.Client, cd.Namespace, configMapName); err != nil {
 			r.reqLogger.Error(err, "Error updating PagerDuty cluster config", "Name", configMapName)
 			return err
 		}
