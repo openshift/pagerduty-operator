@@ -118,6 +118,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	setupLog.Info("starting manager")
+	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+		setupLog.Error(err, "problem running manager")
+		os.Exit(1)
+	}
+
 	// Configure custom metrics
 	metricsServer := metrics.NewBuilder(operatorconfig.OperatorNamespace, operatorconfig.OperatorName).
 		WithPort(metricsPort).
@@ -156,12 +162,6 @@ func main() {
 	}))
 	if err != nil {
 		setupLog.Error(err, "unable add a runnable to the manager")
-		os.Exit(1)
-	}
-
-	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
 }

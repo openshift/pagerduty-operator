@@ -33,7 +33,7 @@ const (
 func (r *PagerDutyIntegrationReconciler) handleHibernation(pdclient pd.Client, pdi *pagerdutyv1alpha1.PagerDutyIntegration, cd *hivev1.ClusterDeployment) error {
 	var (
 		// configMapName is the name of the ConfigMap containing the hibernation state
-		configMapName string = config.Name(pdi.Spec.ServicePrefix, cd.Name, config.ConfigMapSuffix)
+		configMapName = config.Name(pdi.Spec.ServicePrefix, cd.Name, config.ConfigMapSuffix)
 	)
 
 	if !cd.Spec.Installed {
@@ -47,7 +47,7 @@ func (r *PagerDutyIntegrationReconciler) handleHibernation(pdclient pd.Client, p
 		return err
 	}
 
-	if err := pdData.ParseClusterConfig(r.client, cd.Namespace, configMapName); err != nil {
+	if err := pdData.ParseClusterConfig(r.Client, cd.Namespace, configMapName); err != nil {
 		if errors.IsNotFound(err) {
 			// service isn't created yet, return
 			return nil
@@ -67,7 +67,7 @@ func (r *PagerDutyIntegrationReconciler) handleHibernation(pdclient pd.Client, p
 			return err
 		}
 		pdData.Hibernating = true
-		if err := pdData.SetClusterConfig(r.client, cd.Namespace, configMapName); err != nil {
+		if err := pdData.SetClusterConfig(r.Client, cd.Namespace, configMapName); err != nil {
 			r.reqLogger.Error(err, "Error updating pd cluster config", "Name", configMapName, "ClusterDeployment.Namespace", cd.Namespace)
 			return err
 		}
@@ -78,7 +78,7 @@ func (r *PagerDutyIntegrationReconciler) handleHibernation(pdclient pd.Client, p
 				return err
 			}
 			pdData.Hibernating = false
-			if err := pdData.SetClusterConfig(r.client, cd.Namespace, configMapName); err != nil {
+			if err := pdData.SetClusterConfig(r.Client, cd.Namespace, configMapName); err != nil {
 				r.reqLogger.Error(err, "Error updating pd cluster config", "Name", configMapName, "ClusterDeployment.Namespace", cd.Namespace)
 				return err
 			}

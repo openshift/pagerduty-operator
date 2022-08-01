@@ -160,7 +160,7 @@ func TestParseSetClusterConfig(t *testing.T) {
 
 		s := runtime.NewScheme()
 		s.AddKnownTypes(v1.SchemeGroupVersion, &v1.ConfigMap{})
-		client := fake.NewFakeClientWithScheme(s, cm)
+		client := fake.NewClientBuilder().WithScheme(s).WithObjects(cm).Build()
 
 		testData := Data{
 			EscalationPolicyID: mockEscalationPolicyId,

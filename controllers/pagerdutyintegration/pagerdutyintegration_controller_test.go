@@ -16,27 +16,31 @@ package pagerdutyintegration
 
 import (
 	"context"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	routev1 "github.com/openshift/api/route/v1"
 	hiveapis "github.com/openshift/hive/apis"
 	hivev1 "github.com/openshift/hive/apis/hive/v1"
+	pagerdutyapi "github.com/openshift/pagerduty-operator/api"
+	pagerdutyv1alpha1 "github.com/openshift/pagerduty-operator/api/v1alpha1"
 	"github.com/openshift/pagerduty-operator/config"
-	pagerdutyapis "github.com/openshift/pagerduty-operator/pkg/apis"
-	pagerdutyv1alpha1 "github.com/openshift/pagerduty-operator/pkg/apis/pagerduty/v1alpha1"
 	"github.com/openshift/pagerduty-operator/pkg/kube"
 	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
 	"github.com/stretchr/testify/assert"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	fakekubeclient "sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -78,8 +82,13 @@ type mocks struct {
 }
 
 func setupDefaultMocks(t *testing.T, localObjects []runtime.Object) *mocks {
+	fakeScheme := k8sruntime.NewScheme()
+	utilruntime.Must(routev1.Install(fakeScheme))
+	utilruntime.Must(hivev1.AddToScheme(fakeScheme))
+	utilruntime.Must(pagerdutyv1alpha1.AddToScheme(fakeScheme))
+
 	mocks := &mocks{
-		fakeKubeClient: fakekubeclient.NewFakeClient(localObjects...),
+		fakeKubeClient: fake.NewClientBuilder().WithScheme(fakeScheme).WithRuntimeObjects(localObjects...).Build(),
 		mockCtrl:       gomock.NewController(t),
 	}
 
@@ -222,12 +231,12 @@ func testClusterDeployment(isInstalled bool, isManaged bool, hasFinalizer bool, 
 	}
 
 	if isHibernating {
-		cd.Spec.PowerState = hivev1.HibernatingClusterPowerState
+		cd.Spec.PowerState = hivev1.ClusterPowerStateHibernating
 		cd.Status.Conditions = []hivev1.ClusterDeploymentCondition{
 			{
 				Type:   hivev1.ClusterHibernatingCondition,
 				Status: corev1.ConditionTrue,
-				Reason: hivev1.HibernatingHibernationReason,
+				Reason: hivev1.HibernatingReasonHibernating,
 			},
 		}
 	} else {
@@ -235,7 +244,7 @@ func testClusterDeployment(isInstalled bool, isManaged bool, hasFinalizer bool, 
 			{
 				Type:   hivev1.ClusterHibernatingCondition,
 				Status: corev1.ConditionFalse,
-				Reason: hivev1.RunningReadyReason,
+				Reason: hivev1.ReadyReasonRunning,
 			},
 		}
 	}
@@ -245,7 +254,7 @@ func testClusterDeployment(isInstalled bool, isManaged bool, hasFinalizer bool, 
 
 func TestReconcilePagerDutyIntegration(t *testing.T) {
 	assert.Nil(t, hiveapis.AddToScheme(scheme.Scheme))
-	assert.Nil(t, pagerdutyapis.AddToScheme(scheme.Scheme))
+	assert.Nil(t, pagerdutyapi.AddToScheme(scheme.Scheme))
 
 	// expectedSyncSet is used by tests that _expect_ a SS
 	expectedSyncSet := &SyncSetEntry{
@@ -740,14 +749,14 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 
 			defer mocks.mockCtrl.Finish()
 
-			rpdi := &ReconcilePagerDutyIntegration{
-				client:   mocks.fakeKubeClient,
-				scheme:   scheme.Scheme,
+			rpdi := &PagerDutyIntegrationReconciler{
+				Client:   mocks.fakeKubeClient,
+				Scheme:   scheme.Scheme,
 				pdclient: func(s1 string, s2 string) pd.Client { return mocks.mockPDClient },
 			}
 
 			// 1st run sets finalizer
-			_, err1 := rpdi.Reconcile(reconcile.Request{
+			_, err1 := rpdi.Reconcile(context.TODO(), reconcile.Request{
 				NamespacedName: types.NamespacedName{
 					Name:      testPagerDutyIntegrationName,
 					Namespace: config.OperatorNamespace,
@@ -755,7 +764,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			})
 
 			// 2nd run does the initial work
-			_, err2 := rpdi.Reconcile(reconcile.Request{
+			_, err2 := rpdi.Reconcile(context.TODO(), reconcile.Request{
 				NamespacedName: types.NamespacedName{
 					Name:      testPagerDutyIntegrationName,
 					Namespace: config.OperatorNamespace,
@@ -763,7 +772,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			})
 
 			// 3rd run should be a noop, we need to confirm
-			_, err3 := rpdi.Reconcile(reconcile.Request{
+			_, err3 := rpdi.Reconcile(context.TODO(), reconcile.Request{
 				NamespacedName: types.NamespacedName{
 					Name:      testPagerDutyIntegrationName,
 					Namespace: config.OperatorNamespace,
@@ -812,7 +821,7 @@ func verifySyncSetExists(c client.Client, expected *SyncSetEntry) bool {
 	if secretReferences == "" {
 		return false
 	}
-	return string(secretReferences) == expected.name
+	return secretReferences == expected.name
 }
 
 // verifyNoSyncSetExists verifies that there is no SyncSet present that matches the supplied expected SyncSetEntry.
@@ -871,7 +880,8 @@ func verifyNoFinalizer(c client.Client, expected *ClusterDeploymentEntry) bool {
 	err := c.Get(context.TODO(),
 		types.NamespacedName{Name: expected.name, Namespace: testNamespace}, &cd)
 	if err != nil {
-		return false
+		// If the CD has been deleted, the finalizer also no longer exists
+		return errors.IsNotFound(err)
 	}
 
 	if expected.name != cd.Name {
