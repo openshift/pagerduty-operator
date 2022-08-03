@@ -16,8 +16,8 @@ package pagerdutyintegration
 
 import (
 	hivev1 "github.com/openshift/hive/apis/hive/v1"
+	pagerdutyv1alpha1 "github.com/openshift/pagerduty-operator/api/v1alpha1"
 	"github.com/openshift/pagerduty-operator/config"
-	pagerdutyv1alpha1 "github.com/openshift/pagerduty-operator/pkg/apis/pagerduty/v1alpha1"
 	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
 	"github.com/openshift/pagerduty-operator/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
@@ -30,10 +30,10 @@ const (
 	legacyHivev1RunningHibernationReason = "Running"
 )
 
-func (r *ReconcilePagerDutyIntegration) handleHibernation(pdclient pd.Client, pdi *pagerdutyv1alpha1.PagerDutyIntegration, cd *hivev1.ClusterDeployment) error {
+func (r *PagerDutyIntegrationReconciler) handleHibernation(pdclient pd.Client, pdi *pagerdutyv1alpha1.PagerDutyIntegration, cd *hivev1.ClusterDeployment) error {
 	var (
 		// configMapName is the name of the ConfigMap containing the hibernation state
-		configMapName string = config.Name(pdi.Spec.ServicePrefix, cd.Name, config.ConfigMapSuffix)
+		configMapName = config.Name(pdi.Spec.ServicePrefix, cd.Name, config.ConfigMapSuffix)
 	)
 
 	if !cd.Spec.Installed {
@@ -47,7 +47,7 @@ func (r *ReconcilePagerDutyIntegration) handleHibernation(pdclient pd.Client, pd
 		return err
 	}
 
-	if err := pdData.ParseClusterConfig(r.client, cd.Namespace, configMapName); err != nil {
+	if err := pdData.ParseClusterConfig(r.Client, cd.Namespace, configMapName); err != nil {
 		if errors.IsNotFound(err) {
 			// service isn't created yet, return
 			return nil
@@ -59,7 +59,7 @@ func (r *ReconcilePagerDutyIntegration) handleHibernation(pdclient pd.Client, pd
 		return nil
 	}
 
-	specIsHibernating := cd.Spec.PowerState == hivev1.HibernatingClusterPowerState
+	specIsHibernating := cd.Spec.PowerState == hivev1.ClusterPowerStateHibernating
 
 	if specIsHibernating && !pdData.Hibernating {
 		r.reqLogger.Info("Disabling PD service", "ClusterID", pdData.ClusterID, "BaseDomain", pdData.BaseDomain, "ClusterDeployment.Namespace", cd.Namespace)
@@ -67,7 +67,7 @@ func (r *ReconcilePagerDutyIntegration) handleHibernation(pdclient pd.Client, pd
 			return err
 		}
 		pdData.Hibernating = true
-		if err := pdData.SetClusterConfig(r.client, cd.Namespace, configMapName); err != nil {
+		if err := pdData.SetClusterConfig(r.Client, cd.Namespace, configMapName); err != nil {
 			r.reqLogger.Error(err, "Error updating pd cluster config", "Name", configMapName, "ClusterDeployment.Namespace", cd.Namespace)
 			return err
 		}
@@ -78,7 +78,7 @@ func (r *ReconcilePagerDutyIntegration) handleHibernation(pdclient pd.Client, pd
 				return err
 			}
 			pdData.Hibernating = false
-			if err := pdData.SetClusterConfig(r.client, cd.Namespace, configMapName); err != nil {
+			if err := pdData.SetClusterConfig(r.Client, cd.Namespace, configMapName); err != nil {
 				r.reqLogger.Error(err, "Error updating pd cluster config", "Name", configMapName, "ClusterDeployment.Namespace", cd.Namespace)
 				return err
 			}

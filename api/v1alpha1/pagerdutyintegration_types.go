@@ -1,3 +1,19 @@
+/*
+Copyright 2022.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package v1alpha1
 
 import (
@@ -6,7 +22,6 @@ import (
 )
 
 // PagerDutyIntegrationSpec defines the desired state of PagerDutyIntegration
-// +k8s:openapi-gen=true
 type PagerDutyIntegrationSpec struct {
 	// Time in seconds that an incident changes to the Triggered State after
 	// being Acknowledged. Value must not be negative. Omitting or setting
@@ -38,15 +53,13 @@ type PagerDutyIntegrationSpec struct {
 }
 
 // PagerDutyIntegrationStatus defines the observed state of PagerDutyIntegration
-// +k8s:openapi-gen=true
 type PagerDutyIntegrationStatus struct{}
 
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+//+kubebuilder:object:root=true
+//+kubebuilder:subresource:status
+//+kubebuilder:resource:path=pagerdutyintegrations,shortName=pdi,scope=Namespaced
 
 // PagerDutyIntegration is the Schema for the pagerdutyintegrations API
-// +k8s:openapi-gen=true
-// +kubebuilder:subresource:status
-// +kubebuilder:resource:path=pagerdutyintegrations,shortName=pdi,scope=Namespaced
 type PagerDutyIntegration struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -55,7 +68,7 @@ type PagerDutyIntegration struct {
 	Status PagerDutyIntegrationStatus `json:"status,omitempty"`
 }
 
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+//+kubebuilder:object:root=true
 
 // PagerDutyIntegrationList contains a list of PagerDutyIntegration
 type PagerDutyIntegrationList struct {

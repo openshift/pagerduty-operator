@@ -24,8 +24,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	hivev1 "github.com/openshift/hive/apis/hive/v1"
+	pagerdutyv1alpha1 "github.com/openshift/pagerduty-operator/api/v1alpha1"
 	"github.com/openshift/pagerduty-operator/config"
-	pagerdutyv1alpha1 "github.com/openshift/pagerduty-operator/pkg/apis/pagerduty/v1alpha1"
 	"github.com/openshift/pagerduty-operator/pkg/kube"
 	"github.com/openshift/pagerduty-operator/pkg/localmetrics"
 	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
@@ -34,7 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pagerdutyv1alpha1.PagerDutyIntegration, cd *hivev1.ClusterDeployment) error {
+func (r *PagerDutyIntegrationReconciler) handleCreate(pdclient pd.Client, pdi *pagerdutyv1alpha1.PagerDutyIntegration, cd *hivev1.ClusterDeployment) error {
 	var (
 		// secretName is the name of the Secret deployed to the target
 		// cluster, and also the name of the SyncSet that causes it to
@@ -69,7 +69,7 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 	if !utils.HasFinalizer(cd, finalizer) {
 		baseToPatch := client.MergeFrom(cd.DeepCopy())
 		utils.AddFinalizer(cd, finalizer)
-		return r.client.Patch(context.TODO(), cd, baseToPatch)
+		return r.Patch(context.TODO(), cd, baseToPatch)
 	}
 
 	clusterID := utils.GetClusterID(cd)
@@ -79,7 +79,7 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 	}
 
 	// load configuration
-	err = pdData.ParseClusterConfig(r.client, cd.Namespace, configMapName)
+	err = pdData.ParseClusterConfig(r.Client, cd.Namespace, configMapName)
 
 	if err != nil || pdData.ServiceID == "" {
 		// unable to load configuration, therefore create the PD service
@@ -96,13 +96,13 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 
 		// save config map
 		newCM := kube.GenerateConfigMap(cd.Namespace, configMapName, pdData.ServiceID, pdData.IntegrationID, pdData.EscalationPolicyID, false, false)
-		if err = controllerutil.SetControllerReference(cd, newCM, r.scheme); err != nil {
+		if err = controllerutil.SetControllerReference(cd, newCM, r.Scheme); err != nil {
 			r.reqLogger.Error(err, "Error setting controller reference on configmap")
 			return err
 		}
-		if err := r.client.Create(context.TODO(), newCM); err != nil {
+		if err := r.Create(context.TODO(), newCM); err != nil {
 			if errors.IsAlreadyExists(err) {
-				if updateErr := r.client.Update(context.TODO(), newCM); updateErr != nil {
+				if updateErr := r.Update(context.TODO(), newCM); updateErr != nil {
 					r.reqLogger.Error(err, "Error updating existing configmap", "Name", configMapName)
 					return err
 				}
@@ -117,7 +117,7 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 	if pdData.EscalationPolicyID == "" {
 		// update policy ID from PDI, it is used in next set call
 		pdData.EscalationPolicyID = pdi.Spec.EscalationPolicy
-		if err = pdData.SetClusterConfig(r.client, cd.Namespace, configMapName); err != nil {
+		if err = pdData.SetClusterConfig(r.Client, cd.Namespace, configMapName); err != nil {
 			r.reqLogger.Error(err, "Error updating PagerDuty cluster config", "Name", configMapName)
 			return err
 		}
@@ -135,7 +135,7 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 			}
 
 			// Update ConfigMap to reflect the new escalation policy changes
-			if err := pdData.SetClusterConfig(r.client, cd.Namespace, configMapName); err != nil {
+			if err := pdData.SetClusterConfig(r.Client, cd.Namespace, configMapName); err != nil {
 				r.reqLogger.Error(err, "Error updating PagerDuty cluster config", "Name", configMapName)
 				return err
 			}
@@ -149,7 +149,7 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 
 	// try to load integration key (secret)
 	sc := &corev1.Secret{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: secretName, Namespace: cd.Namespace}, sc)
+	err = r.Get(context.TODO(), types.NamespacedName{Name: secretName, Namespace: cd.Namespace}, sc)
 
 	if err == nil {
 		// successfully loaded secret, snag the integration key
@@ -169,29 +169,29 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 	secret := kube.GeneratePdSecret(cd.Namespace, secretName, pdIntegrationKey)
 	r.reqLogger.Info("creating pd secret", "ClusterDeployment.Namespace", cd.Namespace)
 	//add reference
-	if err = controllerutil.SetControllerReference(cd, secret, r.scheme); err != nil {
+	if err = controllerutil.SetControllerReference(cd, secret, r.Scheme); err != nil {
 		r.reqLogger.Error(err, "Error setting controller reference on secret", "ClusterDeployment.Namespace", cd.Namespace)
 		return err
 	}
-	if err = r.client.Create(context.TODO(), secret); err != nil {
+	if err = r.Create(context.TODO(), secret); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return err
 		}
 
 		r.reqLogger.Info("the pd secret exist, check if pdIntegrationKey is changed or not", "ClusterDeployment.Namespace", cd.Namespace)
 		sc := &corev1.Secret{}
-		err = r.client.Get(context.TODO(), types.NamespacedName{Name: secret.Name, Namespace: cd.Namespace}, sc)
+		err = r.Get(context.TODO(), types.NamespacedName{Name: secret.Name, Namespace: cd.Namespace}, sc)
 		if err != nil {
 			return nil
 		}
 		if string(sc.Data[config.PagerDutySecretKey]) != pdIntegrationKey {
 			r.reqLogger.Info("pdIntegrationKey is changed, delete the secret first")
-			if err = r.client.Delete(context.TODO(), secret); err != nil {
+			if err = r.Delete(context.TODO(), secret); err != nil {
 				log.Info("failed to delete existing pd secret")
 				return err
 			}
 			r.reqLogger.Info("creating pd secret", "ClusterDeployment.Namespace", cd.Namespace)
-			if err = r.client.Create(context.TODO(), secret); err != nil {
+			if err = r.Create(context.TODO(), secret); err != nil {
 				return err
 			}
 		}
@@ -199,7 +199,7 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 
 	r.reqLogger.Info("Creating syncset", "ClusterDeployment.Namespace", cd.Namespace)
 	ss := &hivev1.SyncSet{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: secretName, Namespace: cd.Namespace}, ss)
+	err = r.Get(context.TODO(), types.NamespacedName{Name: secretName, Namespace: cd.Namespace}, ss)
 	if err != nil {
 		r.reqLogger.Info("error finding the old syncset")
 		if !errors.IsNotFound(err) {
@@ -207,11 +207,11 @@ func (r *ReconcilePagerDutyIntegration) handleCreate(pdclient pd.Client, pdi *pa
 		}
 		r.reqLogger.Info("syncset not found , create a new one on this ")
 		ss = kube.GenerateSyncSet(cd.Namespace, cd.Name, secret, pdi)
-		if err = controllerutil.SetControllerReference(cd, ss, r.scheme); err != nil {
+		if err = controllerutil.SetControllerReference(cd, ss, r.Scheme); err != nil {
 			r.reqLogger.Error(err, "Error setting controller reference on syncset", "ClusterDeployment.Namespace", cd.Namespace)
 			return err
 		}
-		if err := r.client.Create(context.TODO(), ss); err != nil {
+		if err := r.Create(context.TODO(), ss); err != nil {
 			return err
 		}
 	}
