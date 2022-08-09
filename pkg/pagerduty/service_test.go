@@ -45,13 +45,15 @@ func TestGetConfigMapKey(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		actual, err := getConfigMapKey(test.data, test.key)
-		if test.expectError {
-			assert.NotNil(t, err)
-		} else {
-			assert.Equal(t, test.expected, actual)
-			assert.Nil(t, err)
-		}
+		t.Run(test.name, func(t *testing.T) {
+			actual, err := getConfigMapKey(test.data, test.key)
+			if test.expectError {
+				assert.NotNil(t, err)
+			} else {
+				assert.Equal(t, test.expected, actual)
+				assert.Nil(t, err)
+			}
+		})
 	}
 }
 
@@ -80,12 +82,14 @@ func TestNewData(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		_, err := NewData(test.pdi, "clusterId", "baseDomain")
-		if test.expectErr {
-			assert.NotNil(t, err)
-		} else {
-			assert.Nil(t, err)
-		}
+		t.Run(test.name, func(t *testing.T) {
+			_, err := NewData(test.pdi, "clusterId", "baseDomain")
+			if test.expectErr {
+				assert.NotNil(t, err)
+			} else {
+				assert.Nil(t, err)
+			}
+		})
 	}
 }
 
@@ -150,46 +154,51 @@ func TestParseSetClusterConfig(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		cm := &v1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      test.cmName,
-				Namespace: test.namespace,
-			},
-			Data: test.data,
-		}
+		t.Run(test.name, func(t *testing.T) {
+			cm := &v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      test.cmName,
+					Namespace: test.namespace,
+				},
+				Data: test.data,
+			}
 
-		s := runtime.NewScheme()
-		s.AddKnownTypes(v1.SchemeGroupVersion, &v1.ConfigMap{})
-		client := fake.NewClientBuilder().WithScheme(s).WithObjects(cm).Build()
+			s := runtime.NewScheme()
+			s.AddKnownTypes(v1.SchemeGroupVersion, &v1.ConfigMap{})
+			client := fake.NewClientBuilder().WithScheme(s).WithObjects(cm).Build()
 
-		testData := Data{
-			EscalationPolicyID: mockEscalationPolicyId,
-		}
-		parseErr := testData.ParseClusterConfig(client, test.namespace, test.cmName)
+			testData := Data{
+				EscalationPolicyID: mockEscalationPolicyId,
+			}
+			parseErr := testData.ParseClusterConfig(client, test.namespace, test.cmName)
 
-		if test.expectErr {
-			assert.NotNil(t, parseErr)
-		} else {
-			assert.Nil(t, parseErr)
-			assert.Equal(t, test.expectedHibernating, testData.Hibernating)
-			assert.Equal(t, test.expectedLimitedSupport, testData.LimitedSupport)
-		}
+			if test.expectErr {
+				assert.NotNil(t, parseErr)
+			} else {
+				assert.Nil(t, parseErr)
+				assert.Equal(t, test.expectedHibernating, testData.Hibernating)
+				assert.Equal(t, test.expectedLimitedSupport, testData.LimitedSupport)
+			}
 
-		setErr := testData.SetClusterConfig(client, test.namespace, test.cmName)
-		assert.Nil(t, setErr)
+			setErr := testData.SetClusterConfig(client, test.namespace, test.cmName)
+			assert.Nil(t, setErr)
+		})
 	}
 }
 
 func TestSvcClient_GetService(t *testing.T) {
 	tests := []struct {
+		name      string
 		serviceId string
 		expectErr bool
 	}{
 		{
+			name:      "Valid Service ID",
 			serviceId: mockServiceId,
 			expectErr: false,
 		},
 		{
+			name:      "Invalid Service ID",
 			serviceId: "notfound",
 			expectErr: true,
 		},
@@ -199,29 +208,34 @@ func TestSvcClient_GetService(t *testing.T) {
 	defer mock.cleanup()
 
 	for _, test := range tests {
-		_, err := mock.Client.GetService(&Data{ServiceID: test.serviceId})
-		if test.expectErr {
-			assert.NotNil(t, err)
-		} else {
-			assert.Nil(t, err)
-		}
+		t.Run(test.name, func(t *testing.T) {
+			_, err := mock.Client.GetService(&Data{ServiceID: test.serviceId})
+			if test.expectErr {
+				assert.NotNil(t, err)
+			} else {
+				assert.Nil(t, err)
+			}
+		})
 	}
 }
 
 func TestSvcClient_GetIntegrationKey(t *testing.T) {
 	tests := []struct {
+		name          string
 		serviceId     string
 		integrationId string
 		expected      string
 		expectErr     bool
 	}{
 		{
+			name:          "Valid Integration Key",
 			serviceId:     mockServiceId,
 			integrationId: mockIntegrationId,
 			expected:      mockIntegrationKey,
 			expectErr:     false,
 		},
 		{
+			name:          "Invalid Integration Key",
 			serviceId:     mockServiceId,
 			integrationId: "notfound",
 			expectErr:     true,
@@ -232,30 +246,35 @@ func TestSvcClient_GetIntegrationKey(t *testing.T) {
 	defer mock.cleanup()
 
 	for _, test := range tests {
-		actual, err := mock.Client.GetIntegrationKey(&Data{ServiceID: test.serviceId, IntegrationID: test.integrationId})
-		if test.expectErr {
-			assert.NotNil(t, err)
-			assert.Equal(t, test.expected, actual)
-		} else {
-			assert.Nil(t, err)
-		}
+		t.Run(test.name, func(t *testing.T) {
+			actual, err := mock.Client.GetIntegrationKey(&Data{ServiceID: test.serviceId, IntegrationID: test.integrationId})
+			if test.expectErr {
+				assert.NotNil(t, err)
+				assert.Equal(t, test.expected, actual)
+			} else {
+				assert.Nil(t, err)
+			}
+		})
 	}
 }
 
 func TestSvcClient_CreateIntegration(t *testing.T) {
 	tests := []struct {
+		name            string
 		serviceId       string
 		integrationName string
 		integrationType string
 		expectErr       bool
 	}{
 		{
+			name:            "Valid Integration",
 			serviceId:       mockServiceId,
 			integrationName: "integrationName",
 			integrationType: "events_api_v2_inbound_integration",
 			expectErr:       false,
 		},
 		{
+			name:      "Invalid Integration",
 			serviceId: "notfound",
 			expectErr: true,
 		},
@@ -265,14 +284,16 @@ func TestSvcClient_CreateIntegration(t *testing.T) {
 	defer mock.cleanup()
 
 	for _, test := range tests {
-		actual, err := mock.Client.createIntegration(test.serviceId, test.integrationName, test.integrationType)
-		if test.expectErr {
-			assert.NotNil(t, err)
-		} else {
-			assert.Nil(t, err)
-			// mock always creates an integration with ID mockIntegrationId3 when successful
-			assert.Equal(t, mockIntegrationId3, actual)
-		}
+		t.Run(test.name, func(t *testing.T) {
+			actual, err := mock.Client.createIntegration(test.serviceId, test.integrationName, test.integrationType)
+			if test.expectErr {
+				assert.NotNil(t, err)
+			} else {
+				assert.Nil(t, err)
+				// mock always creates an integration with ID mockIntegrationId3 when successful
+				assert.Equal(t, mockIntegrationId3, actual)
+			}
+		})
 	}
 }
 
@@ -307,12 +328,14 @@ func TestSvcClient_CreateService(t *testing.T) {
 	defer mock.cleanup()
 
 	for _, test := range tests {
-		_, err := mock.Client.CreateService(test.data)
-		if test.expectErr {
-			assert.NotNil(t, err)
-		} else {
-			assert.Nil(t, err)
-		}
+		t.Run(test.name, func(t *testing.T) {
+			_, err := mock.Client.CreateService(test.data)
+			if test.expectErr {
+				assert.NotNil(t, err)
+			} else {
+				assert.Nil(t, err)
+			}
+		})
 	}
 }
 
@@ -342,12 +365,14 @@ func TestSvcClient_EnableService(t *testing.T) {
 	defer mock.cleanup()
 
 	for _, test := range tests {
-		err := mock.Client.EnableService(test.data)
-		if test.expectErr {
-			assert.NotNil(t, err)
-		} else {
-			assert.Nil(t, err)
-		}
+		t.Run(test.name, func(t *testing.T) {
+			err := mock.Client.EnableService(test.data)
+			if test.expectErr {
+				assert.NotNil(t, err)
+			} else {
+				assert.Nil(t, err)
+			}
+		})
 	}
 }
 
@@ -386,12 +411,14 @@ func TestSvcClient_UpdateEscalationPolicy(t *testing.T) {
 	defer mock.cleanup()
 
 	for _, test := range tests {
-		err := mock.Client.UpdateEscalationPolicy(test.data)
-		if test.expectErr {
-			assert.NotNil(t, err)
-		} else {
-			assert.Nil(t, err)
-		}
+		t.Run(test.name, func(t *testing.T) {
+			err := mock.Client.UpdateEscalationPolicy(test.data)
+			if test.expectErr {
+				assert.NotNil(t, err)
+			} else {
+				assert.Nil(t, err)
+			}
+		})
 	}
 }
 
@@ -416,14 +443,15 @@ func TestSvcClient_GetUnresolvedIncidents(t *testing.T) {
 	defer mock.cleanup()
 
 	for _, test := range tests {
-		actual, err := mock.Client.getUnresolvedIncidents(test.data)
-		if test.expectErr {
-			assert.NotNil(t, err)
-		} else {
-			assert.Nil(t, err)
-			assert.Equal(t, test.expectedIncidents, len(actual))
-		}
-
+		t.Run(test.name, func(t *testing.T) {
+			actual, err := mock.Client.getUnresolvedIncidents(test.data)
+			if test.expectErr {
+				assert.NotNil(t, err)
+			} else {
+				assert.Nil(t, err)
+				assert.Equal(t, test.expectedIncidents, len(actual))
+			}
+		})
 	}
 }
 
@@ -452,14 +480,15 @@ func TestSvcClient_GetUnresolvedAlerts(t *testing.T) {
 	defer mock.cleanup()
 
 	for _, test := range tests {
-		actual, err := mock.Client.getUnresolvedAlerts(test.incidentId)
-		if test.expectErr {
-			assert.NotNil(t, err)
-		} else {
-			assert.Nil(t, err)
-			assert.Equal(t, test.expectedAlerts, len(actual))
-		}
-
+		t.Run(test.name, func(t *testing.T) {
+			actual, err := mock.Client.getUnresolvedAlerts(test.incidentId)
+			if test.expectErr {
+				assert.NotNil(t, err)
+			} else {
+				assert.Nil(t, err)
+				assert.Equal(t, test.expectedAlerts, len(actual))
+			}
+		})
 	}
 }
 
@@ -482,11 +511,13 @@ func TestSvcClient_ResolvePendingIncidents(t *testing.T) {
 	defer mock.cleanup()
 
 	for _, test := range tests {
-		err := mock.Client.resolvePendingIncidents(test.data)
-		if test.expectErr {
-			assert.NotNil(t, err)
-		} else {
-			assert.Nil(t, err)
-		}
+		t.Run(test.name, func(t *testing.T) {
+			err := mock.Client.resolvePendingIncidents(test.data)
+			if test.expectErr {
+				assert.NotNil(t, err)
+			} else {
+				assert.Nil(t, err)
+			}
+		})
 	}
 }
