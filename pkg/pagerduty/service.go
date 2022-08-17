@@ -44,7 +44,7 @@ func getConfigMapKey(data map[string]string, key string) (string, error) {
 	return retString, nil
 }
 
-//Client is a wrapper interface for the SvcClient to allow for easier testing
+// Client is a wrapper interface for the SvcClient to allow for easier testing
 type Client interface {
 	GetService(data *Data) (*pdApi.Service, error)
 	GetIntegrationKey(data *Data) (string, error)
@@ -71,7 +71,7 @@ type PdClient interface {
 
 type DelayFunc func(time.Duration)
 
-//SvcClient wraps pdApi.Client
+// SvcClient wraps pdApi.Client
 type SvcClient struct {
 	APIKey   string
 	PdClient PdClient
@@ -324,6 +324,8 @@ func (c *SvcClient) EnableService(data *Data) error {
 		return err
 	}
 
+	service = removeAlertGrouping(service)
+
 	if service.Status != "active" {
 		service.Status = "active"
 		_, err = c.PdClient.UpdateService(*service)
@@ -347,6 +349,8 @@ func (c *SvcClient) DisableService(data *Data) error {
 	if err = c.waitForIncidentsToResolve(data, 10*time.Second); err != nil {
 		return err
 	}
+
+	service = removeAlertGrouping(service)
 
 	if service.Status != "disabled" {
 		service.Status = "disabled"
@@ -469,6 +473,20 @@ func (c *SvcClient) waitForIncidentsToResolve(data *Data, maxWait time.Duration)
 	}
 
 	return nil
+}
+
+// removeAlertGrouping unsets any configured AlertGrouping for the service
+// to workaround https://github.com/PagerDuty/go-pagerduty/issues/458
+//
+// If the service has data inside svc.AlertGroupingParameters.Config.Timeout it doesn't appear to be respected,
+// when updating a service, e.g. if there was an indefinite time-based alert grouping configured (RL/FL can choose to
+// to this), followed by an update to the service, for example disabling via limited support.
+func removeAlertGrouping(svc *pdApi.Service) *pdApi.Service {
+	svc.AlertGroupingParameters = &pdApi.AlertGroupingParameters{
+		Type: "",
+	}
+
+	return svc
 }
 
 // parseIncidentNumbers returns a slice of PagerDuty incident numbers
