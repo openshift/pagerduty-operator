@@ -32,6 +32,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+const (
+	apiEndpoint = "https://api.pagerduty.com/"
+)
+
 func getConfigMapKey(data map[string]string, key string) (string, error) {
 	retString, ok := data[key]
 	if !ok {
@@ -53,6 +57,8 @@ type Client interface {
 	EnableService(data *Data) error
 	DisableService(data *Data) error
 	UpdateEscalationPolicy(data *Data) error
+	ToggleServiceOrchestration(data *Data, active bool) error
+	ApplyServiceOrchestrationRule(data *Data) error
 }
 
 type PdClient interface {
@@ -134,6 +140,10 @@ type Data struct {
 	IntegrationID  string
 	Hibernating    bool
 	LimitedSupport bool
+
+	// ServiceOrchestration related parameters
+	ServiceOrchestrationState string
+	ServiceOrchestrationRules string
 }
 
 // NewData initializes a Data struct from a v1alpha1 PagerDutyIntegration spec
@@ -185,6 +195,11 @@ func (data *Data) ParseClusterConfig(osc client.Client, namespace string, cmName
 	isInLimitedSupport := pdAPIConfigMap.Data["LIMITED_SUPPORT"]
 	data.LimitedSupport = isInLimitedSupport == "true"
 
+	data.ServiceOrchestrationState, err = getConfigMapKey(pdAPIConfigMap.Data, "SERVICE_ORCHESTRATION")
+	if err != nil {
+		data.ServiceOrchestrationState = ""
+	}
+
 	return nil
 }
 
@@ -200,6 +215,7 @@ func (data *Data) SetClusterConfig(osc client.Client, namespace string, cmName s
 	pdAPIConfigMap.Data["ESCALATION_POLICY_ID"] = data.EscalationPolicyID
 	pdAPIConfigMap.Data["HIBERNATING"] = strconv.FormatBool(data.Hibernating)
 	pdAPIConfigMap.Data["LIMITED_SUPPORT"] = strconv.FormatBool(data.LimitedSupport)
+	pdAPIConfigMap.Data["SERVICE_ORCHESTRATION"] = data.ServiceOrchestrationState
 
 	if err := osc.Update(context.TODO(), pdAPIConfigMap); err != nil {
 		return err
@@ -357,6 +373,56 @@ func (c *SvcClient) DisableService(data *Data) error {
 		if _, err = c.PdClient.UpdateService(*service); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+// ToggleServiceOrchestration enables/disables the service orchestration for a given PD service
+func (c *SvcClient) ToggleServiceOrchestration(data *Data, active bool) error {
+	service, err := c.PdClient.GetService(data.ServiceID, nil)
+	if err != nil {
+		return err
+	}
+
+	reqUrl := fmt.Sprintf("%sevent_orchestrations/services/%s/active", apiEndpoint, service.ID)
+	payload := strings.NewReader(fmt.Sprintf("{\"active\": %t}", active))
+
+	err = c.pdHttpRequest("PUT", reqUrl, payload)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// ApplyServiceOrchestrationRule applies the pre-defined orchestration rule to the service after enabled
+func (c *SvcClient) ApplyServiceOrchestrationRule(data *Data) error {
+	service, err := c.PdClient.GetService(data.ServiceID, nil)
+	if err != nil {
+		return err
+	}
+
+	reqUrl := fmt.Sprintf("%sevent_orchestrations/services/%s", apiEndpoint, service.ID)
+	payload := strings.NewReader(data.ServiceOrchestrationRules)
+
+	err = c.pdHttpRequest("PUT", reqUrl, payload)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// pdHttpRequest is a wrapper func to help send the PD http request
+func (c *SvcClient) pdHttpRequest(method string, reqUrl string, payload *strings.Reader) error {
+	req, _ := http.NewRequest(method, reqUrl, payload)
+	req.Header.Add("Accept", "application/vnd.pagerduty+json;version=2")
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Authorization", fmt.Sprintf("Token token=%s", c.APIKey))
+
+	_, err := http.DefaultClient.Do(req)
+
+	if err != nil {
+		return err
 	}
 
 	return nil

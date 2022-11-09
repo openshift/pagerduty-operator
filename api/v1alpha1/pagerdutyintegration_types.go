@@ -50,6 +50,16 @@ type PagerDutyIntegrationSpec struct {
 
 	// Name and namespace in the target cluster where the secret is synced.
 	TargetSecretRef corev1.SecretReference `json:"targetSecretRef"`
+
+	//  The status of the serviceOrchestration and the referenced configmap resource
+	ServiceOrchestration ServiceOrchestration `json:"serviceOrchestration"`
+}
+
+// ServiceOrchestration defines if the service orchestration is enabled
+// and the referenced configmap resource for the rules
+type ServiceOrchestration struct {
+	Enabled                bool                    `json:"enabled"`
+	RuleConfigConfigMapRef *corev1.ObjectReference `json:"ruleConfigConfigMapRef,omitempty"`
 }
 
 // PagerDutyIntegrationStatus defines the observed state of PagerDutyIntegration
