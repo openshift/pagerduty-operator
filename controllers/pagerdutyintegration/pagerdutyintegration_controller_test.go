@@ -50,7 +50,7 @@ const (
 	testNamespace                   = "testNamespace"
 	testIntegrationID               = "ABC123"
 	testServiceID                   = "DEF456"
-	testAPIKey                      = "test-pd-api-key"
+	testAPIKey                      = "test-pd-api-key" //#nosec G101 -- This is a false positive
 	testEscalationPolicy            = "test-escalation-policy"
 	testResolveTimeout              = 300
 	testAcknowledgeTimeout          = 300
