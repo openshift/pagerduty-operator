@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.8.0
+    controller-gen.kubebuilder.io/version: v0.10.0
   creationTimestamp: null
   name: pagerdutyintegrations.pagerduty.openshift.io
 spec:
@@ -89,6 +89,7 @@ spec:
                       are ANDed.
                     type: object
                 type: object
+                x-kubernetes-map-type: atomic
               escalationPolicy:
                 description: ID of an existing Escalation Policy in PagerDuty.
                 type: string
@@ -104,6 +105,7 @@ spec:
                       name must be unique.
                     type: string
                 type: object
+                x-kubernetes-map-type: atomic
               resolveTimeout:
                 description: Time in seconds that an incident is automatically resolved
                   if left open for that long. Value must not be negative. Omitting
@@ -126,6 +128,7 @@ spec:
                       name must be unique.
                     type: string
                 type: object
+                x-kubernetes-map-type: atomic
             required:
             - clusterDeploymentSelector
             - escalationPolicy
@@ -142,9 +145,3 @@ spec:
     storage: true
     subresources:
       status: {}
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []

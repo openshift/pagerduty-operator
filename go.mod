@@ -1,6 +1,6 @@
 module github.com/openshift/pagerduty-operator
 
-go 1.17
+go 1.19
 
 require (
 	github.com/PagerDuty/go-pagerduty v1.5.1-0.20220711135237-1c427f9a1638
