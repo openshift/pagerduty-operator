@@ -34,6 +34,20 @@ func (m *MockClient) EXPECT() *MockClientMockRecorder {
 	return m.recorder
 }
 
+// ApplyServiceOrchestrationRule mocks base method.
+func (m *MockClient) ApplyServiceOrchestrationRule(data *Data) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ApplyServiceOrchestrationRule", data)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ApplyServiceOrchestrationRule indicates an expected call of ApplyServiceOrchestrationRule.
+func (mr *MockClientMockRecorder) ApplyServiceOrchestrationRule(data interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ApplyServiceOrchestrationRule", reflect.TypeOf((*MockClient)(nil).ApplyServiceOrchestrationRule), data)
+}
+
 // CreateService mocks base method.
 func (m *MockClient) CreateService(data *Data) (string, error) {
 	m.ctrl.T.Helper()
@@ -119,6 +133,20 @@ func (m *MockClient) GetService(data *Data) (*go_pagerduty.Service, error) {
 func (mr *MockClientMockRecorder) GetService(data interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetService", reflect.TypeOf((*MockClient)(nil).GetService), data)
+}
+
+// ToggleServiceOrchestration mocks base method.
+func (m *MockClient) ToggleServiceOrchestration(data *Data, active bool) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ToggleServiceOrchestration", data, active)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ToggleServiceOrchestration indicates an expected call of ToggleServiceOrchestration.
+func (mr *MockClientMockRecorder) ToggleServiceOrchestration(data, active interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ToggleServiceOrchestration", reflect.TypeOf((*MockClient)(nil).ToggleServiceOrchestration), data, active)
 }
 
 // UpdateEscalationPolicy mocks base method.

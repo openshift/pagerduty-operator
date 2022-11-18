@@ -195,3 +195,70 @@ func (e *enqueueRequestForClusterDeploymentOwner) mapAndEnqueue(q workqueue.Rate
 		q.Add(req)
 	}
 }
+
+var _ handler.EventHandler = &enqueueRequestForConfigMap{}
+
+// enqueueRequestForConfigMap implements the handler.EventHandler interface.
+// Heavily inspired by https://github.com/kubernetes-sigs/controller-runtime/blob/v0.12.1/pkg/handler/enqueue_mapped.go
+type enqueueRequestForConfigMap struct {
+	Client client.Client
+}
+
+func (e *enqueueRequestForConfigMap) Create(evt event.CreateEvent, q workqueue.RateLimitingInterface) {
+	reqs := map[reconcile.Request]struct{}{}
+	e.mapAndEnqueue(q, evt.Object, reqs)
+}
+
+func (e *enqueueRequestForConfigMap) Update(evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
+	reqs := map[reconcile.Request]struct{}{}
+	e.mapAndEnqueue(q, evt.ObjectOld, reqs)
+	e.mapAndEnqueue(q, evt.ObjectNew, reqs)
+}
+
+func (e *enqueueRequestForConfigMap) Delete(evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
+	reqs := map[reconcile.Request]struct{}{}
+	e.mapAndEnqueue(q, evt.Object, reqs)
+}
+
+func (e *enqueueRequestForConfigMap) Generic(evt event.GenericEvent, q workqueue.RateLimitingInterface) {
+	reqs := map[reconcile.Request]struct{}{}
+	e.mapAndEnqueue(q, evt.Object, reqs)
+}
+
+// toRequests receives a Configmap objects that have fired an event and checks if it can find an associated
+// PagerDutyIntegration object that has a matching label selector, if so it creates a request for the reconciler to
+// take a look at that PagerDutyIntegration object.
+func (e *enqueueRequestForConfigMap) toRequests(obj client.Object) []reconcile.Request {
+	reqs := []reconcile.Request{}
+	pdiList := &pagerdutyv1alpha1.PagerDutyIntegrationList{}
+	if err := e.Client.List(context.TODO(), pdiList, &client.ListOptions{}); err != nil {
+		return reqs
+	}
+
+	for _, pdi := range pdiList.Items {
+		selector, err := metav1.LabelSelectorAsSelector(&pdi.Spec.ClusterDeploymentSelector)
+		if err != nil {
+			continue
+		}
+		if selector.Matches(labels.Set(obj.GetLabels())) {
+			reqs = append(reqs, reconcile.Request{
+				NamespacedName: types.NamespacedName{
+					Name:      pdi.Name,
+					Namespace: pdi.Namespace,
+				},
+			})
+		}
+	}
+	return reqs
+}
+
+func (e *enqueueRequestForConfigMap) mapAndEnqueue(q workqueue.RateLimitingInterface, obj client.Object, reqs map[reconcile.Request]struct{}) {
+	for _, req := range e.toRequests(obj) {
+		_, ok := reqs[req]
+		if !ok {
+			q.Add(req)
+			// Used for de-duping requests
+			reqs[req] = struct{}{}
+		}
+	}
+}

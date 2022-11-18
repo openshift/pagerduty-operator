@@ -76,6 +76,12 @@ var (
 		ConstLabels: prometheus.Labels{"name": "pagerduty-operator"},
 	}, []string{"pagerdutyintegration_name"})
 
+	MetricPagerDutyServiceOrchestrationFailure = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name:        "pagerduty_service_orchestration_failure",
+		Help:        "Metric to indicate that the service orchestration config is failed on the managed clusters when it is enabled in PagerDutyIntegration",
+		ConstLabels: prometheus.Labels{"name": operatorName},
+	}, []string{"pagerdutyintegration_name"})
+
 	MetricsList = []prometheus.Collector{
 		MetricPagerDutyCreateFailure,
 		MetricPagerDutyDeleteFailure,
@@ -83,6 +89,7 @@ var (
 		ApiCallDuration,
 		ReconcileDuration,
 		MetricPagerDutyIntegrationSecretLoaded,
+		MetricPagerDutyServiceOrchestrationFailure,
 	}
 )
 
@@ -120,6 +127,13 @@ func UpdateMetricPagerDutyCreateFailure(x int, cd string, pdiName string) {
 		"clusterdeployment_name":    cd,
 		"pagerdutyintegration_name": pdiName,
 	}).Set(float64(x))
+}
+
+// UpdateMetricPagerDutyServiceOrchestrationFailure updates the gauge value when service orchestration configure fails
+func UpdateMetricPagerDutyServiceOrchestrationFailure(v int, pdiName string) {
+	MetricPagerDutyServiceOrchestrationFailure.With(prometheus.Labels{
+		"pagerdutyintegration_name": pdiName,
+	}).Set(float64(v))
 }
 
 // UpdateMetricPagerDutyDeleteFailure updates gauge to 1 when deletion fails

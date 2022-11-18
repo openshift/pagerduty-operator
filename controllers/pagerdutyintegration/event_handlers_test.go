@@ -158,6 +158,38 @@ func Test_enqueueRequestForClusterDeploymentOwner_getAssociatedPagerDutyIntegrat
 	}
 }
 
+func Test_enqueueRequestForConfigmap_toRequests(t *testing.T) {
+	scheme := runtime.NewScheme()
+	s := runtime.SchemeBuilder{
+		corev1.AddToScheme,
+		pagerdutyv1alpha1.AddToScheme,
+	}
+	assert.Nil(t, s.AddToScheme(scheme))
+
+	tests := []struct {
+		name             string
+		obj              client.Object
+		pdiObjs          []runtime.Object
+		expectedRequests int
+	}{
+		{
+			name:             "empty configmap",
+			obj:              &corev1.ConfigMap{},
+			pdiObjs:          []runtime.Object{},
+			expectedRequests: 0,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			e := &enqueueRequestForConfigMap{
+				Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(test.obj).WithRuntimeObjects(test.pdiObjs...).Build(),
+			}
+			reqs := e.toRequests(test.obj)
+			assert.Equal(t, test.expectedRequests, len(reqs))
+		})
+	}
+}
+
 func mockPagerDutyIntegration(name string, labels map[string]string) *pagerdutyv1alpha1.PagerDutyIntegration {
 	return &pagerdutyv1alpha1.PagerDutyIntegration{
 		ObjectMeta: metav1.ObjectMeta{

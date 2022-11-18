@@ -212,6 +212,13 @@ func (r *PagerDutyIntegrationReconciler) Reconcile(ctx context.Context, req ctrl
 				reconcileErrors = append(reconcileErrors, err)
 			}
 
+			// Do nothing if the orchestration is not enabled and leave it as default for now
+			if pdi.Spec.ServiceOrchestration.Enabled {
+				if err := r.handleServiceOrchestration(pdClient, pdi, &cd); err != nil {
+					reconcileErrors = append(reconcileErrors, err)
+				}
+			}
+
 			if err := r.handleHibernation(pdClient, pdi, &cd); err != nil {
 				reconcileErrors = append(reconcileErrors, err)
 			}
@@ -280,6 +287,9 @@ func (r *PagerDutyIntegrationReconciler) SetupWithManager(mgr ctrl.Manager) erro
 		Watches(&source.Kind{Type: &corev1.Secret{}}, &enqueueRequestForClusterDeploymentOwner{
 			Client: mgr.GetClient(),
 			Scheme: mgr.GetScheme(),
+		}).
+		Watches(&source.Kind{Type: &corev1.ConfigMap{}}, &enqueueRequestForConfigMap{
+			Client: mgr.GetClient(),
 		}).
 		Complete(r)
 }
