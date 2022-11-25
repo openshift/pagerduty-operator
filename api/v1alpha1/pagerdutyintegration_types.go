@@ -52,7 +52,7 @@ type PagerDutyIntegrationSpec struct {
 	TargetSecretRef corev1.SecretReference `json:"targetSecretRef"`
 
 	//  The status of the serviceOrchestration and the referenced configmap resource
-	ServiceOrchestration ServiceOrchestration `json:"serviceOrchestration"`
+	ServiceOrchestration ServiceOrchestration `json:"serviceOrchestration,omitempty"`
 }
 
 // ServiceOrchestration defines if the service orchestration is enabled
