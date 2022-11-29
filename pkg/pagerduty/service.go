@@ -142,8 +142,9 @@ type Data struct {
 	LimitedSupport bool
 
 	// ServiceOrchestration related parameters
-	ServiceOrchestrationState string
-	ServiceOrchestrationRules string
+	ServiceOrchestrationEnabled     bool
+	ServiceOrchestrationRuleApplied bool
+	ServiceOrchestrationRules       string
 }
 
 // NewData initializes a Data struct from a v1alpha1 PagerDutyIntegration spec
@@ -195,10 +196,11 @@ func (data *Data) ParseClusterConfig(osc client.Client, namespace string, cmName
 	isInLimitedSupport := pdAPIConfigMap.Data["LIMITED_SUPPORT"]
 	data.LimitedSupport = isInLimitedSupport == "true"
 
-	data.ServiceOrchestrationState, err = getConfigMapKey(pdAPIConfigMap.Data, "SERVICE_ORCHESTRATION")
-	if err != nil {
-		data.ServiceOrchestrationState = ""
-	}
+	serviceOrchestrationEnabled := pdAPIConfigMap.Data["SERVICE_ORCHESTRATION_ENABLED"]
+	data.ServiceOrchestrationEnabled = serviceOrchestrationEnabled == "true"
+
+	serviceOrchestrationRuleApplied := pdAPIConfigMap.Data["SERVICE_ORCHESTRATION_RULE_APPLIED"]
+	data.ServiceOrchestrationRuleApplied = serviceOrchestrationRuleApplied == "true"
 
 	return nil
 }
@@ -215,7 +217,8 @@ func (data *Data) SetClusterConfig(osc client.Client, namespace string, cmName s
 	pdAPIConfigMap.Data["ESCALATION_POLICY_ID"] = data.EscalationPolicyID
 	pdAPIConfigMap.Data["HIBERNATING"] = strconv.FormatBool(data.Hibernating)
 	pdAPIConfigMap.Data["LIMITED_SUPPORT"] = strconv.FormatBool(data.LimitedSupport)
-	pdAPIConfigMap.Data["SERVICE_ORCHESTRATION"] = data.ServiceOrchestrationState
+	pdAPIConfigMap.Data["SERVICE_ORCHESTRATION_ENABLED"] = strconv.FormatBool(data.ServiceOrchestrationEnabled)
+	pdAPIConfigMap.Data["SERVICE_ORCHESTRATION_RULE_APPLIED"] = strconv.FormatBool(data.ServiceOrchestrationRuleApplied)
 
 	if err := osc.Update(context.TODO(), pdAPIConfigMap); err != nil {
 		return err
