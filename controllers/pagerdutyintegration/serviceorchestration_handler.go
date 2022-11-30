@@ -14,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
+	"reflect"
 )
 
 const (
@@ -22,6 +23,11 @@ const (
 
 // handleServiceOrchestration enables and applies the service orchestration rule to the PD service if it is enabled in PDI
 func (r *PagerDutyIntegrationReconciler) handleServiceOrchestration(pdclient pd.Client, pdi *pagerdutyv1alpha1.PagerDutyIntegration, cd *hivev1.ClusterDeployment) error {
+	if reflect.ValueOf(pdi.Spec.ServiceOrchestration.RuleConfigConfigMapRef).IsZero() {
+		r.reqLogger.Info("service orchestration is not defined correctly in PagerdutyIntegration, skipping...")
+		return nil
+	}
+
 	var (
 		// clusterConfigmapName is the name of the ConfigMap containing the
 		// SERVICE_ID and INTEGRATION_ID
@@ -74,12 +80,26 @@ func (r *PagerDutyIntegrationReconciler) handleServiceOrchestration(pdclient pd.
 		// PD service has not been created, skip the service orchestration steps
 		return nil
 	}
-	if pdData.ServiceOrchestrationState != "active" {
+
+	if !pdData.ServiceOrchestrationEnabled {
+
 		r.reqLogger.Info("enabling the service orchestration")
-		err := pdclient.ToggleServiceOrchestration(pdData, true)
+		err = pdclient.ToggleServiceOrchestration(pdData, true)
 		if err != nil {
 			return err
 		}
+
+		pdData.ServiceOrchestrationEnabled = true
+
+		err = pdData.SetClusterConfig(r.Client, cd.Namespace, clusterConfigmapName)
+		if err != nil {
+			r.reqLogger.Error(err, "Error updating PagerDuty cluster config", "Name",
+				clusterConfigmapName)
+			return err
+		}
+	}
+
+	if !pdData.ServiceOrchestrationRuleApplied {
 
 		serviceOrchestrationConfigMap := types.NamespacedName{
 			Name:      pdi.Spec.ServiceOrchestration.RuleConfigConfigMapRef.Name,
@@ -97,6 +117,7 @@ func (r *PagerDutyIntegrationReconciler) handleServiceOrchestration(pdclient pd.
 		if err != nil {
 			return err
 		}
+
 		if pdiSelector.Matches(labels.Set(ruleConfigmap.GetLabels())) {
 			orchestrationConfig, err := utils.LoadConfigMapData(r.Client,
 				serviceOrchestrationConfigMap, ServiceOrchestrationDataName)
@@ -112,14 +133,15 @@ func (r *PagerDutyIntegrationReconciler) handleServiceOrchestration(pdclient pd.
 			if err != nil {
 				return err
 			}
-		}
 
-		pdData.ServiceOrchestrationState = "active"
-		err = pdData.SetClusterConfig(r.Client, cd.Namespace, clusterConfigmapName)
-		if err != nil {
-			r.reqLogger.Error(err, "Error updating PagerDuty cluster config", "Name",
-				clusterConfigmapName)
-			return err
+			pdData.ServiceOrchestrationRuleApplied = true
+
+			err = pdData.SetClusterConfig(r.Client, cd.Namespace, clusterConfigmapName)
+			if err != nil {
+				r.reqLogger.Error(err, "Error updating PagerDuty cluster config", "Name",
+					clusterConfigmapName)
+				return err
+			}
 		}
 	}
 	return nil

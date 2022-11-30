@@ -112,18 +112,20 @@ func testPDISecret() *corev1.Secret {
 }
 
 // testCDConfigMap returns a fake configmap for a deployed cluster for testing.
-func testCDConfigMap(isHibernating bool, hasLimitedSupport bool) *corev1.ConfigMap {
+func testCDConfigMap(isHibernating, hasLimitedSupport, isOrchestrationEnabled, isOrchestrationApplied bool) *corev1.ConfigMap {
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
 			Name:      config.Name(testServicePrefix, testClusterName, config.ConfigMapSuffix),
 		},
 		Data: map[string]string{
-			"INTEGRATION_ID":       testIntegrationID,
-			"SERVICE_ID":           testServiceID,
-			"ESCALATION_POLICY_ID": testEscalationPolicy,
-			"HIBERNATING":          strconv.FormatBool(isHibernating),
-			"LIMITED_SUPPORT":      strconv.FormatBool(hasLimitedSupport),
+			"INTEGRATION_ID":                     testIntegrationID,
+			"SERVICE_ID":                         testServiceID,
+			"ESCALATION_POLICY_ID":               testEscalationPolicy,
+			"HIBERNATING":                        strconv.FormatBool(isHibernating),
+			"LIMITED_SUPPORT":                    strconv.FormatBool(hasLimitedSupport),
+			"SERVICE_ORCHESTRATION_ENABLED":      strconv.FormatBool(isOrchestrationEnabled),
+			"SERVICE_ORCHESTRATION_RULE_APPLIED": strconv.FormatBool(isOrchestrationApplied),
 		},
 	}
 	return cm
@@ -227,6 +229,35 @@ func testPagerDutyIntegrationWithOrchestration() *pagerdutyv1alpha1.PagerDutyInt
 					Name:      "testOrchestrationConfigmap",
 					Namespace: config.OperatorNamespace,
 				},
+			},
+			ClusterDeploymentSelector: metav1.LabelSelector{
+				MatchLabels: map[string]string{config.ClusterDeploymentManagedLabel: "true"},
+			},
+			PagerdutyApiKeySecretRef: corev1.SecretReference{
+				Name:      config.PagerDutyAPISecretName,
+				Namespace: config.OperatorNamespace,
+			},
+			TargetSecretRef: corev1.SecretReference{
+				Name:      config.Name(testServicePrefix, testClusterName, config.SecretSuffix),
+				Namespace: testNamespace,
+			},
+		},
+	}
+}
+
+func testPagerDutyIntegrationWithoutRuleConfigmapRef() *pagerdutyv1alpha1.PagerDutyIntegration {
+	return &pagerdutyv1alpha1.PagerDutyIntegration{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      testPagerDutyIntegrationName,
+			Namespace: config.OperatorNamespace,
+		},
+		Spec: pagerdutyv1alpha1.PagerDutyIntegrationSpec{
+			AcknowledgeTimeout: testAcknowledgeTimeout,
+			ResolveTimeout:     testResolveTimeout,
+			EscalationPolicy:   testEscalationPolicy,
+			ServicePrefix:      testServicePrefix,
+			ServiceOrchestration: pagerdutyv1alpha1.ServiceOrchestration{
+				Enabled: true,
 			},
 			ClusterDeploymentSelector: metav1.LabelSelector{
 				MatchLabels: map[string]string{config.ClusterDeploymentManagedLabel: "true"},
@@ -412,7 +443,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testClusterDeployment(true, true, true, false, false, false, false),
 				testPDISecret(),
 				testPagerDutyIntegration(),
-				testCDConfigMap(false, false),
+				testCDConfigMap(false, false, false, false),
 				testCDSyncSet(),
 				testCDSecret(),
 			},
@@ -454,7 +485,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testClusterDeployment(true, true, true, false, false, false, false),
 				testPDISecret(),
 				testPagerDutyIntegration(),
-				testCDConfigMap(false, false),
+				testCDConfigMap(false, false, false, false),
 				testCDSecret(),
 			},
 			expectPDSetup: true,
@@ -472,7 +503,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testClusterDeployment(true, true, true, false, false, false, false),
 				testPDISecret(),
 				testPagerDutyIntegration(),
-				testCDConfigMap(false, false),
+				testCDConfigMap(false, false, false, false),
 				testCDSyncSet(),
 				testCDSecret(),
 			},
@@ -505,7 +536,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testClusterDeployment(true, true, true, true, false, false, false),
 				testPDISecret(),
 				testPagerDutyIntegration(),
-				testCDConfigMap(false, false),
+				testCDConfigMap(false, false, false, false),
 				testCDSyncSet(),
 				testCDSecret(),
 			},
@@ -565,7 +596,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testClusterDeployment(true, false, true, false, false, false, false),
 				testPDISecret(),
 				testPagerDutyIntegration(),
-				testCDConfigMap(false, false),
+				testCDConfigMap(false, false, false, false),
 				testCDSyncSet(),
 				testCDSecret(),
 			},
@@ -583,7 +614,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testClusterDeployment(true, false, true, false, false, false, false),
 				testPDISecret(),
 				testPagerDutyIntegration(),
-				testCDConfigMap(false, false),
+				testCDConfigMap(false, false, false, false),
 				testCDSyncSet(),
 				testCDSecret(),
 			},
@@ -615,7 +646,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testClusterDeployment(true, false, true, true, false, false, false),
 				testPDISecret(),
 				testPagerDutyIntegration(),
-				testCDConfigMap(false, false),
+				testCDConfigMap(false, false, false, false),
 				testCDSyncSet(),
 				testCDSecret(),
 			},
@@ -669,7 +700,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testClusterDeployment(true, true, true, false, false, false, false),
 				testPDISecret(),
 				testPagerDutyIntegration(),
-				testCDConfigMap(true, false),
+				testCDConfigMap(true, false, false, false),
 				testCDSyncSet(),
 				testCDSecret(),
 			},
@@ -687,7 +718,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testClusterDeployment(true, true, true, false, true, false, false),
 				testPDISecret(),
 				testPagerDutyIntegration(),
-				testCDConfigMap(false, false),
+				testCDConfigMap(false, false, false, false),
 				testCDSyncSet(),
 				testCDSecret(),
 			},
@@ -707,7 +738,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testCDSecret(),
 				testCDSyncSet(),
 				testPagerDutyIntegration(),
-				testCDConfigMap(false, false),
+				testCDConfigMap(false, false, false, false),
 			},
 			expectPDSetup: true,
 			setupPDMock: func(r *pd.MockClientMockRecorder) {
@@ -725,7 +756,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testCDSecret(),
 				testCDSyncSet(),
 				testPagerDutyIntegration(),
-				testCDConfigMap(false, true),
+				testCDConfigMap(false, true, false, false),
 			},
 			expectPDSetup: true,
 			setupPDMock: func(r *pd.MockClientMockRecorder) {
@@ -757,7 +788,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testClusterDeployment(true, true, true, false, false, false, false),
 				testPDISecret(),
 				updatedTestPagerDutyIntegration(),
-				testCDConfigMap(false, false),
+				testCDConfigMap(false, false, false, false),
 				testCDSyncSet(),
 				testCDSecret(),
 			},
@@ -788,7 +819,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			},
 		},
 		{
-			name: "Test Managed, Finalizer, Not Deleting, PD Setup, Service Orchestration active",
+			name: "Test Managed, Finalizer, Not Deleting, PD Setup, Service Orchestration enabled",
 			localObjects: []runtime.Object{
 				testClusterDeployment(true, true, true, false, false, false, false),
 				testPDISecret(),
@@ -814,7 +845,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			},
 		},
 		{
-			name: "Test Managed, Finalizer, Not Deleting, PD Setup, Service Orchestration active, CM Orchestration active",
+			name: "Test Managed, Finalizer, Not Deleting, PD Setup, Service Orchestration enabled, CM orchestration is enabled, CM orchestration is applied",
 			localObjects: []runtime.Object{
 				testClusterDeployment(true, true, true, false, false, false, false),
 				testPDISecret(),
@@ -828,7 +859,8 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 						data.ServiceID = "XYZ123"
 						data.IntegrationID = "LMN456"
 						data.EscalationPolicyID = testEscalationPolicy
-						data.ServiceOrchestrationState = "active"
+						data.ServiceOrchestrationEnabled = true
+						data.ServiceOrchestrationRuleApplied = true
 						return data.IntegrationID, nil
 					})
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(1)
@@ -841,7 +873,87 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			},
 		},
 		{
-			name: "Test Managed, Finalizer, Not Deleting, PD Setup, Service Orchestration active, Rule CM no Label",
+			name: "Test Managed, Finalizer, Not Deleting, PD Setup, Service Orchestration enabled, CM orchestration is enabled, CM orchestration not applied",
+			localObjects: []runtime.Object{
+				testClusterDeployment(true, true, true, false, false, false, false),
+				testPDISecret(),
+				testPagerDutyIntegrationWithOrchestration(),
+				testServiceOrchestrationRuleConfigMap(true),
+			},
+			expectPDSetup: true,
+			setupPDMock: func(r *pd.MockClientMockRecorder) {
+				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(1).DoAndReturn(
+					func(data *pd.Data) (string, error) {
+						data.ServiceID = "XYZ123"
+						data.IntegrationID = "LMN456"
+						data.EscalationPolicyID = testEscalationPolicy
+						data.ServiceOrchestrationEnabled = true
+						return data.IntegrationID, nil
+					})
+				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(1)
+				r.UpdateEscalationPolicy(gomock.Any()).Return(nil).Times(0)
+				r.ToggleServiceOrchestration(gomock.Any(), gomock.Any()).Return(nil).Times(0)
+				r.ApplyServiceOrchestrationRule(gomock.Any()).Return(nil).Times(1)
+				r.DeleteService(gomock.Any()).Return(nil).Times(0)
+				r.DisableService(gomock.Any()).Return(nil).Times(0)
+				r.EnableService(gomock.Any()).Return(nil).Times(0)
+			},
+		},
+		{
+			name: "Test Managed, Finalizer, Not Deleting, PD Setup, Service Orchestration enabled, CM orchestration not enabled, CM orchestration is applied",
+			localObjects: []runtime.Object{
+				testClusterDeployment(true, true, true, false, false, false, false),
+				testPDISecret(),
+				testPagerDutyIntegrationWithOrchestration(),
+				testServiceOrchestrationRuleConfigMap(true),
+			},
+			expectPDSetup: true,
+			setupPDMock: func(r *pd.MockClientMockRecorder) {
+				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(1).DoAndReturn(
+					func(data *pd.Data) (string, error) {
+						data.ServiceID = "XYZ123"
+						data.IntegrationID = "LMN456"
+						data.EscalationPolicyID = testEscalationPolicy
+						data.ServiceOrchestrationRuleApplied = true
+						return data.IntegrationID, nil
+					})
+				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(1)
+				r.UpdateEscalationPolicy(gomock.Any()).Return(nil).Times(0)
+				r.ToggleServiceOrchestration(gomock.Any(), gomock.Any()).Return(nil).Times(1)
+				r.ApplyServiceOrchestrationRule(gomock.Any()).Return(nil).Times(0)
+				r.DeleteService(gomock.Any()).Return(nil).Times(0)
+				r.DisableService(gomock.Any()).Return(nil).Times(0)
+				r.EnableService(gomock.Any()).Return(nil).Times(0)
+			},
+		},
+		{
+			name: "Test Managed, Finalizer, Not Deleting, PD Setup, Service Orchestration enabled, CM orchestration not enabled, CM orchestration not applied",
+			localObjects: []runtime.Object{
+				testClusterDeployment(true, true, true, false, false, false, false),
+				testPDISecret(),
+				testPagerDutyIntegrationWithOrchestration(),
+				testServiceOrchestrationRuleConfigMap(true),
+			},
+			expectPDSetup: true,
+			setupPDMock: func(r *pd.MockClientMockRecorder) {
+				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(1).DoAndReturn(
+					func(data *pd.Data) (string, error) {
+						data.ServiceID = "XYZ123"
+						data.IntegrationID = "LMN456"
+						data.EscalationPolicyID = testEscalationPolicy
+						return data.IntegrationID, nil
+					})
+				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(1)
+				r.UpdateEscalationPolicy(gomock.Any()).Return(nil).Times(0)
+				r.ToggleServiceOrchestration(gomock.Any(), gomock.Any()).Return(nil).Times(1)
+				r.ApplyServiceOrchestrationRule(gomock.Any()).Return(nil).Times(1)
+				r.DeleteService(gomock.Any()).Return(nil).Times(0)
+				r.DisableService(gomock.Any()).Return(nil).Times(0)
+				r.EnableService(gomock.Any()).Return(nil).Times(0)
+			},
+		},
+		{
+			name: "Test Managed, Finalizer, Not Deleting, PD Setup, Service Orchestration enabled, Rule CM no Label",
 			localObjects: []runtime.Object{
 				testClusterDeployment(true, true, true, false, false, false, false),
 				testPDISecret(),
@@ -867,6 +979,32 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			},
 		},
 		{
+			name: "Test Managed, Finalizer, Not Deleting, PD Setup, Service Orchestration enabled, Rule CM not present",
+			localObjects: []runtime.Object{
+				testClusterDeployment(true, true, true, false, false, false, false),
+				testPDISecret(),
+				testPagerDutyIntegrationWithoutRuleConfigmapRef(),
+				testServiceOrchestrationRuleConfigMap(false),
+			},
+			expectPDSetup: true,
+			setupPDMock: func(r *pd.MockClientMockRecorder) {
+				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(1).DoAndReturn(
+					func(data *pd.Data) (string, error) {
+						data.ServiceID = "XYZ123"
+						data.IntegrationID = "LMN456"
+						data.EscalationPolicyID = testEscalationPolicy
+						return data.IntegrationID, nil
+					})
+				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(1)
+				r.UpdateEscalationPolicy(gomock.Any()).Return(nil).Times(0)
+				r.ToggleServiceOrchestration(gomock.Any(), gomock.Any()).Return(nil).Times(0)
+				r.ApplyServiceOrchestrationRule(gomock.Any()).Return(nil).Times(0)
+				r.DeleteService(gomock.Any()).Return(nil).Times(0)
+				r.DisableService(gomock.Any()).Return(nil).Times(0)
+				r.EnableService(gomock.Any()).Return(nil).Times(0)
+			},
+		},
+		{
 			name: "Test Managed, Finalizer, Not Deleting, PD Setup, Service Orchestration active, Rule CM missing",
 			localObjects: []runtime.Object{
 				testClusterDeployment(true, true, true, false, false, false, false),
@@ -884,7 +1022,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 					})
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(1)
 				r.UpdateEscalationPolicy(gomock.Any()).Return(nil).Times(0)
-				r.ToggleServiceOrchestration(gomock.Any(), gomock.Any()).Return(nil).Times(3)
+				r.ToggleServiceOrchestration(gomock.Any(), gomock.Any()).Return(nil).Times(1)
 				r.ApplyServiceOrchestrationRule(gomock.Any()).Return(nil).Times(0)
 				r.DeleteService(gomock.Any()).Return(nil).Times(0)
 				r.DisableService(gomock.Any()).Return(nil).Times(0)
