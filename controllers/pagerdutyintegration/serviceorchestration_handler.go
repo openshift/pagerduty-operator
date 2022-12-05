@@ -99,50 +99,48 @@ func (r *PagerDutyIntegrationReconciler) handleServiceOrchestration(pdclient pd.
 		}
 	}
 
-	if !pdData.ServiceOrchestrationRuleApplied {
+	serviceOrchestrationConfigMap := types.NamespacedName{
+		Name:      pdi.Spec.ServiceOrchestration.RuleConfigConfigMapRef.Name,
+		Namespace: pdi.Spec.ServiceOrchestration.RuleConfigConfigMapRef.Namespace,
+	}
 
-		serviceOrchestrationConfigMap := types.NamespacedName{
-			Name:      pdi.Spec.ServiceOrchestration.RuleConfigConfigMapRef.Name,
-			Namespace: pdi.Spec.ServiceOrchestration.RuleConfigConfigMapRef.Namespace,
-		}
+	ruleConfigmap := &corev1.ConfigMap{}
 
-		ruleConfigmap := &corev1.ConfigMap{}
+	err = r.Get(context.TODO(), serviceOrchestrationConfigMap, ruleConfigmap)
+	if errors.IsNotFound(err) {
+		r.reqLogger.Info("service orchestration configmap rule not found, skip the following steps")
+		localmetrics.UpdateMetricPagerDutyServiceOrchestrationFailure(1, pdi.Name)
+		return nil
+	}
+	if err != nil {
+		return err
+	}
 
-		err = r.Get(context.TODO(), serviceOrchestrationConfigMap, ruleConfigmap)
-		if errors.IsNotFound(err) {
-			r.reqLogger.Info("service orchestration configmap rule not found, skip the following steps")
-			localmetrics.UpdateMetricPagerDutyServiceOrchestrationFailure(1, pdi.Name)
-			return nil
-		}
+	if pdiSelector.Matches(labels.Set(ruleConfigmap.GetLabels())) {
+		orchestrationConfig, err := utils.LoadConfigMapData(r.Client,
+			serviceOrchestrationConfigMap, ServiceOrchestrationDataName)
 		if err != nil {
 			return err
 		}
 
-		if pdiSelector.Matches(labels.Set(ruleConfigmap.GetLabels())) {
-			orchestrationConfig, err := utils.LoadConfigMapData(r.Client,
-				serviceOrchestrationConfigMap, ServiceOrchestrationDataName)
-			if err != nil {
-				return err
-			}
+		pdData.ServiceOrchestrationRules = orchestrationConfig
 
-			pdData.ServiceOrchestrationRules = orchestrationConfig
+		r.reqLogger.Info(fmt.Sprintf("apply the service orchestration rules from configmap: %s",
+			orchestrationConfigmapName))
+		err = pdclient.ApplyServiceOrchestrationRule(pdData)
+		if err != nil {
+			return err
+		}
 
-			r.reqLogger.Info(fmt.Sprintf("apply the service orchestration rules from configmap: %s",
-				orchestrationConfigmapName))
-			err = pdclient.ApplyServiceOrchestrationRule(pdData)
-			if err != nil {
-				return err
-			}
+		pdData.ServiceOrchestrationRuleApplied = true
 
-			pdData.ServiceOrchestrationRuleApplied = true
-
-			err = pdData.SetClusterConfig(r.Client, cd.Namespace, clusterConfigmapName)
-			if err != nil {
-				r.reqLogger.Error(err, "Error updating PagerDuty cluster config", "Name",
-					clusterConfigmapName)
-				return err
-			}
+		err = pdData.SetClusterConfig(r.Client, cd.Namespace, clusterConfigmapName)
+		if err != nil {
+			r.reqLogger.Error(err, "Error updating PagerDuty cluster config", "Name",
+				clusterConfigmapName)
+			return err
 		}
 	}
+
 	return nil
 }
