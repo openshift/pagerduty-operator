@@ -117,6 +117,11 @@ objects:
     pagerdutyApiKeySecretRef:
       name: pagerduty-api-key
       namespace: pagerduty-operator
+    serviceOrchestration:
+      enabled: ${{SERVICE_ORCHESTRATION_ENABLED}}
+      ruleConfigConfigMapRef:
+        name: ${{SERVICE_ORCHESTRATION_RULE_CONFIGMAP}}
+        namespace: pagerduty-operator
     clusterDeploymentSelector:
       matchExpressions:
       # only create PD service for managed (OSD) clusters
