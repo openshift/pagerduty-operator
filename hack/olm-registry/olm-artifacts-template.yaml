@@ -33,7 +33,7 @@ parameters:
 - name: FEDRAMP
   value: "false"
 - name: SERVICE_ORCHESTRATION_ENABLED
-  value: false
+  value: "false"
 - name: SERVICE_ORCHESTRATION_RULE_CONFIGMAP
   value: "osd-serviceorchestration"
 objects:
