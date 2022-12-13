@@ -32,7 +32,10 @@ parameters:
   required: true
 - name: FEDRAMP
   value: "false"
-
+- name: SERVICE_ORCHESTRATION_ENABLED
+  value: false
+- name: SERVICE_ORCHESTRATION_RULE_CONFIGMAP
+  value: "osd-serviceorchestration"
 objects:
 - apiVersion: operators.coreos.com/v1alpha1
   kind: CatalogSource
