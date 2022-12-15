@@ -11,8 +11,6 @@ import (
 	"github.com/openshift/pagerduty-operator/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"reflect"
 )
@@ -71,18 +69,12 @@ func (r *PagerDutyIntegrationReconciler) handleServiceOrchestration(pdclient pd.
 		return err
 	}
 
-	pdiSelector, err := metav1.LabelSelectorAsSelector(&pdi.Spec.ClusterDeploymentSelector)
-	if err != nil {
-		return err
-	}
-
 	if pdData.ServiceID == "" {
 		// PD service has not been created, skip the service orchestration steps
 		return nil
 	}
 
 	if !pdData.ServiceOrchestrationEnabled {
-
 		r.reqLogger.Info("enabling the service orchestration")
 		err = pdclient.ToggleServiceOrchestration(pdData, true)
 		if err != nil {
@@ -100,39 +92,30 @@ func (r *PagerDutyIntegrationReconciler) handleServiceOrchestration(pdclient pd.
 	}
 
 	serviceOrchestrationConfigMap := types.NamespacedName{
-		Name:      pdi.Spec.ServiceOrchestration.RuleConfigConfigMapRef.Name,
+		Name:      orchestrationConfigmapName,
 		Namespace: pdi.Spec.ServiceOrchestration.RuleConfigConfigMapRef.Namespace,
 	}
 
-	ruleConfigmap := &corev1.ConfigMap{}
-
-	err = r.Get(context.TODO(), serviceOrchestrationConfigMap, ruleConfigmap)
+	orchestrationRuleConfigData, err := utils.LoadConfigMapData(r.Client,
+		serviceOrchestrationConfigMap, ServiceOrchestrationDataName)
 	if errors.IsNotFound(err) {
 		r.reqLogger.Info("service orchestration configmap rule not found, skip the following steps")
 		localmetrics.UpdateMetricPagerDutyServiceOrchestrationFailure(1, pdi.Name)
 		return nil
-	}
-	if err != nil {
+	} else if err != nil {
 		return err
 	}
 
-	if pdiSelector.Matches(labels.Set(ruleConfigmap.GetLabels())) {
-		orchestrationConfig, err := utils.LoadConfigMapData(r.Client,
-			serviceOrchestrationConfigMap, ServiceOrchestrationDataName)
-		if err != nil {
-			return err
-		}
+	if pdData.ServiceOrchestrationRuleApplied != orchestrationRuleConfigData {
+		// Apply rule for new service
+		pdData.ServiceOrchestrationRuleApplied = orchestrationRuleConfigData
 
-		pdData.ServiceOrchestrationRules = orchestrationConfig
-
-		r.reqLogger.Info(fmt.Sprintf("apply the service orchestration rules from configmap: %s",
+		r.reqLogger.Info(fmt.Sprintf("applying the service orchestration rules from configmap: %s",
 			orchestrationConfigmapName))
 		err = pdclient.ApplyServiceOrchestrationRule(pdData)
 		if err != nil {
 			return err
 		}
-
-		pdData.ServiceOrchestrationRuleApplied = true
 
 		err = pdData.SetClusterConfig(r.Client, cd.Namespace, clusterConfigmapName)
 		if err != nil {
@@ -140,6 +123,8 @@ func (r *PagerDutyIntegrationReconciler) handleServiceOrchestration(pdclient pd.
 				clusterConfigmapName)
 			return err
 		}
+	} else {
+		r.reqLogger.Info("applied service orchestration rule is the latest version")
 	}
 
 	return nil

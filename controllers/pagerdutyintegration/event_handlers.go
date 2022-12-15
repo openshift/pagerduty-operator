@@ -18,9 +18,9 @@ package pagerdutyintegration
 
 import (
 	"context"
-
 	hivev1 "github.com/openshift/hive/apis/hive/v1"
 	pagerdutyv1alpha1 "github.com/openshift/pagerduty-operator/api/v1alpha1"
+	"github.com/openshift/pagerduty-operator/config"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -230,6 +230,12 @@ func (e *enqueueRequestForConfigMap) Generic(evt event.GenericEvent, q workqueue
 // take a look at that PagerDutyIntegration object.
 func (e *enqueueRequestForConfigMap) toRequests(obj client.Object) []reconcile.Request {
 	reqs := []reconcile.Request{}
+
+	// enqueue for configmap in the operator namespace only
+	if obj.GetNamespace() != config.OperatorNamespace {
+		return reqs
+	}
+
 	pdiList := &pagerdutyv1alpha1.PagerDutyIntegrationList{}
 	if err := e.Client.List(context.TODO(), pdiList, &client.ListOptions{}); err != nil {
 		return reqs
