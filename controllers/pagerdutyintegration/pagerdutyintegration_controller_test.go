@@ -181,7 +181,7 @@ func testServiceOrchestrationRuleConfigMap(isManaged bool) *corev1.ConfigMap {
 			},
 		},
 		Data: map[string]string{
-			"service-orchestration.json": "{}",
+			"service-orchestration.json": "{\"test-key\" : \"test-value\"}",
 		},
 	}
 }
@@ -838,7 +838,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(1)
 				r.UpdateEscalationPolicy(gomock.Any()).Return(nil).Times(0)
 				r.ToggleServiceOrchestration(gomock.Any(), gomock.Any()).Return(nil).Times(1)
-				r.ApplyServiceOrchestrationRule(gomock.Any()).Return(nil).Times(3)
+				r.ApplyServiceOrchestrationRule(gomock.Any()).Return(nil).Times(1)
 				r.DeleteService(gomock.Any()).Return(nil).Times(0)
 				r.DisableService(gomock.Any()).Return(nil).Times(0)
 				r.EnableService(gomock.Any()).Return(nil).Times(0)
@@ -860,13 +860,12 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 						data.IntegrationID = "LMN456"
 						data.EscalationPolicyID = testEscalationPolicy
 						data.ServiceOrchestrationEnabled = true
-						data.ServiceOrchestrationRuleApplied = true
 						return data.IntegrationID, nil
 					})
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(1)
 				r.UpdateEscalationPolicy(gomock.Any()).Return(nil).Times(0)
 				r.ToggleServiceOrchestration(gomock.Any(), gomock.Any()).Return(nil).Times(0)
-				r.ApplyServiceOrchestrationRule(gomock.Any()).Return(nil).Times(3)
+				r.ApplyServiceOrchestrationRule(gomock.Any()).Return(nil).Times(1)
 				r.DeleteService(gomock.Any()).Return(nil).Times(0)
 				r.DisableService(gomock.Any()).Return(nil).Times(0)
 				r.EnableService(gomock.Any()).Return(nil).Times(0)
@@ -893,7 +892,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(1)
 				r.UpdateEscalationPolicy(gomock.Any()).Return(nil).Times(0)
 				r.ToggleServiceOrchestration(gomock.Any(), gomock.Any()).Return(nil).Times(0)
-				r.ApplyServiceOrchestrationRule(gomock.Any()).Return(nil).Times(3)
+				r.ApplyServiceOrchestrationRule(gomock.Any()).Return(nil).Times(1)
 				r.DeleteService(gomock.Any()).Return(nil).Times(0)
 				r.DisableService(gomock.Any()).Return(nil).Times(0)
 				r.EnableService(gomock.Any()).Return(nil).Times(0)
@@ -914,13 +913,12 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 						data.ServiceID = "XYZ123"
 						data.IntegrationID = "LMN456"
 						data.EscalationPolicyID = testEscalationPolicy
-						data.ServiceOrchestrationRuleApplied = true
 						return data.IntegrationID, nil
 					})
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(1)
 				r.UpdateEscalationPolicy(gomock.Any()).Return(nil).Times(0)
 				r.ToggleServiceOrchestration(gomock.Any(), gomock.Any()).Return(nil).Times(1)
-				r.ApplyServiceOrchestrationRule(gomock.Any()).Return(nil).Times(3)
+				r.ApplyServiceOrchestrationRule(gomock.Any()).Return(nil).Times(1)
 				r.DeleteService(gomock.Any()).Return(nil).Times(0)
 				r.DisableService(gomock.Any()).Return(nil).Times(0)
 				r.EnableService(gomock.Any()).Return(nil).Times(0)
@@ -946,7 +944,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(1)
 				r.UpdateEscalationPolicy(gomock.Any()).Return(nil).Times(0)
 				r.ToggleServiceOrchestration(gomock.Any(), gomock.Any()).Return(nil).Times(1)
-				r.ApplyServiceOrchestrationRule(gomock.Any()).Return(nil).Times(3)
+				r.ApplyServiceOrchestrationRule(gomock.Any()).Return(nil).Times(1)
 				r.DeleteService(gomock.Any()).Return(nil).Times(0)
 				r.DisableService(gomock.Any()).Return(nil).Times(0)
 				r.EnableService(gomock.Any()).Return(nil).Times(0)
@@ -972,7 +970,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(1)
 				r.UpdateEscalationPolicy(gomock.Any()).Return(nil).Times(0)
 				r.ToggleServiceOrchestration(gomock.Any(), gomock.Any()).Return(nil).Times(1)
-				r.ApplyServiceOrchestrationRule(gomock.Any()).Return(nil).Times(0)
+				r.ApplyServiceOrchestrationRule(gomock.Any()).Return(nil).Times(1)
 				r.DeleteService(gomock.Any()).Return(nil).Times(0)
 				r.DisableService(gomock.Any()).Return(nil).Times(0)
 				r.EnableService(gomock.Any()).Return(nil).Times(0)

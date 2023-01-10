@@ -143,8 +143,7 @@ type Data struct {
 
 	// ServiceOrchestration related parameters
 	ServiceOrchestrationEnabled     bool
-	ServiceOrchestrationRuleApplied bool
-	ServiceOrchestrationRules       string
+	ServiceOrchestrationRuleApplied string
 }
 
 // NewData initializes a Data struct from a v1alpha1 PagerDutyIntegration spec
@@ -199,8 +198,10 @@ func (data *Data) ParseClusterConfig(osc client.Client, namespace string, cmName
 	serviceOrchestrationEnabled := pdAPIConfigMap.Data["SERVICE_ORCHESTRATION_ENABLED"]
 	data.ServiceOrchestrationEnabled = serviceOrchestrationEnabled == "true"
 
-	serviceOrchestrationRuleApplied := pdAPIConfigMap.Data["SERVICE_ORCHESTRATION_RULE_APPLIED"]
-	data.ServiceOrchestrationRuleApplied = serviceOrchestrationRuleApplied == "true"
+	data.ServiceOrchestrationRuleApplied, err = getConfigMapKey(pdAPIConfigMap.Data, "SERVICE_ORCHESTRATION_RULE_APPLIED")
+	if err != nil {
+		data.ServiceOrchestrationRuleApplied = ""
+	}
 
 	return nil
 }
@@ -218,7 +219,7 @@ func (data *Data) SetClusterConfig(osc client.Client, namespace string, cmName s
 	pdAPIConfigMap.Data["HIBERNATING"] = strconv.FormatBool(data.Hibernating)
 	pdAPIConfigMap.Data["LIMITED_SUPPORT"] = strconv.FormatBool(data.LimitedSupport)
 	pdAPIConfigMap.Data["SERVICE_ORCHESTRATION_ENABLED"] = strconv.FormatBool(data.ServiceOrchestrationEnabled)
-	pdAPIConfigMap.Data["SERVICE_ORCHESTRATION_RULE_APPLIED"] = strconv.FormatBool(data.ServiceOrchestrationRuleApplied)
+	pdAPIConfigMap.Data["SERVICE_ORCHESTRATION_RULE_APPLIED"] = data.ServiceOrchestrationRuleApplied
 
 	if err := osc.Update(context.TODO(), pdAPIConfigMap); err != nil {
 		return err
@@ -406,7 +407,7 @@ func (c *SvcClient) ApplyServiceOrchestrationRule(data *Data) error {
 	}
 
 	reqUrl := fmt.Sprintf("%sevent_orchestrations/services/%s", apiEndpoint, service.ID)
-	payload := strings.NewReader(data.ServiceOrchestrationRules)
+	payload := strings.NewReader(data.ServiceOrchestrationRuleApplied)
 
 	err = c.pdHttpRequest("PUT", reqUrl, payload)
 	if err != nil {
