@@ -30,6 +30,7 @@ import (
 	"github.com/openshift/pagerduty-operator/controllers/pagerdutyintegration"
 	"github.com/openshift/pagerduty-operator/pkg/localmetrics"
 	"github.com/prometheus/client_golang/prometheus"
+	"go.uber.org/zap/zapcore"
 	corev1 "k8s.io/api/core/v1"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -77,6 +78,9 @@ func main() {
 			"Enabling this will ensure there is only one active controller manager.")
 	opts := zap.Options{
 		Development: false,
+		TimeEncoder: zapcore.RFC3339TimeEncoder,
+		// Remove misleading controller-runtime stack traces https://github.com/kubernetes-sigs/kubebuilder/issues/1593
+		StacktraceLevel: zapcore.DPanicLevel,
 	}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
