@@ -16,7 +16,6 @@ package pagerduty
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -232,9 +231,8 @@ func (data *Data) SetClusterConfig(osc client.Client, namespace string, cmName s
 func (c *SvcClient) GetService(data *Data) (*pdApi.Service, error) {
 	service, err := c.PdClient.GetService(data.ServiceID, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to get service with ID %v: %w", data.ServiceID, err)
 	}
-
 	return service, nil
 }
 
@@ -242,7 +240,8 @@ func (c *SvcClient) GetService(data *Data) (*pdApi.Service, error) {
 func (c *SvcClient) GetIntegrationKey(data *Data) (string, error) {
 	integration, err := c.PdClient.GetIntegration(data.ServiceID, data.IntegrationID, pdApi.GetIntegrationOptions{})
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("unable to get integration with service ID %v, integration ID %v: %w", data.ServiceID,
+			data.IntegrationID, err)
 	}
 
 	return integration.IntegrationKey, nil
@@ -252,7 +251,7 @@ func (c *SvcClient) GetIntegrationKey(data *Data) (string, error) {
 func (c *SvcClient) CreateService(data *Data) (string, error) {
 	escalationPolicy, err := c.PdClient.GetEscalationPolicy(data.EscalationPolicyID, nil)
 	if err != nil {
-		return "", errors.New("Escalation policy not found in PagerDuty")
+		return "", fmt.Errorf("escalation policy %v not found: %w", data.EscalationPolicyID, err)
 	}
 
 	clusterService := pdApi.Service{
@@ -272,13 +271,13 @@ func (c *SvcClient) CreateService(data *Data) (string, error) {
 	newSvc, err = c.PdClient.CreateService(clusterService)
 	if err != nil {
 		if !strings.Contains(err.Error(), "Name has already been taken") {
-			return "", err
+			return "", fmt.Errorf("unable to create service %v: %w", clusterService.Name, err)
 		}
 		lso := pdApi.ListServiceOptions{}
 		lso.Query = clusterService.Name
 		currentSvcs, newerr := c.PdClient.ListServices(lso)
 		if newerr != nil {
-			return "", err
+			return "", fmt.Errorf("unable to list services with name %v: %w", clusterService.Name, err)
 		}
 
 		if len(currentSvcs.Services) > 0 {
@@ -292,14 +291,14 @@ func (c *SvcClient) CreateService(data *Data) (string, error) {
 		}
 
 		if newSvc == nil {
-			return "", err
+			return "", fmt.Errorf("creating service %v returned an empty response: %w", clusterService.Name, err)
 		}
 	}
 	data.ServiceID = newSvc.ID
 
 	data.IntegrationID, err = c.createIntegration(newSvc.ID, "V4 Alertmanager", "events_api_v2_inbound_integration")
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("unable to create integration for service %v: %w", newSvc.ID, err)
 	}
 
 	data.EscalationPolicyID = newSvc.EscalationPolicy.ID
@@ -317,7 +316,7 @@ func (c *SvcClient) createIntegration(serviceId, name, integrationType string) (
 
 	newInt, err := c.PdClient.CreateIntegration(serviceId, newIntegration)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("unable to create integration %v for service ID %v: %w", name, serviceId, err)
 	}
 	return newInt.ID, nil
 }
@@ -326,22 +325,26 @@ func (c *SvcClient) createIntegration(serviceId, name, integrationType string) (
 func (c *SvcClient) DeleteService(data *Data) error {
 	err := c.resolvePendingIncidents(data)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to resolve pending incidents for service ID %v: %w", data.ServiceID, err)
 	}
 
 	err = c.waitForIncidentsToResolve(data, 10*time.Second)
 	if err != nil {
-		return err
+		return fmt.Errorf("error waiting for incidents to resolve for service ID %v: %w", data.ServiceID, err)
 	}
 
-	return c.PdClient.DeleteService(data.ServiceID)
+	err = c.PdClient.DeleteService(data.ServiceID)
+	if err != nil {
+		return fmt.Errorf("unable to delete service ID %v: %w", data.ServiceID, err)
+	}
+	return nil
 }
 
 // EnableService will set the PD service active
 func (c *SvcClient) EnableService(data *Data) error {
 	service, err := c.PdClient.GetService(data.ServiceID, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to get service with ID %v: %w", data.ServiceID, err)
 	}
 
 	service = removeAlertGrouping(service)
@@ -349,7 +352,9 @@ func (c *SvcClient) EnableService(data *Data) error {
 	if service.Status != "active" {
 		service.Status = "active"
 		_, err = c.PdClient.UpdateService(*service)
-		return err
+		if err != nil {
+			return fmt.Errorf("unable to update service ID %v: %w", data.ServiceID, err)
+		}
 	}
 
 	return nil
@@ -359,15 +364,15 @@ func (c *SvcClient) EnableService(data *Data) error {
 func (c *SvcClient) DisableService(data *Data) error {
 	service, err := c.PdClient.GetService(data.ServiceID, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to get service with ID %v: %w", data.ServiceID, err)
 	}
 
 	if err := c.resolvePendingIncidents(data); err != nil {
-		return err
+		return fmt.Errorf("unable to resolve pending incidents for service ID %v: %w", data.ServiceID, err)
 	}
 
 	if err = c.waitForIncidentsToResolve(data, 10*time.Second); err != nil {
-		return err
+		return fmt.Errorf("error waiting for incidents to resolve for service ID %v: %w", data.ServiceID, err)
 	}
 
 	service = removeAlertGrouping(service)
@@ -375,7 +380,7 @@ func (c *SvcClient) DisableService(data *Data) error {
 	if service.Status != "disabled" {
 		service.Status = "disabled"
 		if _, err = c.PdClient.UpdateService(*service); err != nil {
-			return err
+			return fmt.Errorf("unable to update service ID %v: %w", data.ServiceID, err)
 		}
 	}
 
@@ -386,7 +391,7 @@ func (c *SvcClient) DisableService(data *Data) error {
 func (c *SvcClient) ToggleServiceOrchestration(data *Data, active bool) error {
 	service, err := c.PdClient.GetService(data.ServiceID, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to get service with ID %v: %w", data.ServiceID, err)
 	}
 
 	reqUrl := fmt.Sprintf("%sevent_orchestrations/services/%s/active", apiEndpoint, service.ID)
@@ -394,7 +399,7 @@ func (c *SvcClient) ToggleServiceOrchestration(data *Data, active bool) error {
 
 	err = c.pdHttpRequest("PUT", reqUrl, payload)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to set service orchestration to %v for service ID %v: %w", active, data.ServiceID, err)
 	}
 	return nil
 }
@@ -403,7 +408,7 @@ func (c *SvcClient) ToggleServiceOrchestration(data *Data, active bool) error {
 func (c *SvcClient) ApplyServiceOrchestrationRule(data *Data) error {
 	service, err := c.PdClient.GetService(data.ServiceID, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to get service with ID %v: %w", data.ServiceID, err)
 	}
 
 	reqUrl := fmt.Sprintf("%sevent_orchestrations/services/%s", apiEndpoint, service.ID)
@@ -411,7 +416,7 @@ func (c *SvcClient) ApplyServiceOrchestrationRule(data *Data) error {
 
 	err = c.pdHttpRequest("PUT", reqUrl, payload)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to apply service orchestration rule for service ID %v: %w", data.ServiceID, err)
 	}
 	return nil
 }
@@ -436,19 +441,19 @@ func (c *SvcClient) pdHttpRequest(method string, reqUrl string, payload *strings
 func (c *SvcClient) UpdateEscalationPolicy(data *Data) error {
 	escalationPolicy, err := c.PdClient.GetEscalationPolicy(data.EscalationPolicyID, &pdApi.GetEscalationPolicyOptions{})
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to get escalation policy with ID %v: %w", data.EscalationPolicyID, err)
 	}
 
 	service, err := c.PdClient.GetService(data.ServiceID, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to get service with ID %v: %w", data.ServiceID, err)
 	}
 
 	service.EscalationPolicy.ID = escalationPolicy.ID
 
 	_, err = c.PdClient.UpdateService(*service)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to update service %v: %w", data.ServiceID, err)
 	}
 
 	return nil
@@ -458,24 +463,26 @@ func (c *SvcClient) UpdateEscalationPolicy(data *Data) error {
 func (c *SvcClient) resolvePendingIncidents(data *Data) error {
 	incidents, err := c.getUnresolvedIncidents(data)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to get unresolved incidents for service %v: %w", data.ServiceID, err)
 	}
 
 	for _, incident := range incidents {
 		alerts, err := c.getUnresolvedAlerts(incident.APIObject.ID)
 		if err != nil {
-			return err
+			return fmt.Errorf("unable to get unresolved alerts for incident %v: %w", incident.ID, err)
 		}
 
 		for _, alert := range alerts {
 			integration, err := c.PdClient.GetIntegration(data.ServiceID, alert.Integration.ID, pdApi.GetIntegrationOptions{})
 			if err != nil {
-				return err
+				return fmt.Errorf("unable to get integration %v for incident %v, service %v: %w",
+					alert.Integration.ID, incident.ID, data.ServiceID, err)
 			}
 
 			err = c.resolveAlert(integration.IntegrationKey, alert.AlertKey)
 			if err != nil {
-				return err
+				return fmt.Errorf("unable to resolve alert %v for incident %v, service %v: %w",
+					alert.AlertKey, incident.ID, data.ServiceID, err)
 			}
 		}
 	}
@@ -493,7 +500,7 @@ func (c *SvcClient) getUnresolvedIncidents(data *Data) ([]pdApi.Incident, error)
 
 	incidentsRes, err := c.PdClient.ListIncidents(listServiceIncidentOptions)
 	if err != nil {
-		return []pdApi.Incident{}, err
+		return []pdApi.Incident{}, fmt.Errorf("unable to list incidents for service %v: %w", data.ServiceID, err)
 	}
 	return incidentsRes.Incidents, err
 }
@@ -507,7 +514,8 @@ func (c *SvcClient) getUnresolvedAlerts(incidentId string) ([]pdApi.IncidentAler
 
 	alerts, err := c.PdClient.ListIncidentAlertsWithOpts(incidentId, listIncidentAlertsOptions)
 	if err != nil {
-		return []pdApi.IncidentAlert{}, err
+		return []pdApi.IncidentAlert{}, fmt.Errorf("unable to list incident alerts for incident %v: %w",
+			incidentId, err)
 	}
 	return alerts.Alerts, err
 }
@@ -518,7 +526,7 @@ func (c *SvcClient) waitForIncidentsToResolve(data *Data, maxWait time.Duration)
 	waitStep := 2 * time.Second
 	incidents, err := c.getUnresolvedIncidents(data)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to get unresolved incidents: %w", err)
 	}
 
 	totalIncidents := len(incidents)
@@ -537,7 +545,7 @@ func (c *SvcClient) waitForIncidentsToResolve(data *Data, maxWait time.Duration)
 			c.Delay(waitStep)
 			incidents, err = c.getUnresolvedIncidents(data)
 			if err != nil {
-				return err
+				return fmt.Errorf("unable to get unresolved incidents: %w", err)
 			}
 		}
 	}
