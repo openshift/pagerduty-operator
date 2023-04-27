@@ -16,4 +16,4 @@ Every critical alert generates a Pager Duty incident, regardless of timing
 
 Enable time-based alert grouping on Pager Duty services to automatically merge new incidents into an existing incident (for the same service) if its most recent alert was within a configurable timeframe (defaulting to one hour).
 
-This can be configured by adding an `AlertGroupingParameters` parameter to the Service type where it's created in `pkg/pagerduty/service.go`, this would affect new clusters. For existing clusters, a check could be added to the pagerdutyintegration reconcile loop that ensures this setting is configured or a standalone tool cool be created to loop through all existing Pager Duty services and configure them.
+This can be configured by adding an `AlertGroupingParameters` parameter to the Service type where it's created in `pkg/pagerduty/service.go`, this would affect new clusters. For existing clusters, a check will be added to the pagerdutyintegration reconcile loop that ensures this setting is configured.
