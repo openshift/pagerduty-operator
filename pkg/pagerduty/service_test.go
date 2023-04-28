@@ -3,6 +3,8 @@ package pagerduty
 import (
 	"testing"
 
+	pdApi "github.com/PagerDuty/go-pagerduty"
+
 	pagerdutyv1alpha1 "github.com/openshift/pagerduty-operator/api/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
@@ -78,6 +80,21 @@ func TestNewData(t *testing.T) {
 				Spec: pagerdutyv1alpha1.PagerDutyIntegrationSpec{},
 			},
 			expectErr: true,
+		},
+		{
+			name: "alert grouping defined",
+			pdi: &pagerdutyv1alpha1.PagerDutyIntegration{
+				Spec: pagerdutyv1alpha1.PagerDutyIntegrationSpec{
+					EscalationPolicy: mockEscalationPolicyId,
+					AlertGroupingParameters: &pdApi.AlertGroupingParameters{
+						Type: "time",
+						Config: &pdApi.AlertGroupParamsConfig{
+							Timeout: 3600,
+						},
+					},
+				},
+			},
+			expectErr: false,
 		},
 	}
 
@@ -306,12 +323,14 @@ func TestSvcClient_CreateService(t *testing.T) {
 		{
 			name: "Works",
 			data: &Data{
-				EscalationPolicyID: mockEscalationPolicyId,
-				ResolveTimeout:     30,
-				AcknowledgeTimeOut: 30,
-				ServicePrefix:      "servicePrefix",
-				ClusterID:          "clusterID",
-				BaseDomain:         "baseDomain",
+				EscalationPolicyID:   mockEscalationPolicyId,
+				ResolveTimeout:       30,
+				AcknowledgeTimeOut:   30,
+				ServicePrefix:        "servicePrefix",
+				ClusterID:            "clusterID",
+				BaseDomain:           "baseDomain",
+				AlertGroupingType:    "time",
+				AlertGroupingTimeout: 300,
 			},
 			expectErr: false,
 		},

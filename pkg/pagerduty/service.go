@@ -143,6 +143,10 @@ type Data struct {
 	// ServiceOrchestration related parameters
 	ServiceOrchestrationEnabled     bool
 	ServiceOrchestrationRuleApplied string
+
+	// Alert grouping related parameters
+	AlertGroupingType    string `json:"alert_grouping_type,omitempty"`
+	AlertGroupingTimeout uint   `'json:"alert_grouping_timeout,omitempty"`
 }
 
 // NewData initializes a Data struct from a v1alpha1 PagerDutyIntegration spec
@@ -152,14 +156,21 @@ func NewData(pdi *pagerdutyv1alpha1.PagerDutyIntegration, clusterId string, base
 		return nil, fmt.Errorf("found empty escalation policy in the pagerdutyintegration spec")
 	}
 
-	return &Data{
+	data := &Data{
 		EscalationPolicyID: pdi.Spec.EscalationPolicy,
 		ResolveTimeout:     pdi.Spec.ResolveTimeout,
 		AcknowledgeTimeOut: pdi.Spec.AcknowledgeTimeout,
 		ServicePrefix:      pdi.Spec.ServicePrefix,
 		ClusterID:          clusterId,
 		BaseDomain:         baseDomain,
-	}, nil
+	}
+
+	if pdi.Spec.AlertGroupingParameters != nil {
+		data.AlertGroupingType = pdi.Spec.AlertGroupingParameters.Type
+		data.AlertGroupingTimeout = pdi.Spec.AlertGroupingParameters.Config.Timeout
+	}
+
+	return data, nil
 }
 
 // ParseClusterConfig parses the cluster specific config map and stores the IDs in the data struct
@@ -264,6 +275,12 @@ func (c *SvcClient) CreateService(data *Data) (string, error) {
 		IncidentUrgencyRule: &pdApi.IncidentUrgencyRule{
 			Type:    "constant",
 			Urgency: config.PagerDutyUrgencyRule,
+		},
+		AlertGroupingParameters: &pdApi.AlertGroupingParameters{
+			Type: data.AlertGroupingType,
+			Config: &pdApi.AlertGroupParamsConfig{
+				Timeout: data.AlertGroupingTimeout,
+			},
 		},
 	}
 

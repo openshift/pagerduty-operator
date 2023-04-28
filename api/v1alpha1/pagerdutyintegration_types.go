@@ -17,6 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
+	pdApi "github.com/PagerDuty/go-pagerduty"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -53,6 +55,9 @@ type PagerDutyIntegrationSpec struct {
 
 	//  The status of the serviceOrchestration and the referenced configmap resource
 	ServiceOrchestration ServiceOrchestration `json:"serviceOrchestration,omitempty"`
+
+	// Configures alert grouping for PD services
+	AlertGroupingParameters *pdApi.AlertGroupingParameters `json:"alertGroupingParameters,omitempty"`
 }
 
 // ServiceOrchestration defines if the service orchestration is enabled
