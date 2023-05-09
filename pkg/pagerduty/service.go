@@ -364,8 +364,6 @@ func (c *SvcClient) EnableService(data *Data) error {
 		return fmt.Errorf("unable to get service with ID %v: %w", data.ServiceID, err)
 	}
 
-	service = removeAlertGrouping(service)
-
 	if service.Status != "active" {
 		service.Status = "active"
 		_, err = c.PdClient.UpdateService(*service)
@@ -391,8 +389,6 @@ func (c *SvcClient) DisableService(data *Data) error {
 	if err = c.waitForIncidentsToResolve(data, 10*time.Second); err != nil {
 		return fmt.Errorf("error waiting for incidents to resolve for service ID %v: %w", data.ServiceID, err)
 	}
-
-	service = removeAlertGrouping(service)
 
 	if service.Status != "disabled" {
 		service.Status = "disabled"
@@ -568,20 +564,6 @@ func (c *SvcClient) waitForIncidentsToResolve(data *Data, maxWait time.Duration)
 	}
 
 	return nil
-}
-
-// removeAlertGrouping unsets any configured AlertGrouping for the service
-// to workaround https://github.com/PagerDuty/go-pagerduty/issues/458
-//
-// If the service has data inside svc.AlertGroupingParameters.Config.Timeout it doesn't appear to be respected,
-// when updating a service, e.g. if there was an indefinite time-based alert grouping configured (RL/FL can choose to
-// to this), followed by an update to the service, for example disabling via limited support.
-func removeAlertGrouping(svc *pdApi.Service) *pdApi.Service {
-	svc.AlertGroupingParameters = &pdApi.AlertGroupingParameters{
-		Type: "",
-	}
-
-	return svc
 }
 
 // parseIncidentNumbers returns a slice of PagerDuty incident numbers
