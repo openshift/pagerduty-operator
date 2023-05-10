@@ -441,6 +441,38 @@ func TestSvcClient_UpdateEscalationPolicy(t *testing.T) {
 	}
 }
 
+func TestSvcClient_UpdateAlertGrouping(t *testing.T) {
+	tests := []struct {
+		name      string
+		data      *Data
+		expectErr bool
+	}{
+		{
+			name: "normal",
+			data: &Data{
+				ServiceID:            mockServiceId,
+				AlertGroupingType:    "time",
+				AlertGroupingTimeout: 3600,
+			},
+			expectErr: false,
+		},
+	}
+
+	mock := defaultMockApi()
+	defer mock.cleanup()
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := mock.Client.UpdateAlertGrouping(test.data)
+			if test.expectErr {
+				assert.NotNil(t, err)
+			} else {
+				assert.Nil(t, err)
+			}
+		})
+	}
+}
+
 func TestSvcClient_GetUnresolvedIncidents(t *testing.T) {
 	tests := []struct {
 		name              string

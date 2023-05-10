@@ -56,6 +56,7 @@ type Client interface {
 	EnableService(data *Data) error
 	DisableService(data *Data) error
 	UpdateEscalationPolicy(data *Data) error
+	UpdateAlertGrouping(data *Data) error
 	ToggleServiceOrchestration(data *Data, active bool) error
 	ApplyServiceOrchestrationRule(data *Data) error
 }
@@ -213,6 +214,21 @@ func (data *Data) ParseClusterConfig(osc client.Client, namespace string, cmName
 		data.ServiceOrchestrationRuleApplied = ""
 	}
 
+	data.AlertGroupingType, err = getConfigMapKey(pdAPIConfigMap.Data, "ALERT_GROUPING_TYPE")
+	if err != nil {
+		return err
+	}
+
+	agto, err := getConfigMapKey(pdAPIConfigMap.Data, "ALERT_GROUPING_TIMEOUT")
+	if err != nil {
+		return err
+	}
+	agtou64, err := strconv.ParseUint(agto, 10, 64)
+	if err != nil {
+		return err
+	}
+	data.AlertGroupingTimeout = uint(agtou64)
+
 	return nil
 }
 
@@ -230,6 +246,8 @@ func (data *Data) SetClusterConfig(osc client.Client, namespace string, cmName s
 	pdAPIConfigMap.Data["LIMITED_SUPPORT"] = strconv.FormatBool(data.LimitedSupport)
 	pdAPIConfigMap.Data["SERVICE_ORCHESTRATION_ENABLED"] = strconv.FormatBool(data.ServiceOrchestrationEnabled)
 	pdAPIConfigMap.Data["SERVICE_ORCHESTRATION_RULE_APPLIED"] = data.ServiceOrchestrationRuleApplied
+	pdAPIConfigMap.Data["ALERT_GROUPING_TYPE"] = data.AlertGroupingType
+	pdAPIConfigMap.Data["ALERT_GROUPING_TIMEOUT"] = fmt.Sprintf("%d", data.AlertGroupingTimeout)
 
 	if err := osc.Update(context.TODO(), pdAPIConfigMap); err != nil {
 		return err
@@ -463,6 +481,28 @@ func (c *SvcClient) UpdateEscalationPolicy(data *Data) error {
 	}
 
 	service.EscalationPolicy.ID = escalationPolicy.ID
+
+	_, err = c.PdClient.UpdateService(*service)
+	if err != nil {
+		return fmt.Errorf("unable to update service %v: %w", data.ServiceID, err)
+	}
+
+	return nil
+}
+
+// UpdateAlertGrouping will update the PD service alert grouping
+func (c *SvcClient) UpdateAlertGrouping(data *Data) error {
+	service, err := c.PdClient.GetService(data.ServiceID, nil)
+	if err != nil {
+		return fmt.Errorf("unable to get service with ID %v: %w", data.ServiceID, err)
+	}
+
+	service.AlertGroupingParameters = &pdApi.AlertGroupingParameters{
+		Type: data.AlertGroupingType,
+		Config: &pdApi.AlertGroupParamsConfig{
+			Timeout: data.AlertGroupingTimeout,
+		},
+	}
 
 	_, err = c.PdClient.UpdateService(*service)
 	if err != nil {
