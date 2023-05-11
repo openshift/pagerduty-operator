@@ -217,12 +217,15 @@ func (r *PagerDutyIntegrationReconciler) Reconcile(ctx context.Context, req ctrl
 				if err != nil {
 					reconcileErrors = append(reconcileErrors, err)
 				}
-				pdData.ParseClusterConfig(r.Client, cd.ObjectMeta.Namespace, config.Name(pdi.Spec.ServicePrefix, cd.Name, config.ConfigMapSuffix))
+				err = pdData.ParseClusterConfig(r.Client, cd.ObjectMeta.Namespace, config.Name(pdi.Spec.ServicePrefix, cd.Name, config.ConfigMapSuffix))
 				if err != nil {
 					reconcileErrors = append(reconcileErrors, err)
 				}
 				if pdData.AlertGroupingType != pdi.Spec.AlertGroupingParameters.Type || pdData.AlertGroupingTimeout != pdi.Spec.AlertGroupingParameters.Config.Timeout {
-					r.handleUpdate(pdClient, pdi, &cd)
+					err = r.handleUpdate(pdClient, pdi, &cd)
+					if err != nil {
+						reconcileErrors = append(reconcileErrors, err)
+					}
 				}
 			}
 

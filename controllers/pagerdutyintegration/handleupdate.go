@@ -33,7 +33,7 @@ func (r *PagerDutyIntegrationReconciler) handleUpdate(pdclient pd.Client, pdi *p
 	if err != nil {
 		return err
 	}
-	pdData.ParseClusterConfig(r.Client, cd.ObjectMeta.Namespace, configMapName)
+	err = pdData.ParseClusterConfig(r.Client, cd.ObjectMeta.Namespace, configMapName)
 	if err != nil {
 		return err
 	}
