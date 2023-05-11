@@ -149,6 +149,20 @@ func (mr *MockClientMockRecorder) ToggleServiceOrchestration(data, active interf
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ToggleServiceOrchestration", reflect.TypeOf((*MockClient)(nil).ToggleServiceOrchestration), data, active)
 }
 
+// UpdateAlertGrouping mocks base method.
+func (m *MockClient) UpdateAlertGrouping(data *Data) error {
+       m.ctrl.T.Helper()
+       ret := m.ctrl.Call(m, "UpdateAlertGrouping", data)
+       ret0, _ := ret[0].(error)
+       return ret0
+}
+
+// UpdateAlertGrouping indicates an expected call of UpdateAlertGrouping.
+func (mr *MockClientMockRecorder) UpdateAlertGrouping(data interface{}) *gomock.Call {
+       mr.mock.ctrl.T.Helper()
+       return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateAlertGrouping", reflect.TypeOf((*MockClient)(nil).UpdateAlertGrouping), data)
+}
+
 // UpdateEscalationPolicy mocks base method.
 func (m *MockClient) UpdateEscalationPolicy(data *Data) error {
 	m.ctrl.T.Helper()
