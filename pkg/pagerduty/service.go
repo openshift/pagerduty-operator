@@ -56,6 +56,7 @@ type Client interface {
 	EnableService(data *Data) error
 	DisableService(data *Data) error
 	UpdateEscalationPolicy(data *Data) error
+	UpdateAlertGrouping(data *Data) error
 	ToggleServiceOrchestration(data *Data, active bool) error
 	ApplyServiceOrchestrationRule(data *Data) error
 }
@@ -143,6 +144,10 @@ type Data struct {
 	// ServiceOrchestration related parameters
 	ServiceOrchestrationEnabled     bool
 	ServiceOrchestrationRuleApplied string
+
+	// Alert grouping related parameters
+	AlertGroupingType    string `json:"alert_grouping_type,omitempty"`
+	AlertGroupingTimeout uint   `'json:"alert_grouping_timeout,omitempty"`
 }
 
 // NewData initializes a Data struct from a v1alpha1 PagerDutyIntegration spec
@@ -152,14 +157,21 @@ func NewData(pdi *pagerdutyv1alpha1.PagerDutyIntegration, clusterId string, base
 		return nil, fmt.Errorf("found empty escalation policy in the pagerdutyintegration spec")
 	}
 
-	return &Data{
+	data := &Data{
 		EscalationPolicyID: pdi.Spec.EscalationPolicy,
 		ResolveTimeout:     pdi.Spec.ResolveTimeout,
 		AcknowledgeTimeOut: pdi.Spec.AcknowledgeTimeout,
 		ServicePrefix:      pdi.Spec.ServicePrefix,
 		ClusterID:          clusterId,
 		BaseDomain:         baseDomain,
-	}, nil
+	}
+
+	if pdi.Spec.AlertGroupingParameters != nil {
+		data.AlertGroupingType = pdi.Spec.AlertGroupingParameters.Type
+		data.AlertGroupingTimeout = pdi.Spec.AlertGroupingParameters.Config.Timeout
+	}
+
+	return data, nil
 }
 
 // ParseClusterConfig parses the cluster specific config map and stores the IDs in the data struct
@@ -202,6 +214,19 @@ func (data *Data) ParseClusterConfig(osc client.Client, namespace string, cmName
 		data.ServiceOrchestrationRuleApplied = ""
 	}
 
+	// allow alert grouping values not to be defined in the configmap
+	data.AlertGroupingType, _ = getConfigMapKey(pdAPIConfigMap.Data, "ALERT_GROUPING_TYPE")
+	agto, err := getConfigMapKey(pdAPIConfigMap.Data, "ALERT_GROUPING_TIMEOUT")
+	if err != nil {
+		// if the alert grouping timeout isn't set in the configmap, default to 0
+		agto = "0"
+	}
+	agtou64, err := strconv.ParseUint(agto, 10, 64)
+	if err != nil {
+		return err
+	}
+	data.AlertGroupingTimeout = uint(agtou64)
+
 	return nil
 }
 
@@ -219,6 +244,8 @@ func (data *Data) SetClusterConfig(osc client.Client, namespace string, cmName s
 	pdAPIConfigMap.Data["LIMITED_SUPPORT"] = strconv.FormatBool(data.LimitedSupport)
 	pdAPIConfigMap.Data["SERVICE_ORCHESTRATION_ENABLED"] = strconv.FormatBool(data.ServiceOrchestrationEnabled)
 	pdAPIConfigMap.Data["SERVICE_ORCHESTRATION_RULE_APPLIED"] = data.ServiceOrchestrationRuleApplied
+	pdAPIConfigMap.Data["ALERT_GROUPING_TYPE"] = data.AlertGroupingType
+	pdAPIConfigMap.Data["ALERT_GROUPING_TIMEOUT"] = fmt.Sprintf("%d", data.AlertGroupingTimeout)
 
 	if err := osc.Update(context.TODO(), pdAPIConfigMap); err != nil {
 		return err
@@ -264,6 +291,12 @@ func (c *SvcClient) CreateService(data *Data) (string, error) {
 		IncidentUrgencyRule: &pdApi.IncidentUrgencyRule{
 			Type:    "constant",
 			Urgency: config.PagerDutyUrgencyRule,
+		},
+		AlertGroupingParameters: &pdApi.AlertGroupingParameters{
+			Type: data.AlertGroupingType,
+			Config: &pdApi.AlertGroupParamsConfig{
+				Timeout: data.AlertGroupingTimeout,
+			},
 		},
 	}
 
@@ -347,8 +380,6 @@ func (c *SvcClient) EnableService(data *Data) error {
 		return fmt.Errorf("unable to get service with ID %v: %w", data.ServiceID, err)
 	}
 
-	service = removeAlertGrouping(service)
-
 	if service.Status != "active" {
 		service.Status = "active"
 		_, err = c.PdClient.UpdateService(*service)
@@ -374,8 +405,6 @@ func (c *SvcClient) DisableService(data *Data) error {
 	if err = c.waitForIncidentsToResolve(data, 10*time.Second); err != nil {
 		return fmt.Errorf("error waiting for incidents to resolve for service ID %v: %w", data.ServiceID, err)
 	}
-
-	service = removeAlertGrouping(service)
 
 	if service.Status != "disabled" {
 		service.Status = "disabled"
@@ -450,6 +479,28 @@ func (c *SvcClient) UpdateEscalationPolicy(data *Data) error {
 	}
 
 	service.EscalationPolicy.ID = escalationPolicy.ID
+
+	_, err = c.PdClient.UpdateService(*service)
+	if err != nil {
+		return fmt.Errorf("unable to update service %v: %w", data.ServiceID, err)
+	}
+
+	return nil
+}
+
+// UpdateAlertGrouping will update the PD service alert grouping
+func (c *SvcClient) UpdateAlertGrouping(data *Data) error {
+	service, err := c.PdClient.GetService(data.ServiceID, nil)
+	if err != nil {
+		return fmt.Errorf("unable to get service with ID %v: %w", data.ServiceID, err)
+	}
+
+	service.AlertGroupingParameters = &pdApi.AlertGroupingParameters{
+		Type: data.AlertGroupingType,
+		Config: &pdApi.AlertGroupParamsConfig{
+			Timeout: data.AlertGroupingTimeout,
+		},
+	}
 
 	_, err = c.PdClient.UpdateService(*service)
 	if err != nil {
@@ -551,20 +602,6 @@ func (c *SvcClient) waitForIncidentsToResolve(data *Data, maxWait time.Duration)
 	}
 
 	return nil
-}
-
-// removeAlertGrouping unsets any configured AlertGrouping for the service
-// to workaround https://github.com/PagerDuty/go-pagerduty/issues/458
-//
-// If the service has data inside svc.AlertGroupingParameters.Config.Timeout it doesn't appear to be respected,
-// when updating a service, e.g. if there was an indefinite time-based alert grouping configured (RL/FL can choose to
-// to this), followed by an update to the service, for example disabling via limited support.
-func removeAlertGrouping(svc *pdApi.Service) *pdApi.Service {
-	svc.AlertGroupingParameters = &pdApi.AlertGroupingParameters{
-		Type: "",
-	}
-
-	return svc
 }
 
 // parseIncidentNumbers returns a slice of PagerDuty incident numbers

@@ -79,6 +79,21 @@ func TestNewData(t *testing.T) {
 			},
 			expectErr: true,
 		},
+		{
+			name: "alert grouping defined",
+			pdi: &pagerdutyv1alpha1.PagerDutyIntegration{
+				Spec: pagerdutyv1alpha1.PagerDutyIntegrationSpec{
+					EscalationPolicy: mockEscalationPolicyId,
+					AlertGroupingParameters: &pagerdutyv1alpha1.AlertGroupingParametersSpec{
+						Type: "time",
+						Config: &pagerdutyv1alpha1.AlertGroupingParametersConfigSpec{
+							Timeout: 3600,
+						},
+					},
+				},
+			},
+			expectErr: false,
+		},
 	}
 
 	for _, test := range tests {
@@ -306,12 +321,14 @@ func TestSvcClient_CreateService(t *testing.T) {
 		{
 			name: "Works",
 			data: &Data{
-				EscalationPolicyID: mockEscalationPolicyId,
-				ResolveTimeout:     30,
-				AcknowledgeTimeOut: 30,
-				ServicePrefix:      "servicePrefix",
-				ClusterID:          "clusterID",
-				BaseDomain:         "baseDomain",
+				EscalationPolicyID:   mockEscalationPolicyId,
+				ResolveTimeout:       30,
+				AcknowledgeTimeOut:   30,
+				ServicePrefix:        "servicePrefix",
+				ClusterID:            "clusterID",
+				BaseDomain:           "baseDomain",
+				AlertGroupingType:    "time",
+				AlertGroupingTimeout: 300,
 			},
 			expectErr: false,
 		},
@@ -413,6 +430,38 @@ func TestSvcClient_UpdateEscalationPolicy(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			err := mock.Client.UpdateEscalationPolicy(test.data)
+			if test.expectErr {
+				assert.NotNil(t, err)
+			} else {
+				assert.Nil(t, err)
+			}
+		})
+	}
+}
+
+func TestSvcClient_UpdateAlertGrouping(t *testing.T) {
+	tests := []struct {
+		name      string
+		data      *Data
+		expectErr bool
+	}{
+		{
+			name: "normal",
+			data: &Data{
+				ServiceID:            mockServiceId,
+				AlertGroupingType:    "time",
+				AlertGroupingTimeout: 3600,
+			},
+			expectErr: false,
+		},
+	}
+
+	mock := defaultMockApi()
+	defer mock.cleanup()
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := mock.Client.UpdateAlertGrouping(test.data)
 			if test.expectErr {
 				assert.NotNil(t, err)
 			} else {

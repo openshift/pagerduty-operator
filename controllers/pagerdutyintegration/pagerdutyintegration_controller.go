@@ -212,6 +212,23 @@ func (r *PagerDutyIntegrationReconciler) Reconcile(ctx context.Context, req ctrl
 				reconcileErrors = append(reconcileErrors, err)
 			}
 
+			if pdi.Spec.AlertGroupingParameters != nil {
+				pdData, err := pd.NewData(pdi, cd.Spec.ClusterMetadata.ClusterID, cd.Spec.BaseDomain)
+				if err != nil {
+					reconcileErrors = append(reconcileErrors, err)
+				}
+				err = pdData.ParseClusterConfig(r.Client, cd.ObjectMeta.Namespace, config.Name(pdi.Spec.ServicePrefix, cd.Name, config.ConfigMapSuffix))
+				if err != nil {
+					reconcileErrors = append(reconcileErrors, err)
+				}
+				if pdData.AlertGroupingType != pdi.Spec.AlertGroupingParameters.Type || pdData.AlertGroupingTimeout != pdi.Spec.AlertGroupingParameters.Config.Timeout {
+					err = r.handleUpdate(pdClient, pdi, &cd)
+					if err != nil {
+						reconcileErrors = append(reconcileErrors, err)
+					}
+				}
+			}
+
 			// Do nothing if the orchestration is not enabled and leave it as default for now
 			if pdi.Spec.ServiceOrchestration.Enabled {
 				if err := r.handleServiceOrchestration(pdClient, pdi, &cd); err != nil {

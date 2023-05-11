@@ -44,6 +44,19 @@ spec:
                   or setting this field to 0 will disable the feature.
                 minimum: 0
                 type: integer
+              alertGroupingParameters:
+                description: Configures alert grouping for PD services
+                properties:
+                  config:
+                    description: AlertGroupingParametersConfigSpec defines the specifics
+                      for how an alert grouping type should behave
+                    properties:
+                      timeout:
+                        type: integer
+                    type: object
+                  type:
+                    type: string
+                type: object
               clusterDeploymentSelector:
                 description: A label selector used to find which clusterdeployment
                   CRs receive a PD integration based on this configuration.

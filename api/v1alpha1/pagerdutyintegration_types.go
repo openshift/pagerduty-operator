@@ -53,6 +53,9 @@ type PagerDutyIntegrationSpec struct {
 
 	//  The status of the serviceOrchestration and the referenced configmap resource
 	ServiceOrchestration ServiceOrchestration `json:"serviceOrchestration,omitempty"`
+
+	// Configures alert grouping for PD services
+	AlertGroupingParameters *AlertGroupingParametersSpec `json:"alertGroupingParameters,omitempty"`
 }
 
 // ServiceOrchestration defines if the service orchestration is enabled
@@ -60,6 +63,18 @@ type PagerDutyIntegrationSpec struct {
 type ServiceOrchestration struct {
 	Enabled                bool                    `json:"enabled"`
 	RuleConfigConfigMapRef *corev1.ObjectReference `json:"ruleConfigConfigMapRef,omitempty"`
+}
+
+// AlertGroupingParametersSpec defines the options used for alert grouping
+type AlertGroupingParametersSpec struct {
+	Type   string                             `json:"type,omitempty"`
+	Config *AlertGroupingParametersConfigSpec `json:"config,omitempty"`
+}
+
+// AlertGroupingParametersConfigSpec defines the specifics for how an alert grouping type
+// should behave
+type AlertGroupingParametersConfigSpec struct {
+	Timeout uint `json:"timeout,omitempty"`
 }
 
 // PagerDutyIntegrationStatus defines the observed state of PagerDutyIntegration
