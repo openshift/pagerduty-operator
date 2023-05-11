@@ -3,8 +3,6 @@ package pagerduty
 import (
 	"testing"
 
-	pdApi "github.com/PagerDuty/go-pagerduty"
-
 	pagerdutyv1alpha1 "github.com/openshift/pagerduty-operator/api/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
@@ -86,9 +84,9 @@ func TestNewData(t *testing.T) {
 			pdi: &pagerdutyv1alpha1.PagerDutyIntegration{
 				Spec: pagerdutyv1alpha1.PagerDutyIntegrationSpec{
 					EscalationPolicy: mockEscalationPolicyId,
-					AlertGroupingParameters: &pdApi.AlertGroupingParameters{
+					AlertGroupingParameters: &pagerdutyv1alpha1.AlertGroupingParametersSpec{
 						Type: "time",
-						Config: &pdApi.AlertGroupParamsConfig{
+						Config: &pagerdutyv1alpha1.AlertGroupingParametersConfigSpec{
 							Timeout: 3600,
 						},
 					},

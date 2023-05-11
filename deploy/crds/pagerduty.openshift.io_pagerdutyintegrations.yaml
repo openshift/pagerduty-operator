@@ -48,14 +48,9 @@ spec:
                 description: Configures alert grouping for PD services
                 properties:
                   config:
-                    description: AlertGroupParamsConfig is the config object on alert_grouping_parameters
+                    description: AlertGroupingParametersConfigSpec defines the specifics
+                      for how an alert grouping type should behave
                     properties:
-                      aggregate:
-                        type: string
-                      fields:
-                        items:
-                          type: string
-                        type: array
                       timeout:
                         type: integer
                     type: object
