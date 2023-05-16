@@ -36,6 +36,10 @@ parameters:
   value: "false"
 - name: SERVICE_ORCHESTRATION_RULE_CONFIGMAP
   value: "osd-serviceorchestration"
+- name: ALERT_GROUPING_TYPE
+  value: ""
+- name: ALERT_GROUPING_TIMEOUT
+  value: 0
 objects:
 - apiVersion: operators.coreos.com/v1alpha1
   kind: CatalogSource
@@ -125,6 +129,10 @@ objects:
       ruleConfigConfigMapRef:
         name: ${{SERVICE_ORCHESTRATION_RULE_CONFIGMAP}}
         namespace: pagerduty-operator
+    alertGroupingParameters:
+      type: ${{ALERT_GROUPING_TYPE}}
+      config:
+        timeout: ${{ALERT_GROUPING_TIMEOUT}}
     clusterDeploymentSelector:
       matchExpressions:
       # only create PD service for managed (OSD) clusters
