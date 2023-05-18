@@ -39,7 +39,7 @@ parameters:
 - name: ALERT_GROUPING_TYPE
   value: ""
 - name: ALERT_GROUPING_TIMEOUT
-  value: 0
+  value: "0"
 objects:
 - apiVersion: operators.coreos.com/v1alpha1
   kind: CatalogSource
