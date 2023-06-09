@@ -15,6 +15,7 @@
 package kube
 
 import (
+	"fmt"
 	"strconv"
 
 	corev1 "k8s.io/api/core/v1"
@@ -22,7 +23,7 @@ import (
 )
 
 // GenerateConfigMap returns a configmap that can be created with the oc client
-func GenerateConfigMap(namespace string, cmName string, pdServiceID, pdIntegrationID, pdEscalationPolicyID string, hibernating, limitedSupport, serviceOrchestrationEnabled bool, serviceOrchestrationRuleApplied string) *corev1.ConfigMap {
+func GenerateConfigMap(namespace string, cmName string, pdServiceID, pdIntegrationID, pdEscalationPolicyID string, hibernating, limitedSupport, serviceOrchestrationEnabled bool, serviceOrchestrationRuleApplied, alertGroupingType string, alertGroupingTimeout uint) *corev1.ConfigMap {
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cmName,
@@ -36,6 +37,8 @@ func GenerateConfigMap(namespace string, cmName string, pdServiceID, pdIntegrati
 			"LIMITED_SUPPORT":                    strconv.FormatBool(limitedSupport),
 			"SERVICE_ORCHESTRATION_ENABLED":      strconv.FormatBool(serviceOrchestrationEnabled),
 			"SERVICE_ORCHESTRATION_RULE_APPLIED": serviceOrchestrationRuleApplied,
+			"ALERT_GROUPING_TYPE":                alertGroupingType,
+			"ALERT_GROUPING_TIMEOUT":             fmt.Sprintf("%d", alertGroupingTimeout),
 		},
 	}
 }
