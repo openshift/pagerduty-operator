@@ -215,17 +215,19 @@ func (data *Data) ParseClusterConfig(osc client.Client, namespace string, cmName
 	}
 
 	// allow alert grouping values not to be defined in the configmap
-	data.AlertGroupingType, _ = getConfigMapKey(pdAPIConfigMap.Data, "ALERT_GROUPING_TYPE")
+	// only assign them into the struct if they're present, to avoid zero-setting them
+	alertGroupingType, err := getConfigMapKey(pdAPIConfigMap.Data, "ALERT_GROUPING_TYPE")
+	if err == nil {
+		data.AlertGroupingType = alertGroupingType
+	}
 	agto, err := getConfigMapKey(pdAPIConfigMap.Data, "ALERT_GROUPING_TIMEOUT")
-	if err != nil {
-		// if the alert grouping timeout isn't set in the configmap, default to 0
-		agto = "0"
+	if err == nil {
+		agtou64, err := strconv.ParseUint(agto, 10, 64)
+		if err != nil {
+			return err
+		}
+		data.AlertGroupingTimeout = uint(agtou64)
 	}
-	agtou64, err := strconv.ParseUint(agto, 10, 64)
-	if err != nil {
-		return err
-	}
-	data.AlertGroupingTimeout = uint(agtou64)
 
 	return nil
 }
