@@ -15,8 +15,13 @@
 package pagerdutyintegration
 
 import (
+	"context"
+	"fmt"
+
 	"github.com/openshift/pagerduty-operator/config"
 	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 
 	hivev1 "github.com/openshift/hive/apis/hive/v1"
 	pagerdutyv1alpha1 "github.com/openshift/pagerduty-operator/api/v1alpha1"
@@ -28,20 +33,33 @@ func (r *PagerDutyIntegrationReconciler) handleUpdate(pdclient pd.Client, pdi *p
 		// SERVICE_ID and INTEGRATION_ID
 		configMapName string = config.Name(pdi.Spec.ServicePrefix, cd.Name, config.ConfigMapSuffix)
 	)
+	cm := &corev1.ConfigMap{}
+	err := r.Client.Get(context.TODO(), types.NamespacedName{Namespace: cd.ObjectMeta.Namespace, Name: configMapName}, cm)
+	if err != nil {
+		return nil // requeue and wait for the configmap to be created
+	}
 
-	pdData, err := pd.NewData(pdi, cd.Spec.ClusterMetadata.ClusterID, cd.Spec.BaseDomain)
-	if err != nil {
-		return err
-	}
-	err = pdData.ParseClusterConfig(r.Client, cd.ObjectMeta.Namespace, configMapName)
-	if err != nil {
-		return err
-	}
-	if pdData.AlertGroupingType != pdi.Spec.AlertGroupingParameters.Type || pdData.AlertGroupingTimeout != pdi.Spec.AlertGroupingParameters.Config.Timeout {
+	alertGroupingType := cm.Data["ALERT_GROUPING_TYPE"]
+	alertGroupingTimeout := cm.Data["ALERT_GROUPING_TIMEOUT"]
+
+	if alertGroupingType != pdi.Spec.AlertGroupingParameters.Type || alertGroupingTimeout != fmt.Sprintf("%d", pdi.Spec.AlertGroupingParameters.Config.Timeout) {
+		pdData, err := pd.NewData(pdi, cd.Spec.ClusterMetadata.ClusterID, cd.Spec.BaseDomain)
+		if err != nil {
+			return err
+		}
+		err = pdData.ParseClusterConfig(r.Client, cd.ObjectMeta.Namespace, configMapName)
+		if err != nil {
+			return err
+		}
+
 		err = pdclient.UpdateAlertGrouping(pdData)
 		if err != nil {
 			return err
 		}
+
+		cm.Data["ALERT_GROUPING_TYPE"] = pdi.Spec.AlertGroupingParameters.Type
+		cm.Data["ALERT_GROUPING_TIMEOUT"] = fmt.Sprintf("%d", pdi.Spec.AlertGroupingParameters.Config.Timeout)
+		r.Client.Update(context.TODO(), cm)
 	}
 	return nil
 }
