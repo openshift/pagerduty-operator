@@ -59,7 +59,10 @@ func (r *PagerDutyIntegrationReconciler) handleUpdate(pdclient pd.Client, pdi *p
 
 		cm.Data["ALERT_GROUPING_TYPE"] = pdi.Spec.AlertGroupingParameters.Type
 		cm.Data["ALERT_GROUPING_TIMEOUT"] = fmt.Sprintf("%d", pdi.Spec.AlertGroupingParameters.Config.Timeout)
-		r.Client.Update(context.TODO(), cm)
+		err = r.Client.Update(context.TODO(), cm)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
