@@ -58,6 +58,10 @@ const (
 	testsecretReferencesName        = "pd-secret"
 	testServicePrefix               = "test-service-prefix"
 	fakeClusterDeploymentAnnotation = "managed.openshift.com/fake"
+	testAlertGroupingType           = "time"
+	testAlertGroupingTimeout        = 60
+	testClusterID                   = "102ff5da-53c7-45a5-8383-a20adbd3a8a4" // generated randomly by uuidgen
+	testBaseDomain                  = "not.a.real.tld"
 )
 
 type SyncSetEntry struct {
@@ -112,7 +116,7 @@ func testPDISecret() *corev1.Secret {
 }
 
 // testCDConfigMap returns a fake configmap for a deployed cluster for testing.
-func testCDConfigMap(isHibernating, hasLimitedSupport, isOrchestrationEnabled, isOrchestrationApplied bool) *corev1.ConfigMap {
+func testCDConfigMap(isHibernating, hasLimitedSupport, isOrchestrationEnabled, isOrchestrationApplied, isAlertGroupingConfigured bool) *corev1.ConfigMap {
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
@@ -127,6 +131,11 @@ func testCDConfigMap(isHibernating, hasLimitedSupport, isOrchestrationEnabled, i
 			"SERVICE_ORCHESTRATION_ENABLED":      strconv.FormatBool(isOrchestrationEnabled),
 			"SERVICE_ORCHESTRATION_RULE_APPLIED": strconv.FormatBool(isOrchestrationApplied),
 		},
+	}
+
+	if isAlertGroupingConfigured {
+		cm.Data["ALERT_GROUPING_TYPE"] = "time"
+		cm.Data["ALERT_GROUPING_TIMEOUT"] = "60"
 	}
 	return cm
 }
@@ -193,6 +202,12 @@ func testPagerDutyIntegration() *pagerdutyv1alpha1.PagerDutyIntegration {
 			Namespace: config.OperatorNamespace,
 		},
 		Spec: pagerdutyv1alpha1.PagerDutyIntegrationSpec{
+			AlertGroupingParameters: &pagerdutyv1alpha1.AlertGroupingParametersSpec{
+				Type: testAlertGroupingType,
+				Config: &pagerdutyv1alpha1.AlertGroupingParametersConfigSpec{
+					Timeout: testAlertGroupingTimeout,
+				},
+			},
 			AcknowledgeTimeout: testAcknowledgeTimeout,
 			ResolveTimeout:     testResolveTimeout,
 			EscalationPolicy:   testEscalationPolicy,
@@ -219,6 +234,12 @@ func testPagerDutyIntegrationWithOrchestration() *pagerdutyv1alpha1.PagerDutyInt
 			Namespace: config.OperatorNamespace,
 		},
 		Spec: pagerdutyv1alpha1.PagerDutyIntegrationSpec{
+			AlertGroupingParameters: &pagerdutyv1alpha1.AlertGroupingParametersSpec{
+				Type: testAlertGroupingType,
+				Config: &pagerdutyv1alpha1.AlertGroupingParametersConfigSpec{
+					Timeout: testAlertGroupingTimeout,
+				},
+			},
 			AcknowledgeTimeout: testAcknowledgeTimeout,
 			ResolveTimeout:     testResolveTimeout,
 			EscalationPolicy:   testEscalationPolicy,
@@ -252,6 +273,12 @@ func testPagerDutyIntegrationWithoutRuleConfigmapRef() *pagerdutyv1alpha1.PagerD
 			Namespace: config.OperatorNamespace,
 		},
 		Spec: pagerdutyv1alpha1.PagerDutyIntegrationSpec{
+			AlertGroupingParameters: &pagerdutyv1alpha1.AlertGroupingParametersSpec{
+				Type: testAlertGroupingType,
+				Config: &pagerdutyv1alpha1.AlertGroupingParametersConfigSpec{
+					Timeout: testAlertGroupingTimeout,
+				},
+			},
 			AcknowledgeTimeout: testAcknowledgeTimeout,
 			ResolveTimeout:     testResolveTimeout,
 			EscalationPolicy:   testEscalationPolicy,
@@ -296,6 +323,10 @@ func testClusterDeployment(isInstalled bool, isManaged bool, hasFinalizer bool, 
 		},
 		Spec: hivev1.ClusterDeploymentSpec{
 			ClusterName: testClusterName,
+			ClusterMetadata: &hivev1.ClusterMetadata{
+				ClusterID: testClusterID,
+			},
+			BaseDomain: testBaseDomain,
 		},
 	}
 	cd.Spec.Installed = isInstalled
@@ -443,7 +474,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testClusterDeployment(true, true, true, false, false, false, false),
 				testPDISecret(),
 				testPagerDutyIntegration(),
-				testCDConfigMap(false, false, false, false),
+				testCDConfigMap(false, false, false, false, true),
 				testCDSyncSet(),
 				testCDSecret(),
 			},
@@ -485,7 +516,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testClusterDeployment(true, true, true, false, false, false, false),
 				testPDISecret(),
 				testPagerDutyIntegration(),
-				testCDConfigMap(false, false, false, false),
+				testCDConfigMap(false, false, false, false, true),
 				testCDSecret(),
 			},
 			expectPDSetup: true,
@@ -503,7 +534,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testClusterDeployment(true, true, true, false, false, false, false),
 				testPDISecret(),
 				testPagerDutyIntegration(),
-				testCDConfigMap(false, false, false, false),
+				testCDConfigMap(false, false, false, false, true),
 				testCDSyncSet(),
 				testCDSecret(),
 			},
@@ -536,7 +567,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testClusterDeployment(true, true, true, true, false, false, false),
 				testPDISecret(),
 				testPagerDutyIntegration(),
-				testCDConfigMap(false, false, false, false),
+				testCDConfigMap(false, false, false, false, true),
 				testCDSyncSet(),
 				testCDSecret(),
 			},
@@ -596,7 +627,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testClusterDeployment(true, false, true, false, false, false, false),
 				testPDISecret(),
 				testPagerDutyIntegration(),
-				testCDConfigMap(false, false, false, false),
+				testCDConfigMap(false, false, false, false, true),
 				testCDSyncSet(),
 				testCDSecret(),
 			},
@@ -614,7 +645,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testClusterDeployment(true, false, true, false, false, false, false),
 				testPDISecret(),
 				testPagerDutyIntegration(),
-				testCDConfigMap(false, false, false, false),
+				testCDConfigMap(false, false, false, false, true),
 				testCDSyncSet(),
 				testCDSecret(),
 			},
@@ -646,7 +677,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testClusterDeployment(true, false, true, true, false, false, false),
 				testPDISecret(),
 				testPagerDutyIntegration(),
-				testCDConfigMap(false, false, false, false),
+				testCDConfigMap(false, false, false, false, true),
 				testCDSyncSet(),
 				testCDSecret(),
 			},
@@ -700,7 +731,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testClusterDeployment(true, true, true, false, false, false, false),
 				testPDISecret(),
 				testPagerDutyIntegration(),
-				testCDConfigMap(true, false, false, false),
+				testCDConfigMap(true, false, false, false, true),
 				testCDSyncSet(),
 				testCDSecret(),
 			},
@@ -718,7 +749,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testClusterDeployment(true, true, true, false, true, false, false),
 				testPDISecret(),
 				testPagerDutyIntegration(),
-				testCDConfigMap(false, false, false, false),
+				testCDConfigMap(false, false, false, false, true),
 				testCDSyncSet(),
 				testCDSecret(),
 			},
@@ -738,7 +769,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testCDSecret(),
 				testCDSyncSet(),
 				testPagerDutyIntegration(),
-				testCDConfigMap(false, false, false, false),
+				testCDConfigMap(false, false, false, false, true),
 			},
 			expectPDSetup: true,
 			setupPDMock: func(r *pd.MockClientMockRecorder) {
@@ -756,7 +787,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testCDSecret(),
 				testCDSyncSet(),
 				testPagerDutyIntegration(),
-				testCDConfigMap(false, true, false, false),
+				testCDConfigMap(false, true, false, false, true),
 			},
 			expectPDSetup: true,
 			setupPDMock: func(r *pd.MockClientMockRecorder) {
@@ -788,7 +819,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testClusterDeployment(true, true, true, false, false, false, false),
 				testPDISecret(),
 				updatedTestPagerDutyIntegration(),
-				testCDConfigMap(false, false, false, false),
+				testCDConfigMap(false, false, false, false, true),
 				testCDSyncSet(),
 				testCDSecret(),
 			},
@@ -1025,6 +1056,24 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				r.DeleteService(gomock.Any()).Return(nil).Times(0)
 				r.DisableService(gomock.Any()).Return(nil).Times(0)
 				r.EnableService(gomock.Any()).Return(nil).Times(0)
+			},
+		},
+		{
+			name: "Test Managed, Finalizer, Not Deleting, PD Setup, Alert Grouping Not Configured",
+			localObjects: []runtime.Object{
+				testClusterDeployment(true, true, true, false, false, false, false),
+				testPDISecret(),
+				testPagerDutyIntegration(),
+				testCDConfigMap(false, false, false, false, false),
+				testCDSyncSet(),
+				testCDSecret(),
+			},
+			expectPDSetup: true,
+			setupPDMock: func(r *pd.MockClientMockRecorder) {
+				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
+				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
+				r.DeleteService(gomock.Any()).Return(nil).Times(0)
+				r.UpdateAlertGrouping(gomock.Any()).Return(nil)
 			},
 		},
 	}
