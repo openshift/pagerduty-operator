@@ -47,6 +47,8 @@ objects:
     name: pagerduty-operator-catalog
   spec:
     sourceType: grpc
+    grpcPodConfig:
+      securityContextConfig: restricted
     image: ${REPO_DIGEST}
     displayName: pagerduty-operator Registry
     publisher: SRE
