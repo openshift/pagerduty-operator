@@ -28,6 +28,9 @@ import (
 )
 
 func (r *PagerDutyIntegrationReconciler) handleUpdate(pdclient pd.Client, pdi *pagerdutyv1alpha1.PagerDutyIntegration, cd *hivev1.ClusterDeployment) error {
+	if pdi.Spec.AlertGroupingParameters == nil {
+		return nil
+	}
 	var (
 		// configMapName is the name of the ConfigMap containing the
 		// SERVICE_ID and INTEGRATION_ID
