@@ -11,6 +11,7 @@ objects:
 - apiVersion: v1
   data:
     service-orchestration.json: ${SERVICE_ORCHESTRATION_RULES}
+    rh-infra-service-orchestration.json: ${RH_INFRA_SERVICE_ORCHESTRATION_RULES}
   kind: ConfigMap
   metadata:
     name: ${SERVICE_ORCHESTRATION_RULE_CONFIGMAP}

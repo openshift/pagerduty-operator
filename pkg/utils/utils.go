@@ -141,3 +141,31 @@ func GetClusterID(cd *hivev1.ClusterDeployment) string {
 		return cd.Spec.ClusterName
 	}
 }
+
+// IsRedHatHyperShiftInfrastructure returns whether or not a cluster is part of the Red Hat HyperShift infrastructure
+func IsRedHatHyperShiftInfrastructure(cd *hivev1.ClusterDeployment) bool {
+	// hypershiftClusterTypeLabel is the annotation key for the hypershift cluster type
+	hypershiftClusterTypeLabel := "ext-hypershift.openshift.io/cluster-type"
+
+	// hypershiftInfrastructureClusterTypes are the values of the hypershiftClusterTypeLabel key
+	// that represent critical Red Hat infrastructure clusters
+	hypershiftInfrastructureClusterTypes := []string{"service-cluster", "management-cluster"}
+
+	val, ok := cd.Labels[hypershiftClusterTypeLabel]
+	if ok && Contains(hypershiftInfrastructureClusterTypes, val) {
+		return true
+	}
+
+	return false
+}
+
+// Contains returns true if a slice contains a string, otherwise false
+func Contains(s []string, str string) bool {
+	for _, v := range s {
+		if v == str {
+			return true
+		}
+	}
+
+	return false
+}
