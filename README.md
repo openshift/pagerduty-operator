@@ -88,7 +88,7 @@ Continue to [Create PagerDutyIntegration](#create-pagerdutyintegration).
 Build local code modifications and push image to your own quay.io account.
 
 ```terminal
-$ /usr/bin/podman build --pull -f build/Dockerfile -t quay.io/<userid>/pagerduty-operator:latest .
+$ ALLOW_DIRTY_CHECKOUT=true IMAGE_REPOSITORY=${USER_ID} make docker-build
 [...]
 Successfully tagged quay.io/<userid>/pagerduty-operator:latest
 
