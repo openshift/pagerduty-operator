@@ -7,7 +7,7 @@
     - [Set up local openshift cluster](#set-up-local-openshift-cluster)
     - [Deploy dependencies](#deploy-dependencies)
     - [Option 1: Run pagerduty-operator outside of OpenShift](#option-1-run-pagerduty-operator-outside-of-openshift)
-    - [Option 2: Run local built operator in minishift](#option-2-run-local-built-operator-in-minishift)
+    - [Option 2: Run local built operator in CRC](#option-2-run-local-built-operator-in-crc)
       - [Generate secret with quay.io creds](#generate-secret-with-quayio-creds)
       - [Deploy pagerduty-operator from custom repo](#deploy-pagerduty-operator-from-custom-repo)
     - [Create PagerDutyIntegration](#create-pagerdutyintegration)
@@ -32,7 +32,7 @@ This operator runs on [Hive](https://github.com/openshift/hive) and watches for 
 
 ### Set up local openshift cluster
 
-For example install [minishift](https://github.com/minishift/minishift) as described in its readme.
+For example install [crc](http://crc.dev/crc/getting_started/getting_started/introducing/) as described in its documentation.
 
 
 ### Deploy dependencies
@@ -50,7 +50,7 @@ $ oc apply -f manifests/01-namespace.yaml
 $ oc apply -f manifests/02-role.yaml
 $ oc apply -f manifests/03-service_account.yaml
 $ oc apply -f manifests/04-role_binding.yaml
-$ oc apply -f deploy/crds/pagerduty_v1alpha1_pagerdutyintegration_crd.yaml
+$ oc apply -f deploy/crds/pagerduty.openshift.io_pagerdutyintegrations.yaml
 ```
 
 
@@ -83,18 +83,17 @@ $ oc create namespace pagerduty-operator
 
 Continue to [Create PagerDutyIntegration](#create-pagerdutyintegration).
 
-### Option 2: Run local built operator in minishift
+### Option 2: Run local built operator in CRC
 
 Build local code modifications and push image to your own quay.io account.
 
 ```terminal
-$ make docker-build
+$ ALLOW_DIRTY_CHECKOUT=true IMAGE_REPOSITORY=${USER_ID} make docker-build
 [...]
-Successfully tagged quay.io/<userid>/pagerduty-operator:v0.1.129-057ffd29
+Successfully tagged quay.io/<userid>/pagerduty-operator:latest
 
-$ docker tag quay.io/<userid>/pagerduty-operator:v0.1.129-057ffd29 Successfully tagged quay.io/{userid}/pagerduty-operator:latest
-$ docker login quay.io
-$ docker push quay.io/<userid>/pagerduty-operator:latest
+$ podman login quay.io
+$ podman push quay.io/<userid>/pagerduty-operator:latest
 ```
 
 #### Generate secret with quay.io creds
@@ -129,10 +128,19 @@ Deploy modified operator manifest
 ```terminal
 $ oc apply -f path/to/modified/operator.yaml
 ```
+
+**Note:**  In some cases, the `pagerduty-operator` pod in the `pagerduty-operator` namespace doesn't start with the following error:
+
+```terminal 
+Warning  FailedScheduling  3m5s  default-scheduler  0/1 nodes are available: 1 Insufficient memory. preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod.
+```
+
+To remedy this, lower the requested resources in the `manifests/05-operator.yaml` deployment (e.g. lower memory from 2G to 0.5G).
+
 ### Create PagerDutyIntegration
 
 There's an example at
-`deploy/examples/pagerduty_v1alpha1_pagerdutyintegration_cr.yaml` that
+`deploy-extras/pagerduty_v1alpha1_pagerdutyintegration_cr.yaml` that
 you can edit and apply to your cluster.
 
 You'll need to use a valid escalation policy ID from your PagerDuty account. You
