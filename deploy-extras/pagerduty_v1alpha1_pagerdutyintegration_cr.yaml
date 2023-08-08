@@ -2,6 +2,7 @@ apiVersion: pagerduty.openshift.io/v1alpha1
 kind: PagerDutyIntegration
 metadata:
   name: example-pagerdutyintegration
+  namespace: pagerduty-operator
 spec:
   acknowledgeTimeout: 21600
   resolveTimeout: 0
