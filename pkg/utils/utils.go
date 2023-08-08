@@ -142,8 +142,8 @@ func GetClusterID(cd *hivev1.ClusterDeployment) string {
 	}
 }
 
-// IsRedHatHyperShiftInfrastructure returns whether or not a cluster is part of the Red Hat HyperShift infrastructure
-func IsRedHatHyperShiftInfrastructure(cd *hivev1.ClusterDeployment) bool {
+// IsRedHatInfrastructure returns whether or not a cluster is part of the Red Hat infrastructure
+func IsRedHatInfrastructure(cd *hivev1.ClusterDeployment) bool {
 	// hypershiftClusterTypeLabel is the annotation key for the hypershift cluster type
 	hypershiftClusterTypeLabel := "ext-hypershift.openshift.io/cluster-type"
 

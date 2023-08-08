@@ -100,7 +100,7 @@ func (r *PagerDutyIntegrationReconciler) handleServiceOrchestration(pdclient pd.
 
 	orchestrationRuleConfigData := ""
 
-	if utils.IsRedHatHyperShiftInfrastructure(cd) {
+	if utils.IsRedHatInfrastructure(cd) {
 		orchestrationRuleConfigData, err = utils.LoadConfigMapData(r.Client,
 			serviceOrchestrationConfigMap, RedHatInfraServiceOrchestrationDataName)
 
