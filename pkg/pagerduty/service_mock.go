@@ -8,9 +8,11 @@ package pagerduty
 import (
 	"encoding/json"
 	"fmt"
-	pd "github.com/PagerDuty/go-pagerduty"
 	"net/http"
 	"net/http/httptest"
+
+	pd "github.com/PagerDuty/go-pagerduty"
+	"github.com/openshift/pagerduty-operator/pkg/utils"
 )
 
 const (
@@ -490,7 +492,7 @@ func processListIncidentAlertsQueryParams(queries map[string][]string, alerts ma
 	}
 
 	for _, alert := range alerts["alerts"] {
-		if contains(statuses, alert.Status) {
+		if utils.Contains(statuses, alert.Status) {
 			filteredAlerts["alerts"] = append(filteredAlerts["alerts"], alert)
 		}
 	}
@@ -513,21 +515,10 @@ func processListIncidentsQueryParams(queries map[string][]string, incidents map[
 	}
 
 	for _, inc := range incidents["incidents"] {
-		if contains(serviceIds, inc.Service.ID) && contains(statuses, inc.Status) {
+		if utils.Contains(serviceIds, inc.Service.ID) && utils.Contains(statuses, inc.Status) {
 			filteredIncidents["incidents"] = append(filteredIncidents["incidents"], inc)
 		}
 	}
 
 	return filteredIncidents
-}
-
-// contains returns true if a slice contains a string, otherwise false
-func contains(s []string, str string) bool {
-	for _, v := range s {
-		if v == str {
-			return true
-		}
-	}
-
-	return false
 }
