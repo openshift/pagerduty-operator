@@ -386,7 +386,7 @@ func (c *SvcClient) EnableService(data *Data) error {
 		service.Status = "active"
 		_, err = c.PdClient.UpdateService(*service)
 		if err != nil {
-			return fmt.Errorf("unable to update service ID %v: %w", data.ServiceID, err)
+			return fmt.Errorf("failed to enable service: unable to update service ID %v: %w", data.ServiceID, err)
 		}
 	}
 
@@ -411,7 +411,7 @@ func (c *SvcClient) DisableService(data *Data) error {
 	if service.Status != "disabled" {
 		service.Status = "disabled"
 		if _, err = c.PdClient.UpdateService(*service); err != nil {
-			return fmt.Errorf("unable to update service ID %v: %w", data.ServiceID, err)
+			return fmt.Errorf("failed to disable service: unable to update service ID %v: %w", data.ServiceID, err)
 		}
 	}
 
@@ -484,7 +484,7 @@ func (c *SvcClient) UpdateEscalationPolicy(data *Data) error {
 
 	_, err = c.PdClient.UpdateService(*service)
 	if err != nil {
-		return fmt.Errorf("unable to update service %v: %w", data.ServiceID, err)
+		return fmt.Errorf("failed to update escalation policy: unable to update service %v: %w", data.ServiceID, err)
 	}
 
 	return nil
@@ -506,7 +506,7 @@ func (c *SvcClient) UpdateAlertGrouping(data *Data) error {
 
 	_, err = c.PdClient.UpdateService(*service)
 	if err != nil {
-		return fmt.Errorf("unable to update service %v: %w", data.ServiceID, err)
+		return fmt.Errorf("failed to update alert grouping: unable to update service %v: %w", data.ServiceID, err)
 	}
 
 	return nil
