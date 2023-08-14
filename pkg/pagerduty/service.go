@@ -497,12 +497,9 @@ func (c *SvcClient) UpdateAlertGrouping(data *Data) error {
 		return fmt.Errorf("unable to get service with ID %v: %w", data.ServiceID, err)
 	}
 
-	service.AlertGroupingParameters = &pdApi.AlertGroupingParameters{
-		Type: data.AlertGroupingType,
-		Config: &pdApi.AlertGroupParamsConfig{
-			Timeout: data.AlertGroupingTimeout,
-		},
-	}
+	// According to https://developer.pagerduty.com/api-reference/b3A6Mjc0ODIwMA-update-a-service
+	service.AlertGrouping = "time"
+	service.AlertGroupingTimeout = &data.AlertGroupingTimeout
 
 	_, err = c.PdClient.UpdateService(*service)
 	if err != nil {
