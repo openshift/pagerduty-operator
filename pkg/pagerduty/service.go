@@ -214,20 +214,9 @@ func (data *Data) ParseClusterConfig(osc client.Client, namespace string, cmName
 		data.ServiceOrchestrationRuleApplied = ""
 	}
 
-	// allow alert grouping values not to be defined in the configmap
-	// only assign them into the struct if they're present, to avoid zero-setting them
-	alertGroupingType, err := getConfigMapKey(pdAPIConfigMap.Data, "ALERT_GROUPING_TYPE")
-	if err == nil {
-		data.AlertGroupingType = alertGroupingType
-	}
-	agto, err := getConfigMapKey(pdAPIConfigMap.Data, "ALERT_GROUPING_TIMEOUT")
-	if err == nil {
-		agtou64, err := strconv.ParseUint(agto, 10, 64)
-		if err != nil {
-			return err
-		}
-		data.AlertGroupingTimeout = uint(agtou64)
-	}
+	// Don't parse the alert grouping parameters from the configmap because we will always want to use the values from
+	// the pagerdutyintegration for configuration. Saving the values to the configmap is done as a way to avoid hitting
+	// the API rate limit
 
 	return nil
 }
@@ -506,7 +495,7 @@ func (c *SvcClient) UpdateAlertGrouping(data *Data) error {
 
 	_, err = c.PdClient.UpdateService(*service)
 	if err != nil {
-		return fmt.Errorf("failed to update alert grouping: unable to update service %v: %w", data.ServiceID, err)
+		return fmt.Errorf("failed to update alert grouping: unable to update service %v with config %v: %w", data.ServiceID, service.AlertGroupingParameters, err)
 	}
 
 	return nil
