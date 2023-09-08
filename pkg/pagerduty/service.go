@@ -506,7 +506,7 @@ func (c *SvcClient) UpdateAlertGrouping(data *Data) error {
 
 	_, err = c.PdClient.UpdateService(*service)
 	if err != nil {
-		return fmt.Errorf("failed to update alert grouping: unable to update service %v: %w", data.ServiceID, err)
+		return fmt.Errorf("failed to update alert grouping: unable to update service %v with config %v: %w", data.ServiceID, service.AlertGroupingParameters, err)
 	}
 
 	return nil
