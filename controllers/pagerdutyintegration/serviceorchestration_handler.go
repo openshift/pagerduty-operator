@@ -128,7 +128,6 @@ func (r *PagerDutyIntegrationReconciler) handleServiceOrchestration(pdclient pd.
 	if pdData.ServiceOrchestrationRuleApplied != orchestrationRuleConfigData {
 		// Apply rule for new service
 		pdData.ServiceOrchestrationRuleApplied = orchestrationRuleConfigData
-
 		r.reqLogger.Info(fmt.Sprintf("applying the service orchestration rules from configmap: %s",
 			orchestrationConfigmapName))
 		err = pdclient.ApplyServiceOrchestrationRule(pdData)

@@ -443,15 +443,23 @@ func (c *SvcClient) ApplyServiceOrchestrationRule(data *Data) error {
 
 // pdHttpRequest is a wrapper func to help send the PD http request
 func (c *SvcClient) pdHttpRequest(method string, reqUrl string, payload *strings.Reader) error {
-	req, _ := http.NewRequest(method, reqUrl, payload)
+	req, err := http.NewRequest(method, reqUrl, payload)
+	if err != nil {
+		return fmt.Errorf("unable to create new http request: %w", err)
+	}
+
 	req.Header.Add("Accept", "application/vnd.pagerduty+json;version=2")
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Authorization", fmt.Sprintf("Token token=%s", c.APIKey))
 
-	_, err := http.DefaultClient.Do(req)
-
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
+	}
+
+	statusOK := resp.StatusCode >= 200 && resp.StatusCode < 300
+	if !statusOK {
+		return fmt.Errorf("failed pdHttpRequest, returned status code is non 2xx: Status: %s", resp.Status)
 	}
 
 	return nil
