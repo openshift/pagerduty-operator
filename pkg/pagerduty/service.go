@@ -529,7 +529,7 @@ func (c *SvcClient) resolvePendingIncidents(data *Data) error {
 					alert.Integration.ID, incident.ID, data.ServiceID, err)
 			}
 
-			err = c.resolveAlert(integration.IntegrationKey, alert.AlertKey)
+			err = c.resolveAlert(integration.IntegrationKey, alert.AlertKey, data.LimitedSupport)
 			if err != nil {
 				return fmt.Errorf("unable to resolve alert %v for incident %v, service %v: %w",
 					alert.AlertKey, incident.ID, data.ServiceID, err)
@@ -637,13 +637,18 @@ func generatePDServiceDescription(data *Data) string {
 // Each service can contain many integration keys, which represent specific integrations
 // enabled for a service. The integration key for the integration that generated the alert
 // identified by the alertKey must be used to successfully delete the alert.
-func (c *SvcClient) resolveAlert(integrationKey, alertKey string) error {
+func (c *SvcClient) resolveAlert(integrationKey, alertKey string, limitedSupport bool) error {
+	summary := "Cluster does not exist anymore"
+
+	if limitedSupport {
+		summary = "The cluster has been placed in limited support"
+	}
 	event := &pdApi.V2Event{
 		RoutingKey: integrationKey,
 		Action:     "resolve",
 		DedupKey:   alertKey,
 		Payload: &pdApi.V2Payload{
-			Summary:  "Cluster does not exist anymore",
+			Summary:  summary,
 			Source:   "pagerduty-operator",
 			Severity: "info",
 		},
