@@ -349,7 +349,7 @@ func (c *SvcClient) createIntegration(serviceId, name, integrationType string) (
 
 // DeleteService will get a service from the PD api and delete it
 func (c *SvcClient) DeleteService(data *Data) error {
-	err := c.resolvePendingIncidents(data)
+	err := c.resolvePendingIncidents(data, AlertResolvedSummaryDeleted)
 	if err != nil {
 		return fmt.Errorf("unable to resolve pending incidents for service ID %v: %w", data.ServiceID, err)
 	}
@@ -390,8 +390,13 @@ func (c *SvcClient) DisableService(data *Data) error {
 	if err != nil {
 		return fmt.Errorf("unable to get service with ID %v: %w", data.ServiceID, err)
 	}
+	summary := AlertResolvedSummaryDeleted
 
-	if err := c.resolvePendingIncidents(data); err != nil {
+	if data.LimitedSupport {
+		summary = AlertResolvedSummaryLimitedSupport
+	}
+
+	if err := c.resolvePendingIncidents(data, summary); err != nil {
 		return fmt.Errorf("unable to resolve pending incidents for service ID %v: %w", data.ServiceID, err)
 	}
 
@@ -512,7 +517,7 @@ func (c *SvcClient) UpdateAlertGrouping(data *Data) error {
 }
 
 // resolvePendingIncidents loops over all unresolved incidents to resolve all contained alerts
-func (c *SvcClient) resolvePendingIncidents(data *Data) error {
+func (c *SvcClient) resolvePendingIncidents(data *Data, summary string) error {
 	incidents, err := c.getUnresolvedIncidents(data)
 	if err != nil {
 		return fmt.Errorf("unable to get unresolved incidents for service %v: %w", data.ServiceID, err)
@@ -529,12 +534,6 @@ func (c *SvcClient) resolvePendingIncidents(data *Data) error {
 			if err != nil {
 				return fmt.Errorf("unable to get integration %v for incident %v, service %v: %w",
 					alert.Integration.ID, incident.ID, data.ServiceID, err)
-			}
-
-			summary := AlertResolvedSummaryDeleted
-
-			if data.LimitedSupport {
-				summary = AlertResolvedSummaryLimitedSupport
 			}
 
 			err = c.resolveAlert(integration.IntegrationKey, alert.AlertKey, summary)
