@@ -32,7 +32,9 @@ import (
 )
 
 const (
-	apiEndpoint = "https://api.pagerduty.com/"
+	apiEndpoint                        string = "https://api.pagerduty.com/"
+	AlertResolvedSummaryDeleted        string = "Cluster does not exist anymore"
+	AlertResolvedSummaryLimitedSupport string = "The cluster has been placed in limited support"
 )
 
 func getConfigMapKey(data map[string]string, key string) (string, error) {
@@ -529,10 +531,10 @@ func (c *SvcClient) resolvePendingIncidents(data *Data) error {
 					alert.Integration.ID, incident.ID, data.ServiceID, err)
 			}
 
-			summary := "Cluster does not exist anymore"
+			summary := AlertResolvedSummaryDeleted
 
 			if data.LimitedSupport {
-				summary = "The cluster has been placed in limited support"
+				summary = AlertResolvedSummaryLimitedSupport
 			}
 
 			err = c.resolveAlert(integration.IntegrationKey, alert.AlertKey, summary)
