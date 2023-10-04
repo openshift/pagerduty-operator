@@ -636,7 +636,8 @@ func generatePDServiceDescription(data *Data) string {
 // resolveAlert sends an event to the V2 Events API to (eventually) resolve a specific alert.
 // Each service can contain many integration keys, which represent specific integrations
 // enabled for a service. The integration key for the integration that generated the alert
-// identified by the alertKey must be used to successfully delete the alert.
+// identified by the alertKey must be used to successfully delete the alert. If the cluster
+// is in limited support, the summary is updated to reflect this as the reason for resolution.
 func (c *SvcClient) resolveAlert(integrationKey, alertKey string, limitedSupport bool) error {
 	summary := "Cluster does not exist anymore"
 
