@@ -32,7 +32,9 @@ import (
 )
 
 const (
-	apiEndpoint = "https://api.pagerduty.com/"
+	apiEndpoint                        string = "https://api.pagerduty.com/"
+	AlertResolvedSummaryDeleted        string = "Cluster does not exist anymore"
+	AlertResolvedSummaryLimitedSupport string = "The cluster has been placed in limited support"
 )
 
 func getConfigMapKey(data map[string]string, key string) (string, error) {
@@ -347,7 +349,7 @@ func (c *SvcClient) createIntegration(serviceId, name, integrationType string) (
 
 // DeleteService will get a service from the PD api and delete it
 func (c *SvcClient) DeleteService(data *Data) error {
-	err := c.resolvePendingIncidents(data)
+	err := c.resolvePendingIncidents(data, AlertResolvedSummaryDeleted)
 	if err != nil {
 		return fmt.Errorf("unable to resolve pending incidents for service ID %v: %w", data.ServiceID, err)
 	}
@@ -388,8 +390,13 @@ func (c *SvcClient) DisableService(data *Data) error {
 	if err != nil {
 		return fmt.Errorf("unable to get service with ID %v: %w", data.ServiceID, err)
 	}
+	summary := AlertResolvedSummaryDeleted
 
-	if err := c.resolvePendingIncidents(data); err != nil {
+	if data.LimitedSupport {
+		summary = AlertResolvedSummaryLimitedSupport
+	}
+
+	if err := c.resolvePendingIncidents(data, summary); err != nil {
 		return fmt.Errorf("unable to resolve pending incidents for service ID %v: %w", data.ServiceID, err)
 	}
 
@@ -510,7 +517,7 @@ func (c *SvcClient) UpdateAlertGrouping(data *Data) error {
 }
 
 // resolvePendingIncidents loops over all unresolved incidents to resolve all contained alerts
-func (c *SvcClient) resolvePendingIncidents(data *Data) error {
+func (c *SvcClient) resolvePendingIncidents(data *Data, summary string) error {
 	incidents, err := c.getUnresolvedIncidents(data)
 	if err != nil {
 		return fmt.Errorf("unable to get unresolved incidents for service %v: %w", data.ServiceID, err)
@@ -529,7 +536,7 @@ func (c *SvcClient) resolvePendingIncidents(data *Data) error {
 					alert.Integration.ID, incident.ID, data.ServiceID, err)
 			}
 
-			err = c.resolveAlert(integration.IntegrationKey, alert.AlertKey)
+			err = c.resolveAlert(integration.IntegrationKey, alert.AlertKey, summary)
 			if err != nil {
 				return fmt.Errorf("unable to resolve alert %v for incident %v, service %v: %w",
 					alert.AlertKey, incident.ID, data.ServiceID, err)
@@ -636,14 +643,15 @@ func generatePDServiceDescription(data *Data) string {
 // resolveAlert sends an event to the V2 Events API to (eventually) resolve a specific alert.
 // Each service can contain many integration keys, which represent specific integrations
 // enabled for a service. The integration key for the integration that generated the alert
-// identified by the alertKey must be used to successfully delete the alert.
-func (c *SvcClient) resolveAlert(integrationKey, alertKey string) error {
+// identified by the alertKey must be used to successfully delete the alert. The summary passed
+// in will be the resolution message for the alert.
+func (c *SvcClient) resolveAlert(integrationKey, alertKey, summary string) error {
 	event := &pdApi.V2Event{
 		RoutingKey: integrationKey,
 		Action:     "resolve",
 		DedupKey:   alertKey,
 		Payload: &pdApi.V2Payload{
-			Summary:  "Cluster does not exist anymore",
+			Summary:  summary,
 			Source:   "pagerduty-operator",
 			Severity: "info",
 		},

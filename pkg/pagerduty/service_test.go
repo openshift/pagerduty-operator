@@ -546,6 +546,7 @@ func TestSvcClient_ResolvePendingIncidents(t *testing.T) {
 		name      string
 		data      *Data
 		expectErr bool
+		summary   string
 	}{
 		{
 			name: "Resolve mockServiceId incidents",
@@ -553,6 +554,7 @@ func TestSvcClient_ResolvePendingIncidents(t *testing.T) {
 				ServiceID: mockServiceId,
 			},
 			expectErr: false,
+			summary:   "Resolving mock incidents",
 		},
 	}
 
@@ -561,7 +563,7 @@ func TestSvcClient_ResolvePendingIncidents(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			err := mock.Client.resolvePendingIncidents(test.data)
+			err := mock.Client.resolvePendingIncidents(test.data, test.summary)
 			if test.expectErr {
 				assert.NotNil(t, err)
 			} else {
