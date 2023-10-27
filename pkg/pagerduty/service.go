@@ -390,13 +390,8 @@ func (c *SvcClient) DisableService(data *Data) error {
 	if err != nil {
 		return fmt.Errorf("unable to get service with ID %v: %w", data.ServiceID, err)
 	}
-	summary := AlertResolvedSummaryDeleted
 
-	if data.LimitedSupport {
-		summary = AlertResolvedSummaryLimitedSupport
-	}
-
-	if err := c.resolvePendingIncidents(data, summary); err != nil {
+	if err := c.resolvePendingIncidents(data, AlertResolvedSummaryLimitedSupport); err != nil {
 		return fmt.Errorf("unable to resolve pending incidents for service ID %v: %w", data.ServiceID, err)
 	}
 
