@@ -1,0 +1,239 @@
+apiVersion: v1
+kind: Template
+metadata:
+  name: olm-artifacts-template
+
+parameters:
+- name: REGISTRY_IMG
+  required: true
+- name: ACKNOWLEDGE_TIMEOUT
+  required: true
+- name: RESOLVE_TIMEOUT
+  required: true
+- name: SERVICE_PREFIX
+  required: true
+- name: ESCALATION_POLICY
+  required: true
+- name: ESCALATION_POLICY_SILENT
+  required: true
+- name: SILENT_ALERT_LEGALENTITY_IDS
+  value: '["None"]'
+- name: SCALE_TEST_SERVICE_PREFIX
+  required: true
+- name: SCALE_TEST_ESCALATION_POLICY
+  required: true
+- name: SCALE_TEST_LEGALENTITY_IDS
+  value: '["None"]'
+- name: CHANNEL
+  value: staging
+- name: IMAGE_TAG
+  value: latest
+- name: REPO_DIGEST
+  required: true
+- name: FEDRAMP
+  value: "false"
+- name: SERVICE_ORCHESTRATION_ENABLED
+  value: "false"
+- name: SERVICE_ORCHESTRATION_RULE_CONFIGMAP
+  value: "osd-serviceorchestration"
+- name: ALERT_GROUPING_TYPE
+  value: ""
+- name: ALERT_GROUPING_TIMEOUT
+  value: "0"
+objects:
+- apiVersion: operators.coreos.com/v1alpha1
+  kind: CatalogSource
+  metadata:
+    name: pagerduty-operator-catalog
+  spec:
+    sourceType: grpc
+    grpcPodConfig:
+      securityContextConfig: restricted
+    image: ${REPO_DIGEST}
+    displayName: pagerduty-operator Registry
+    publisher: SRE
+
+- apiVersion: operators.coreos.com/v1alpha2
+  kind: OperatorGroup
+  metadata:
+    name: pagerduty-operator-og
+  spec:
+    targetNamespaces:
+    - pagerduty-operator
+
+- apiVersion: operators.coreos.com/v1alpha1
+  kind: Subscription
+  metadata:
+    name: pagerduty-operator
+  spec:
+    channel: ${CHANNEL}
+    name: pagerduty-operator
+    source: pagerduty-operator-catalog
+    sourceNamespace: pagerduty-operator
+    config:
+      env:
+        - name: FEDRAMP
+          value: "${FEDRAMP}"
+
+- apiVersion: pagerduty.openshift.io/v1alpha1
+  kind: PagerDutyIntegration
+  metadata:
+    name: osd-scale-test
+    namespace: pagerduty-operator
+  spec:
+    acknowledgeTimeout: ${{ACKNOWLEDGE_TIMEOUT}}
+    resolveTimeout: ${{RESOLVE_TIMEOUT}}
+    escalationPolicy: ${{SCALE_TEST_ESCALATION_POLICY}}
+    servicePrefix: ${{SCALE_TEST_SERVICE_PREFIX}}
+    pagerdutyApiKeySecretRef:
+      name: pagerduty-api-key
+      namespace: pagerduty-operator
+    clusterDeploymentSelector:
+      matchExpressions:
+      # only create PD service for managed (OSD) clusters
+      - key: api.openshift.com/managed
+        operator: In
+        values: ["true"]
+      # select specific organizations
+      - key: api.openshift.com/legal-entity-id
+        operator: In
+        values: ${{SCALE_TEST_LEGALENTITY_IDS}}
+      # ignore CD for any "nightly" clusters
+      - key: api.openshift.com/channel-group
+        operator: NotIn
+        values: ["nightly"]
+      # ignore CD w/ "legacy" noalerts label
+      - key: api.openshift.com/noalerts
+        operator: NotIn
+        values: ["true"]
+      # ignore CD w/ ext noalerts label
+      - key: ext-managed.openshift.io/noalerts
+        operator: NotIn
+        values: ["true"]
+      - key: api.openshift.com/environment
+        operator: NotIn
+        values:
+          - "integration"
+          - "staging"
+          - "stage"
+    targetSecretRef:
+      name: pd-secret
+      namespace: openshift-monitoring
+- apiVersion: pagerduty.openshift.io/v1alpha1
+  kind: PagerDutyIntegration
+  metadata:
+    name: osd
+    namespace: pagerduty-operator
+  spec:
+    acknowledgeTimeout: ${{ACKNOWLEDGE_TIMEOUT}}
+    resolveTimeout: ${{RESOLVE_TIMEOUT}}
+    escalationPolicy: ${{ESCALATION_POLICY}}
+    servicePrefix: ${{SERVICE_PREFIX}}
+    pagerdutyApiKeySecretRef:
+      name: pagerduty-api-key
+      namespace: pagerduty-operator
+    serviceOrchestration:
+      enabled: ${{SERVICE_ORCHESTRATION_ENABLED}}
+      ruleConfigConfigMapRef:
+        name: ${{SERVICE_ORCHESTRATION_RULE_CONFIGMAP}}
+        namespace: pagerduty-operator
+    alertGroupingParameters:
+      type: ${{ALERT_GROUPING_TYPE}}
+      config:
+        timeout: ${{ALERT_GROUPING_TIMEOUT}}
+    clusterDeploymentSelector:
+      matchExpressions:
+      # only create PD service for managed (OSD) clusters
+      - key: api.openshift.com/managed
+        operator: In
+        values: ["true"]
+      # ignore CD if its a scale test organization, scale test org has its own PDI
+      - key: api.openshift.com/legal-entity-id
+        operator: NotIn
+        values: ${{SCALE_TEST_LEGALENTITY_IDS}}
+      # ignore CD for alerts we wish to route to the silence PD escalation policy
+      - key: api.openshift.com/legal-entity-id
+        operator: NotIn
+        values: ${{SILENT_ALERT_LEGALENTITY_IDS}}
+      # ignore CD for any "nightly" clusters
+      - key: api.openshift.com/channel-group
+        operator: NotIn
+        values: ["nightly"]
+      # ignore CD w/ "legacy" noalerts label
+      - key: api.openshift.com/noalerts
+        operator: NotIn
+        values: ["true"]
+      # ignore CD w/ ext noalerts label
+      - key: ext-managed.openshift.io/noalerts
+        operator: NotIn
+        values: ["true"]
+      - key: api.openshift.com/environment
+        operator: NotIn
+        values:
+          - "integration"
+          - "staging"
+          - "stage"
+    targetSecretRef:
+      name: pd-secret
+      namespace: openshift-monitoring
+- apiVersion: pagerduty.openshift.io/v1alpha1
+  kind: PagerDutyIntegration
+  metadata:
+    name: osd-silent
+    namespace: pagerduty-operator
+  spec:
+    acknowledgeTimeout: ${{ACKNOWLEDGE_TIMEOUT}}
+    resolveTimeout: ${{RESOLVE_TIMEOUT}}
+    escalationPolicy: ${{ESCALATION_POLICY_SILENT}}
+    servicePrefix: ${SERVICE_PREFIX}-silent
+    pagerdutyApiKeySecretRef:
+      name: pagerduty-api-key
+      namespace: pagerduty-operator
+    clusterDeploymentSelector:
+      matchExpressions:
+      # only create PD service for managed (OSD) clusters
+      - key: api.openshift.com/managed
+        operator: In
+        values: ["true"]
+      # ignore CD if its a scale test organization, scale test org has its own PDI
+      - key: api.openshift.com/legal-entity-id
+        operator: NotIn
+        values: ${{SCALE_TEST_LEGALENTITY_IDS}}
+      # for the "silent" PDI, create when CD in specific organizations we ignore in the "osd" (regular) PDI
+      - key: api.openshift.com/legal-entity-id
+        operator: In
+        values: ${{SILENT_ALERT_LEGALENTITY_IDS}}
+      # ignore CD w/ "legacy" noalerts label
+      - key: api.openshift.com/noalerts
+        operator: NotIn
+        values: ["true"]
+      # ignore CD w/ ext noalerts label
+      - key: ext-managed.openshift.io/noalerts
+        operator: NotIn
+        values: ["true"]
+      - key: api.openshift.com/environment
+        operator: NotIn
+        values:
+          - "integration"
+          - "staging"
+          - "stage"
+    targetSecretRef:
+      name: pd-secret
+      namespace: openshift-monitoring
+
+- apiVersion: monitoring.coreos.com/v1
+  kind: PrometheusRule
+  metadata:
+    name: pagerduty-integration-api-secret
+    namespace: pagerduty-operator
+  spec:
+    groups:
+      - name: pagerduty-integration-api-secret
+        rules:
+          - alert: PagerDutyIntegrationAPISecretError
+            annotations:
+              message: PagerDuty Operator is failing to load PAGERDUTY_API_KEY from Secret specified in PagerDutyIntegration {{ $labels.pagerdutyintegration_name }}. Either the Secret might be missing, or the key might be missing from within the Secret.
+            expr: pagerdutyintegration_secret_loaded < 1
+            for: 15m
+            labels:
+              severity: warning
