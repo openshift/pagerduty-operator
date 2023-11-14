@@ -110,9 +110,12 @@ objects:
       - key: ext-managed.openshift.io/noalerts
         operator: NotIn
         values: ["true"]
-      - key: api.openshift.com/fedramp
+      - key: api.openshift.com/environment
         operator: NotIn
-        values: ["true"]
+        values:
+          - "integration"
+          - "staging"
+          - "stage"
     targetSecretRef:
       name: pd-secret
       namespace: openshift-monitoring
@@ -165,8 +168,14 @@ objects:
         operator: NotIn
         values: ["true"]
       - key: api.openshift.com/fedramp
-        operator: NotIn
+        operator: In
         values: ["true"]
+      - key: api.openshift.com/environment
+        operator: NotIn
+        values:
+          - "integration"
+          - "staging"
+          - "stage"
     targetSecretRef:
       name: pd-secret
       namespace: openshift-monitoring
@@ -206,8 +215,14 @@ objects:
         operator: NotIn
         values: ["true"]
       - key: api.openshift.com/fedramp
-        operator: NotIn
+        operator: In
         values: ["true"]
+      - key: api.openshift.com/environment
+        operator: NotIn
+        values:
+          - "integration"
+          - "staging"
+          - "stage"
     targetSecretRef:
       name: pd-secret
       namespace: openshift-monitoring
