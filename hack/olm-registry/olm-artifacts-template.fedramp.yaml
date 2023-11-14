@@ -167,6 +167,9 @@ objects:
       - key: ext-managed.openshift.io/noalerts
         operator: NotIn
         values: ["true"]
+      - key: api.openshift.com/fedramp
+        operator: In
+        values: ["true"]
       - key: api.openshift.com/environment
         operator: NotIn
         values:
@@ -210,6 +213,9 @@ objects:
       # ignore CD w/ ext noalerts label
       - key: ext-managed.openshift.io/noalerts
         operator: NotIn
+        values: ["true"]
+      - key: api.openshift.com/fedramp
+        operator: In
         values: ["true"]
       - key: api.openshift.com/environment
         operator: NotIn
