@@ -39,7 +39,27 @@ func (r *PagerDutyIntegrationReconciler) handleLimitedSupport(pdclient pd.Client
 		hasLimitedSupport = val
 	}
 
+	// Check if cluster has support exception label on ClusterDeployment
+	hasSupportException := false
+	if supportExValue, err := strconv.ParseBool(cd.Labels[config.ClusterDeploymentSupportExceptionLabel]); err == nil {
+		hasSupportException = supportExValue
+	}
+
+	if hasSupportException && pdData.LimitedSupport {
+		// Enable PagerDuty service if the cluster is in limited support
+		r.reqLogger.Info("The cluster has a support exception, re-enabling PagerDuty service", "ClusterID", pdData.ClusterID, "BaseDomain", pdData.BaseDomain)
+		if err := pdclient.EnableService(pdData); err != nil {
+			r.reqLogger.Error(err, "Error re-enabling PagerDuty service")
+			return err
+		}
+	}
+
 	if hasLimitedSupport && !pdData.LimitedSupport {
+		if hasSupportException {
+			// Keep PagerDuty service active even though cluster is in limited support
+			r.reqLogger.Info("The cluster has a support exception, not disabling PagerDuty service", "ClusterID", pdData.ClusterID, "BaseDomain", pdData.BaseDomain)
+			return nil
+		}
 		// Disable PD service and resolve existing service alerts if limited-support label set to true
 		r.reqLogger.Info("The cluster is in limited-support, disabling PagerDuty service", "ClusterID", pdData.ClusterID, "BaseDomain", pdData.BaseDomain)
 		if err := pdclient.DisableService(pdData); err != nil {
