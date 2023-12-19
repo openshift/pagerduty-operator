@@ -51,6 +51,10 @@ const (
 	// ClusterDeploymentLimitedSupportLabel is the label the clusterdeployment will have that determines
 	// if the cluster's pagerduty service needs to enabled/disabled for alerting
 	ClusterDeploymentLimitedSupportLabel string = "api.openshift.com/limited-support"
+
+	// ClusterDeploymentSupportExceptionLabel is the label indicating the cluster is under a support
+	// exception and the PagerDuty service should be enabled even if the cluster is in limited support
+	ClusterDeploymentSupportExceptionLabel string = "ext-managed.openshift.io/support-exception"
 )
 
 // Name is used to generate the name of secondary resources (SyncSets,
