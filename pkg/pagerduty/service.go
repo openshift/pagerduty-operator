@@ -22,6 +22,8 @@ import (
 	"strings"
 	"time"
 
+	"sigs.k8s.io/controller-runtime/pkg/log"
+
 	pdApi "github.com/PagerDuty/go-pagerduty"
 	pagerdutyv1alpha1 "github.com/openshift/pagerduty-operator/api/v1alpha1"
 	"github.com/openshift/pagerduty-operator/config"
@@ -35,6 +37,9 @@ const (
 	apiEndpoint                        string = "https://api.pagerduty.com/"
 	AlertResolvedSummaryDeleted        string = "Cluster does not exist anymore"
 	AlertResolvedSummaryLimitedSupport string = "The cluster has been placed in limited support"
+	integrationName                    string = "V4 Alertmanager"
+	integrationType                    string = "events_api_v2_inbound_integration"
+	integrationRefType                 string = integrationType + "_reference"
 )
 
 func getConfigMapKey(data map[string]string, key string) (string, error) {
@@ -303,7 +308,7 @@ func (c *SvcClient) CreateService(data *Data) (string, error) {
 		lso.Query = clusterService.Name
 		currentSvcs, newerr := c.PdClient.ListServices(lso)
 		if newerr != nil {
-			return "", fmt.Errorf("unable to list services with name %v: %w", clusterService.Name, err)
+			return "", fmt.Errorf("unable to list services with name %v: %w", clusterService.Name, newerr)
 		}
 
 		if len(currentSvcs.Services) > 0 {
@@ -320,16 +325,34 @@ func (c *SvcClient) CreateService(data *Data) (string, error) {
 			return "", fmt.Errorf("creating service %v returned an empty response: %w", clusterService.Name, err)
 		}
 	}
-	data.ServiceID = newSvc.ID
 
-	data.IntegrationID, err = c.createIntegration(newSvc.ID, "V4 Alertmanager", "events_api_v2_inbound_integration")
-	if err != nil {
-		return "", fmt.Errorf("unable to create integration for service %v: %w", newSvc.ID, err)
+	data.ServiceID = newSvc.ID
+	data.IntegrationID = ""
+
+	for k := range newSvc.Integrations {
+		integration := &newSvc.Integrations[k]
+
+		// The _reference suffix is added to the expected type as we are not manipulating a whole integration object there.
+		// See: https://developer.pagerduty.com/api-reference/165ad96a22ffd-get-a-service
+		if integration.Type == integrationRefType {
+			if data.IntegrationID == "" {
+				data.IntegrationID = integration.ID
+			} else {
+				log.Log.WithValues("data.ServiceID", data.ServiceID, "integrationType", integrationType, "integration.ID", integration.ID).Info("there is an other integration object for the given service and integration type")
+			}
+		}
+	}
+
+	if data.IntegrationID == "" {
+		data.IntegrationID, err = c.createIntegration(newSvc.ID, integrationName, integrationType)
+		if err != nil {
+			return "", fmt.Errorf("unable to create integration for service %v: %w", newSvc.ID, err)
+		}
 	}
 
 	data.EscalationPolicyID = newSvc.EscalationPolicy.ID
 
-	return data.IntegrationID, err
+	return data.IntegrationID, nil
 }
 
 func (c *SvcClient) createIntegration(serviceId, name, integrationType string) (string, error) {

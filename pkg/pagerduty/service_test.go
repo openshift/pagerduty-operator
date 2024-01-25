@@ -314,23 +314,40 @@ func TestSvcClient_CreateIntegration(t *testing.T) {
 
 func TestSvcClient_CreateService(t *testing.T) {
 	tests := []struct {
-		name      string
-		data      *Data
-		expectErr bool
+		name          string
+		data          *Data
+		expectErr     bool
+		expectedIntID string
 	}{
 		{
-			name: "Works",
+			name: "Works by reusing existing integration",
 			data: &Data{
 				EscalationPolicyID:   mockEscalationPolicyId,
 				ResolveTimeout:       30,
 				AcknowledgeTimeOut:   30,
-				ServicePrefix:        "servicePrefix",
-				ClusterID:            "clusterID",
-				BaseDomain:           "baseDomain",
+				ServicePrefix:        mockServicePrefix,
+				ClusterID:            mockClusterId,
+				BaseDomain:           mockBaseDomain,
 				AlertGroupingType:    "time",
 				AlertGroupingTimeout: 300,
 			},
-			expectErr: false,
+			expectErr:     false,
+			expectedIntID: mockIntegrationId2,
+		},
+		{
+			name: "Works by using new integration",
+			data: &Data{
+				EscalationPolicyID:   mockEscalationPolicyId,
+				ResolveTimeout:       30,
+				AcknowledgeTimeOut:   30,
+				ServicePrefix:        mockServicePrefix,
+				ClusterID:            mockClusterId2,
+				BaseDomain:           mockBaseDomain,
+				AlertGroupingType:    "time",
+				AlertGroupingTimeout: 300,
+			},
+			expectErr:     false,
+			expectedIntID: mockIntegrationId3,
 		},
 		{
 			name: "Can't find escalation policy",
@@ -346,11 +363,12 @@ func TestSvcClient_CreateService(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			_, err := mock.Client.CreateService(test.data)
+			intID, err := mock.Client.CreateService(test.data)
 			if test.expectErr {
 				assert.NotNil(t, err)
 			} else {
 				assert.Nil(t, err)
+				assert.Equal(t, test.expectedIntID, intID)
 			}
 		})
 	}

@@ -72,7 +72,7 @@ type: Opaque
 
 ```terminal
 $ export OPERATOR_NAME=pagerduty-operator
-$ go run cmd/manager/main.go
+$ go run main.go
 ```
 
 Create namespace `pagerduty-operator`.
@@ -137,7 +137,7 @@ Warning  FailedScheduling  3m5s  default-scheduler  0/1 nodes are available: 1 I
 
 To remedy this, lower the requested resources in the `manifests/05-operator.yaml` deployment (e.g. lower memory from 2G to 0.5G).
 
-### Create PagerDutyIntegration
+### Create the `PagerDutyIntegration` object
 
 There's an example at
 `deploy-extras/pagerduty_v1alpha1_pagerdutyintegration_cr.yaml` that
@@ -148,7 +148,7 @@ can get this by clicking on your policy at
 https://{your-account}.pagerduty.com/escalation_policies#. The ID will be
 visible in the URL after the `#` character.
 
-### Create ClusterDeployment
+### Create the `ClusterDeployment` object
 
 `pagerduty-operator` doesn't start reconciling clusters until `spec.installed` is set to `true`.
 
@@ -163,13 +163,24 @@ $ oc create namespace fake-cluster-namespace
 $ oc apply -f /tmp/fake-clusterdeployment.yaml
 ```
 
-If present, set `spec.installed` to true.
+Perform the following modifications:
+- Add the following finalizer:  
+  (the suffix comes from the `PagerDutyIntegration` name)
+  ```
+  - pd.managed.openshift.io/example-pagerdutyintegration
+  ```
+- Add the following label:  
+  (this is used by the `ClusterDeployment` selector in the default [`PagerDutyIntegration`](deploy-extras/pagerduty_v1alpha1_pagerdutyintegration_cr.yaml))
+  ```
+  api.openshift.com/test: "true"
+  ```
+- Set `spec.installed` to true.
 
 ```terminal
 $ oc edit clusterdeployment fake-cluster -n fake-cluster-namespace
 ```
 
-### Delete ClusterDeployment
+### Delete the `ClusterDeployment` object
 
 To trigger `pagerduty-operator` to remove the service in pagerduty, delete the clusterdeployment.
 
