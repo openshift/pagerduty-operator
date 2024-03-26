@@ -30,6 +30,11 @@ const (
 	mockIntegrationKey3     string = "KEY3"
 	mockServiceId           string = "SVC1"
 	mockServiceId2          string = "SVC2"
+	mockServicePrefix       string = "servicePrefix"
+	mockClusterId           string = "clusterID"
+	mockClusterId2          string = "clusterID2"
+	mockBaseDomain          string = "baseDomain"
+	mockServiceName         string = mockServicePrefix + "-" + mockClusterId + "." + mockBaseDomain + "-hive-cluster"
 )
 
 type mockApi struct {
@@ -114,7 +119,10 @@ func defaultMockPagerdutyState() *mockState {
 				Service:        &pd.APIObject{ID: mockServiceId},
 			},
 			{
-				APIObject:      pd.APIObject{ID: mockIntegrationId2},
+				APIObject: pd.APIObject{
+					ID:   mockIntegrationId2,
+					Type: "events_api_v2_inbound_integration",
+				},
 				IntegrationKey: mockIntegrationKey2,
 				Service:        &pd.APIObject{ID: mockServiceId},
 			},
@@ -122,6 +130,7 @@ func defaultMockPagerdutyState() *mockState {
 		Services: map[string]*pd.Service{
 			mockServiceId: {
 				APIObject: pd.APIObject{ID: mockServiceId},
+				Name:      mockServiceName,
 				Status:    "disabled",
 				EscalationPolicy: pd.EscalationPolicy{
 					APIObject: pd.APIObject{ID: mockEscalationPolicyId},
@@ -133,7 +142,10 @@ func defaultMockPagerdutyState() *mockState {
 						Service:        &pd.APIObject{ID: mockServiceId},
 					},
 					{
-						APIObject:      pd.APIObject{ID: mockIntegrationId2},
+						APIObject: pd.APIObject{
+							ID:   mockIntegrationId2,
+							Type: "events_api_v2_inbound_integration_reference",
+						},
 						IntegrationKey: mockIntegrationKey2,
 						Service:        &pd.APIObject{ID: mockServiceId},
 					},
@@ -154,7 +166,7 @@ func defaultMockApi() *mockApi {
 		server: server,
 	}
 
-	mockApi.setupCreateServiceHandler()
+	mockApi.setupServicesHandler()
 	mockApi.setupDefaultServiceHandlers()
 	mockApi.setupDefaultGetIntegrationHandler()
 	mockApi.setupDefaultGetEscalationPolicyHandler()
@@ -306,44 +318,70 @@ func (m *mockApi) setupDefaultListIncidentAlertsHandler() {
 	}
 }
 
-// setupCreateServiceHandler sets up a handler to respond to creating a service with ID mockServiceId2
-func (m *mockApi) setupCreateServiceHandler() {
+// setupServicesHandler sets up a handler to respond to creating a service with ID mockServiceId2
+func (m *mockApi) setupServicesHandler() {
 	m.mux.HandleFunc("/services", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
+		switch r.Method {
+		case http.MethodGet:
+			var services []pd.Service
+
+			for _, svc := range m.State.Services {
+				services = append(services, *svc)
+			}
+
+			servicesData := map[string][]pd.Service{
+				"services": services,
+			}
+
+			resp, err := json.Marshal(servicesData)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(resp)
+		case http.MethodPost:
+			var serviceData map[string]pd.Service
+
+			err := json.NewDecoder(r.Body).Decode(&serviceData)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+
+			service, ok := serviceData["service"]
+			if !ok {
+				http.Error(w, "could not find expected key: service", http.StatusBadRequest)
+				return
+			}
+
+			for _, svc := range m.State.Services {
+				if service.Name == svc.Name {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusBadRequest)
+					_, _ = w.Write([]byte("{\"error\":{\"message\":\"Name has already been taken\",\"code\":2100}}"))
+
+					return
+				}
+			}
+
+			service.ID = mockServiceId2
+			m.State.Services[service.ID] = &service
+			m.setupCreateIntegrationHandler(service.ID)
+			processedService := map[string]pd.Service{
+				"service": service,
+			}
+
+			resp, err := json.Marshal(processedService)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write(resp)
+		default:
 			w.WriteHeader(http.StatusMethodNotAllowed)
-			return
-		}
-
-		var serviceData map[string]pd.Service
-
-		err := json.NewDecoder(r.Body).Decode(&serviceData)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		service, ok := serviceData["service"]
-		if !ok {
-			http.Error(w, "could not find expected key: service", http.StatusBadRequest)
-			return
-		}
-
-		service.ID = mockServiceId2
-		m.State.Services[service.ID] = &service
-		m.setupCreateIntegrationHandler(service.ID)
-		processedService := map[string]pd.Service{
-			"service": service,
-		}
-
-		resp, err := json.Marshal(processedService)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.WriteHeader(http.StatusCreated)
-		_, err = w.Write(resp)
-		if err != nil {
-			return
 		}
 	})
 }

@@ -40,17 +40,17 @@ For example install [crc](http://crc.dev/crc/getting_started/getting_started/int
 Create hive CRDs. To do so, clone [hive repo](https://github.com/openshift/hive/) and run
 
 ```terminal
-$ oc apply -f config/crds
+oc apply -f config/crds
 ```
 
 deploy namespace, role, etc from pagerduty-operator
 
 ```terminal
-$ oc apply -f manifests/01-namespace.yaml
-$ oc apply -f manifests/02-role.yaml
-$ oc apply -f manifests/03-service_account.yaml
-$ oc apply -f manifests/04-role_binding.yaml
-$ oc apply -f deploy/crds/pagerduty.openshift.io_pagerdutyintegrations.yaml
+oc apply -f manifests/01-namespace.yaml
+oc apply -f manifests/02-role.yaml
+oc apply -f manifests/03-service_account.yaml
+oc apply -f manifests/04-role_binding.yaml
+oc apply -f deploy/crds/pagerduty.openshift.io_pagerdutyintegrations.yaml
 ```
 
 
@@ -71,14 +71,13 @@ type: Opaque
 ### Option 1: Run pagerduty-operator outside of OpenShift
 
 ```terminal
-$ export OPERATOR_NAME=pagerduty-operator
-$ go run cmd/manager/main.go
+export OPERATOR_NAME=pagerduty-operator
+go run main.go
 ```
 
-Create namespace `pagerduty-operator`.
-
+In an other terminal create namespace `pagerduty-operator` if needed:
 ```
-$ oc create namespace pagerduty-operator
+oc create namespace pagerduty-operator
 ```
 
 Continue to [Create PagerDutyIntegration](#create-pagerdutyintegration).
@@ -105,8 +104,8 @@ $ podman push quay.io/<userid>/pagerduty-operator:latest
 * Deploy quay.io secret
 
 ```terminal
-$ oc project pagerduty-operator
-$ oc apply -f ~/Downloads/<userid>-secret.yml -n pagerduty-operator
+oc project pagerduty-operator
+oc apply -f ~/Downloads/<userid>-secret.yml -n pagerduty-operator
 ```
 
 #### Deploy pagerduty-operator from custom repo
@@ -126,7 +125,7 @@ Create a copy of `manifests/05-operator.yaml` and modify it use your image from 
 Deploy modified operator manifest
 
 ```terminal
-$ oc apply -f path/to/modified/operator.yaml
+oc apply -f path/to/modified/operator.yaml
 ```
 
 **Note:**  In some cases, the `pagerduty-operator` pod in the `pagerduty-operator` namespace doesn't start with the following error:
@@ -137,7 +136,7 @@ Warning  FailedScheduling  3m5s  default-scheduler  0/1 nodes are available: 1 I
 
 To remedy this, lower the requested resources in the `manifests/05-operator.yaml` deployment (e.g. lower memory from 2G to 0.5G).
 
-### Create PagerDutyIntegration
+### Create the `PagerDutyIntegration` object
 
 There's an example at
 `deploy-extras/pagerduty_v1alpha1_pagerdutyintegration_cr.yaml` that
@@ -148,7 +147,7 @@ can get this by clicking on your policy at
 https://{your-account}.pagerduty.com/escalation_policies#. The ID will be
 visible in the URL after the `#` character.
 
-### Create ClusterDeployment
+### Create the `ClusterDeployment` object
 
 `pagerduty-operator` doesn't start reconciling clusters until `spec.installed` is set to `true`.
 
@@ -159,26 +158,38 @@ real-hive$ oc get cd -n <namespace> <cdname> -o yaml > /tmp/fake-clusterdeployme
 
 ...
 
-$ oc create namespace fake-cluster-namespace
+$ oc create namespace <namespace>
 $ oc apply -f /tmp/fake-clusterdeployment.yaml
 ```
 
-If present, set `spec.installed` to true.
-
+Perform the following modifications:
 ```terminal
-$ oc edit clusterdeployment fake-cluster -n fake-cluster-namespace
+$ oc edit clusterdeployment <cdname> -n <namespace>
 ```
 
-### Delete ClusterDeployment
+- Add the following finalizer (i.e. `metadata.finalizers`):
+  ```
+  - pd.managed.openshift.io/example-pagerdutyintegration
+  ```
+  (the suffix comes from the `PagerDutyIntegration` name)
+- Add the following label:  
+  ```
+  api.openshift.com/test: "true"
+  ```
+  (this is used by the `ClusterDeployment` selector in the default [`PagerDutyIntegration`](deploy-extras/pagerduty_v1alpha1_pagerdutyintegration_cr.yaml))
+- Set `spec.installed` to true.
+
+
+
+### Delete the `ClusterDeployment` object
 
 To trigger `pagerduty-operator` to remove the service in pagerduty, delete the clusterdeployment.
 
-```terminal
-$ oc delete clusterdeployment fake-cluster -n fake-cluster-namespace
+oc delete clusterdeployment fake-cluster -n fake-cluster-namespace
 ```
 
 You may need to remove dangling finalizers from the `clusterdeployment` object.
 
 ```terminal
-$ oc edit clusterdeployment fake-cluster -n fake-cluster-namespace
+oc edit clusterdeployment fake-cluster -n fake-cluster-namespace
 ```
