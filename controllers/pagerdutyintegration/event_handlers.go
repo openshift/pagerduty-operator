@@ -41,23 +41,23 @@ type enqueueRequestForClusterDeployment struct {
 	Client client.Client
 }
 
-func (e *enqueueRequestForClusterDeployment) Create(evt event.CreateEvent, q workqueue.RateLimitingInterface) {
+func (e *enqueueRequestForClusterDeployment) Create(ctx context.Context, evt event.CreateEvent, q workqueue.RateLimitingInterface) {
 	reqs := map[reconcile.Request]struct{}{}
 	e.mapAndEnqueue(q, evt.Object, reqs)
 }
 
-func (e *enqueueRequestForClusterDeployment) Update(evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
+func (e *enqueueRequestForClusterDeployment) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
 	reqs := map[reconcile.Request]struct{}{}
 	e.mapAndEnqueue(q, evt.ObjectOld, reqs)
 	e.mapAndEnqueue(q, evt.ObjectNew, reqs)
 }
 
-func (e *enqueueRequestForClusterDeployment) Delete(evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
+func (e *enqueueRequestForClusterDeployment) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
 	reqs := map[reconcile.Request]struct{}{}
 	e.mapAndEnqueue(q, evt.Object, reqs)
 }
 
-func (e *enqueueRequestForClusterDeployment) Generic(evt event.GenericEvent, q workqueue.RateLimitingInterface) {
+func (e *enqueueRequestForClusterDeployment) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
 	reqs := map[reconcile.Request]struct{}{}
 	e.mapAndEnqueue(q, evt.Object, reqs)
 }
@@ -111,20 +111,20 @@ type enqueueRequestForClusterDeploymentOwner struct {
 	groupKind schema.GroupKind
 }
 
-func (e *enqueueRequestForClusterDeploymentOwner) Create(evt event.CreateEvent, q workqueue.RateLimitingInterface) {
+func (e *enqueueRequestForClusterDeploymentOwner) Create(ctx context.Context, evt event.CreateEvent, q workqueue.RateLimitingInterface) {
 	e.mapAndEnqueue(q, evt.Object)
 }
 
-func (e *enqueueRequestForClusterDeploymentOwner) Update(evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
+func (e *enqueueRequestForClusterDeploymentOwner) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
 	e.mapAndEnqueue(q, evt.ObjectOld)
 	e.mapAndEnqueue(q, evt.ObjectNew)
 }
 
-func (e *enqueueRequestForClusterDeploymentOwner) Delete(evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
+func (e *enqueueRequestForClusterDeploymentOwner) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
 	e.mapAndEnqueue(q, evt.Object)
 }
 
-func (e *enqueueRequestForClusterDeploymentOwner) Generic(evt event.GenericEvent, q workqueue.RateLimitingInterface) {
+func (e *enqueueRequestForClusterDeploymentOwner) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
 	e.mapAndEnqueue(q, evt.Object)
 }
 
@@ -206,23 +206,23 @@ type enqueueRequestForConfigMap struct {
 	Client client.Client
 }
 
-func (e *enqueueRequestForConfigMap) Create(evt event.CreateEvent, q workqueue.RateLimitingInterface) {
+func (e *enqueueRequestForConfigMap) Create(ctx context.Context, evt event.CreateEvent, q workqueue.RateLimitingInterface) {
 	reqs := map[reconcile.Request]struct{}{}
 	e.mapAndEnqueue(q, evt.Object, reqs)
 }
 
-func (e *enqueueRequestForConfigMap) Update(evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
+func (e *enqueueRequestForConfigMap) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
 	reqs := map[reconcile.Request]struct{}{}
 	e.mapAndEnqueue(q, evt.ObjectOld, reqs)
 	e.mapAndEnqueue(q, evt.ObjectNew, reqs)
 }
 
-func (e *enqueueRequestForConfigMap) Delete(evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
+func (e *enqueueRequestForConfigMap) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
 	reqs := map[reconcile.Request]struct{}{}
 	e.mapAndEnqueue(q, evt.Object, reqs)
 }
 
-func (e *enqueueRequestForConfigMap) Generic(evt event.GenericEvent, q workqueue.RateLimitingInterface) {
+func (e *enqueueRequestForConfigMap) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
 	reqs := map[reconcile.Request]struct{}{}
 	e.mapAndEnqueue(q, evt.Object, reqs)
 }

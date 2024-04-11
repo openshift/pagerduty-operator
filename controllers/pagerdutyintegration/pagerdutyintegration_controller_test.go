@@ -35,7 +35,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -86,7 +85,7 @@ type mocks struct {
 }
 
 func setupDefaultMocks(t *testing.T, localObjects []runtime.Object) *mocks {
-	fakeScheme := k8sruntime.NewScheme()
+	fakeScheme := runtime.NewScheme()
 	utilruntime.Must(routev1.Install(fakeScheme))
 	utilruntime.Must(hivev1.AddToScheme(fakeScheme))
 	utilruntime.Must(pagerdutyv1alpha1.AddToScheme(fakeScheme))
@@ -334,9 +333,9 @@ func testClusterDeployment(isInstalled bool, isManaged bool, hasFinalizer bool, 
 	if isDeleting {
 		now := metav1.Now()
 		cd.DeletionTimestamp = &now
-	}
-
-	if hasFinalizer {
+		// A deleting object must have a finalizer
+		cd.SetFinalizers([]string{config.PagerDutyFinalizerPrefix + testPagerDutyIntegrationName})
+	} else if hasFinalizer {
 		cd.SetFinalizers([]string{config.PagerDutyFinalizerPrefix + testPagerDutyIntegrationName})
 	}
 
