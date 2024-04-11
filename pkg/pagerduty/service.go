@@ -293,7 +293,7 @@ func (c *SvcClient) CreateService(data *Data) (string, error) {
 		AlertGroupingParameters: &pdApi.AlertGroupingParameters{
 			Type: data.AlertGroupingType,
 			Config: &pdApi.AlertGroupParamsConfig{
-				Timeout: data.AlertGroupingTimeout,
+				Timeout: &data.AlertGroupingTimeout,
 			},
 		},
 	}
@@ -522,7 +522,7 @@ func (c *SvcClient) UpdateAlertGrouping(data *Data) error {
 	service.AlertGroupingParameters = &pdApi.AlertGroupingParameters{
 		Type: data.AlertGroupingType,
 		Config: &pdApi.AlertGroupParamsConfig{
-			Timeout: data.AlertGroupingTimeout,
+			Timeout: &data.AlertGroupingTimeout,
 		},
 	}
 

@@ -3,7 +3,7 @@ module github.com/openshift/pagerduty-operator
 go 1.21
 
 require (
-	github.com/PagerDuty/go-pagerduty v1.5.1-0.20220711135237-1c427f9a1638
+	github.com/PagerDuty/go-pagerduty v1.6.0
 	github.com/go-logr/logr v1.4.1
 	github.com/golang/mock v1.6.0
 	// go get -u github.com/openshift/api@release-4.15

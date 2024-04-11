@@ -1,5 +1,5 @@
-github.com/PagerDuty/go-pagerduty v1.5.1-0.20220711135237-1c427f9a1638 h1:BLj1lcGwZOndFzEHSOwGCeeJuAVDdjrlwTVw4jEWhTU=
-github.com/PagerDuty/go-pagerduty v1.5.1-0.20220711135237-1c427f9a1638/go.mod h1:7eaBLzsDpK7VUvU0SJ5mohczQkoWrrr5CjDaw5gh1as=
+github.com/PagerDuty/go-pagerduty v1.6.0 h1:am81SzvG5Pw+s3JZ5yEy6kGvsXXklTNRrGr3d8WKpsU=
+github.com/PagerDuty/go-pagerduty v1.6.0/go.mod h1:7eaBLzsDpK7VUvU0SJ5mohczQkoWrrr5CjDaw5gh1as=
 github.com/armon/go-radix v0.0.0-20180808171621-7fddfc383310/go.mod h1:ufUuZ+zHj4x4TnLV4JWEpy2hxWSpsRywHrMgIH9cCH8=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
