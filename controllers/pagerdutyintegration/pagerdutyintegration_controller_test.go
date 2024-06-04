@@ -638,6 +638,24 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			},
 		},
 		{
+			name: "Test Managed, Finalizer, Not Deleting, PD Setup and Hibernating, transition to Active",
+			localObjects: []runtime.Object{
+				testClusterDeployment(true, true, true, false, false, false, false),
+				testPDISecret(),
+				testPagerDutyIntegration(),
+				testCDConfigMap(false, false, false, true),
+				testCDSyncSet(),
+				testCDSecret(),
+			},
+			expectPDSetup: true,
+			setupPDMock: func(r *pd.MockClientMockRecorder) {
+				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
+				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
+				r.EnableService(gomock.Any()).Return(nil).Times(0)
+				r.DisableService(gomock.Any()).Return(nil).Times(0)
+			},
+		},
+		{
 			name: "Test Not Managed, Finalizer, Not Deleting, PD Setup",
 			localObjects: []runtime.Object{
 				testClusterDeployment(true, false, true, false, false, false, false),
@@ -719,7 +737,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 					})
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(1)
 				r.UpdateEscalationPolicy(gomock.Any()).Return(nil).Times(0)
-				r.DisableService(gomock.Any()).Return(nil).Times(1)
+				r.DisableService(gomock.Any()).Return(nil).Times(0)
 				r.EnableService(gomock.Any()).Return(nil).Times(0)
 			},
 		},
@@ -737,12 +755,12 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			setupPDMock: func(r *pd.MockClientMockRecorder) {
 				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
 				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
-				r.DisableService(gomock.Any()).Return(nil).Times(1)
+				r.DisableService(gomock.Any()).Return(nil).Times(0)
 				r.EnableService(gomock.Any()).Return(nil).Times(0)
 			},
 		},
 		{
-			name: "Test Managed, Finalizer, Not Deleting, PD Setup, Not Hibernating, Limited Support",
+			name: "Test Managed, Finalizer, Not Deleting, PD Setup, Limited Support",
 			localObjects: []runtime.Object{
 				testClusterDeployment(true, true, true, false, false, false, true),
 				testPDISecret(),
@@ -760,7 +778,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			},
 		},
 		{
-			name: "Test Managed, Finalizer, Not Deleting, PD Setup, Not Hibernating, Not in Limited Support",
+			name: "Test Managed, Finalizer, Not Deleting, PD Setup, Not in Limited Support",
 			localObjects: []runtime.Object{
 				testClusterDeployment(true, true, true, false, false, false, false),
 				testPDISecret(),
@@ -778,7 +796,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			},
 		},
 		{
-			name: "Test Managed, Finalizer, Not Deleting, PD Setup, Not Hibernating, Not in Limited Support, CM PDI escalation policy missing",
+			name: "Test Managed, Finalizer, Not Deleting, PD Setup, Not in Limited Support, CM PDI escalation policy missing",
 			localObjects: []runtime.Object{
 				testClusterDeployment(true, true, true, false, false, false, false),
 				testPDISecret(),
@@ -794,7 +812,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			},
 		},
 		{
-			name: "Test Managed, Finalizer, Not Deleting, PD Setup, Not Hibernating/Limited Support, CM PDI escalation policy exists, PDI escalation policy changed",
+			name: "Test Managed, Finalizer, Not Deleting, PD Setup, Not Limited Support, CM PDI escalation policy exists, PDI escalation policy changed",
 			localObjects: []runtime.Object{
 				testClusterDeployment(true, true, true, false, false, false, false),
 				testPDISecret(),
@@ -812,7 +830,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			},
 		},
 		{
-			name: "Test Managed, Finalizer, Not Deleting, PD Setup, Not Hibernating/Limited Support, CM PDI escalation policy missing, PDI escalation policy changed",
+			name: "Test Managed, Finalizer, Not Deleting, PD Setup, Not Limited Support, CM PDI escalation policy missing, PDI escalation policy changed",
 			localObjects: []runtime.Object{
 				testClusterDeployment(true, true, true, false, false, false, false),
 				testPDISecret(),
