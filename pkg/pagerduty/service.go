@@ -145,7 +145,6 @@ type Data struct {
 	// There is also an EscalationPolicyID field which is parsed fron the PDI CR
 	ServiceID      string
 	IntegrationID  string
-	Hibernating    bool
 	LimitedSupport bool
 
 	// ServiceOrchestration related parameters
@@ -183,7 +182,7 @@ func NewData(pdi *pagerdutyv1alpha1.PagerDutyIntegration, clusterId string, base
 
 // ParseClusterConfig parses the cluster specific config map and stores the IDs in the data struct
 // SERVICE_ID and INTEGRATION_ID are required ConfigMap data fields
-// HIBERNATING and LIMITED_SUPPORT are optional.
+// LIMITED_SUPPORT are optional.
 func (data *Data) ParseClusterConfig(osc client.Client, namespace string, cmName string) error {
 	pdAPIConfigMap := &corev1.ConfigMap{}
 	err := osc.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: cmName}, pdAPIConfigMap)
@@ -206,9 +205,6 @@ func (data *Data) ParseClusterConfig(osc client.Client, namespace string, cmName
 	if err != nil {
 		data.EscalationPolicyID = ""
 	}
-
-	val := pdAPIConfigMap.Data["HIBERNATING"]
-	data.Hibernating = val == "true"
 
 	isInLimitedSupport := pdAPIConfigMap.Data["LIMITED_SUPPORT"]
 	data.LimitedSupport = isInLimitedSupport == "true"
@@ -238,7 +234,6 @@ func (data *Data) SetClusterConfig(osc client.Client, namespace string, cmName s
 	pdAPIConfigMap.Data["SERVICE_ID"] = data.ServiceID
 	pdAPIConfigMap.Data["INTEGRATION_ID"] = data.IntegrationID
 	pdAPIConfigMap.Data["ESCALATION_POLICY_ID"] = data.EscalationPolicyID
-	pdAPIConfigMap.Data["HIBERNATING"] = strconv.FormatBool(data.Hibernating)
 	pdAPIConfigMap.Data["LIMITED_SUPPORT"] = strconv.FormatBool(data.LimitedSupport)
 	pdAPIConfigMap.Data["SERVICE_ORCHESTRATION_ENABLED"] = strconv.FormatBool(data.ServiceOrchestrationEnabled)
 	pdAPIConfigMap.Data["SERVICE_ORCHESTRATION_RULE_APPLIED"] = data.ServiceOrchestrationRuleApplied

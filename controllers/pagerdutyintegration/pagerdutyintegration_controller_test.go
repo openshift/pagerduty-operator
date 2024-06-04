@@ -115,7 +115,7 @@ func testPDISecret() *corev1.Secret {
 }
 
 // testCDConfigMap returns a fake configmap for a deployed cluster for testing.
-func testCDConfigMap(isHibernating, hasLimitedSupport, isOrchestrationEnabled, isOrchestrationApplied, isAlertGroupingConfigured bool) *corev1.ConfigMap {
+func testCDConfigMap(hasLimitedSupport, isOrchestrationEnabled, isOrchestrationApplied, isAlertGroupingConfigured bool) *corev1.ConfigMap {
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
@@ -125,7 +125,6 @@ func testCDConfigMap(isHibernating, hasLimitedSupport, isOrchestrationEnabled, i
 			"INTEGRATION_ID":                     testIntegrationID,
 			"SERVICE_ID":                         testServiceID,
 			"ESCALATION_POLICY_ID":               testEscalationPolicy,
-			"HIBERNATING":                        strconv.FormatBool(isHibernating),
 			"LIMITED_SUPPORT":                    strconv.FormatBool(hasLimitedSupport),
 			"SERVICE_ORCHESTRATION_ENABLED":      strconv.FormatBool(isOrchestrationEnabled),
 			"SERVICE_ORCHESTRATION_RULE_APPLIED": strconv.FormatBool(isOrchestrationApplied),
@@ -140,7 +139,7 @@ func testCDConfigMap(isHibernating, hasLimitedSupport, isOrchestrationEnabled, i
 }
 
 // testCDConfigMap returns a fake configmap without ESCALATION_POLICY_ID key for a deployed cluster for testing.
-func testCDConfigMapWithoutEscalationPolicy(isHibernating bool, hasLimitedSupport bool) *corev1.ConfigMap {
+func testCDConfigMapWithoutEscalationPolicy(hasLimitedSupport bool) *corev1.ConfigMap {
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
@@ -149,7 +148,6 @@ func testCDConfigMapWithoutEscalationPolicy(isHibernating bool, hasLimitedSuppor
 		Data: map[string]string{
 			"INTEGRATION_ID":  testIntegrationID,
 			"SERVICE_ID":      testServiceID,
-			"HIBERNATING":     strconv.FormatBool(isHibernating),
 			"LIMITED_SUPPORT": strconv.FormatBool(hasLimitedSupport),
 		},
 	}
@@ -307,6 +305,7 @@ func updatedTestPagerDutyIntegration() *pagerdutyv1alpha1.PagerDutyIntegration {
 }
 
 // testClusterDeployment returns a fake ClusterDeployment for an installed cluster to use in testing.
+// TODO(yashvardhan-kukreja): Is it safe to get rid of the isHibernating field?
 func testClusterDeployment(isInstalled bool, isManaged bool, hasFinalizer bool, isDeleting bool, isHibernating bool, isFake bool, isLimitedSupport bool) *hivev1.ClusterDeployment {
 	labelMap := map[string]string{
 		config.ClusterDeploymentManagedLabel:        strconv.FormatBool(isManaged),
@@ -473,7 +472,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testClusterDeployment(true, true, true, false, false, false, false),
 				testPDISecret(),
 				testPagerDutyIntegration(),
-				testCDConfigMap(false, false, false, false, true),
+				testCDConfigMap(false, false, false, true),
 				testCDSyncSet(),
 				testCDSecret(),
 			},
@@ -515,7 +514,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testClusterDeployment(true, true, true, false, false, false, false),
 				testPDISecret(),
 				testPagerDutyIntegration(),
-				testCDConfigMap(false, false, false, false, true),
+				testCDConfigMap(false, false, false, true),
 				testCDSecret(),
 			},
 			expectPDSetup: true,
@@ -533,7 +532,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testClusterDeployment(true, true, true, false, false, false, false),
 				testPDISecret(),
 				testPagerDutyIntegration(),
-				testCDConfigMap(false, false, false, false, true),
+				testCDConfigMap(false, false, false, true),
 				testCDSyncSet(),
 				testCDSecret(),
 			},
@@ -566,7 +565,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testClusterDeployment(true, true, true, true, false, false, false),
 				testPDISecret(),
 				testPagerDutyIntegration(),
-				testCDConfigMap(false, false, false, false, true),
+				testCDConfigMap(false, false, false, true),
 				testCDSyncSet(),
 				testCDSecret(),
 			},
@@ -626,7 +625,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testClusterDeployment(true, false, true, false, false, false, false),
 				testPDISecret(),
 				testPagerDutyIntegration(),
-				testCDConfigMap(false, false, false, false, true),
+				testCDConfigMap(false, false, false, true),
 				testCDSyncSet(),
 				testCDSecret(),
 			},
@@ -644,7 +643,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testClusterDeployment(true, false, true, false, false, false, false),
 				testPDISecret(),
 				testPagerDutyIntegration(),
-				testCDConfigMap(false, false, false, false, true),
+				testCDConfigMap(false, false, false, true),
 				testCDSyncSet(),
 				testCDSecret(),
 			},
@@ -676,7 +675,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testClusterDeployment(true, false, true, true, false, false, false),
 				testPDISecret(),
 				testPagerDutyIntegration(),
-				testCDConfigMap(false, false, false, false, true),
+				testCDConfigMap(false, false, false, true),
 				testCDSyncSet(),
 				testCDSecret(),
 			},
@@ -725,30 +724,12 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			},
 		},
 		{
-			name: "Test Managed, Finalizer, Not Deleting, PD Setup and Hibernating, transition to Active",
-			localObjects: []runtime.Object{
-				testClusterDeployment(true, true, true, false, false, false, false),
-				testPDISecret(),
-				testPagerDutyIntegration(),
-				testCDConfigMap(true, false, false, false, true),
-				testCDSyncSet(),
-				testCDSecret(),
-			},
-			expectPDSetup: true,
-			setupPDMock: func(r *pd.MockClientMockRecorder) {
-				r.CreateService(gomock.Any()).Return(testIntegrationID, nil).Times(0)
-				r.GetIntegrationKey(gomock.Any()).Return(testIntegrationID, nil).Times(0)
-				r.EnableService(gomock.Any()).Return(nil).Times(1)
-				r.DisableService(gomock.Any()).Return(nil).Times(0)
-			},
-		},
-		{
 			name: "Test Managed, Finalizer, Not Deleting, PD Setup and Active, transition to Hibernating",
 			localObjects: []runtime.Object{
 				testClusterDeployment(true, true, true, false, true, false, false),
 				testPDISecret(),
 				testPagerDutyIntegration(),
-				testCDConfigMap(false, false, false, false, true),
+				testCDConfigMap(false, false, false, true),
 				testCDSyncSet(),
 				testCDSecret(),
 			},
@@ -768,7 +749,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testCDSecret(),
 				testCDSyncSet(),
 				testPagerDutyIntegration(),
-				testCDConfigMap(false, false, false, false, true),
+				testCDConfigMap(false, false, false, true),
 			},
 			expectPDSetup: true,
 			setupPDMock: func(r *pd.MockClientMockRecorder) {
@@ -786,7 +767,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testCDSecret(),
 				testCDSyncSet(),
 				testPagerDutyIntegration(),
-				testCDConfigMap(false, true, false, false, true),
+				testCDConfigMap(true, false, false, true),
 			},
 			expectPDSetup: true,
 			setupPDMock: func(r *pd.MockClientMockRecorder) {
@@ -802,7 +783,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testClusterDeployment(true, true, true, false, false, false, false),
 				testPDISecret(),
 				testPagerDutyIntegration(),
-				testCDConfigMapWithoutEscalationPolicy(false, false),
+				testCDConfigMapWithoutEscalationPolicy(false),
 				testCDSyncSet(),
 				testCDSecret(),
 			},
@@ -818,7 +799,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testClusterDeployment(true, true, true, false, false, false, false),
 				testPDISecret(),
 				updatedTestPagerDutyIntegration(),
-				testCDConfigMap(false, false, false, false, true),
+				testCDConfigMap(false, false, false, true),
 				testCDSyncSet(),
 				testCDSecret(),
 			},
@@ -836,7 +817,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testClusterDeployment(true, true, true, false, false, false, false),
 				testPDISecret(),
 				updatedTestPagerDutyIntegration(),
-				testCDConfigMapWithoutEscalationPolicy(false, false),
+				testCDConfigMapWithoutEscalationPolicy(false),
 				testCDSyncSet(),
 				testCDSecret(),
 			},
@@ -1063,7 +1044,7 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 				testClusterDeployment(true, true, true, false, false, false, false),
 				testPDISecret(),
 				testPagerDutyIntegration(),
-				testCDConfigMap(false, false, false, false, false),
+				testCDConfigMap(false, false, false, false),
 				testCDSyncSet(),
 				testCDSecret(),
 			},
