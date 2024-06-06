@@ -114,7 +114,6 @@ func TestParseSetClusterConfig(t *testing.T) {
 		cmName                 string
 		namespace              string
 		data                   map[string]string
-		expectedHibernating    bool
 		expectedLimitedSupport bool
 		expectErr              bool
 	}{
@@ -127,7 +126,6 @@ func TestParseSetClusterConfig(t *testing.T) {
 				"INTEGRATION_ID":       "abcd",
 				"ESCALATION_POLICY_ID": "abcd",
 			},
-			expectedHibernating:    false,
 			expectedLimitedSupport: false,
 			expectErr:              false,
 		},
@@ -139,21 +137,6 @@ func TestParseSetClusterConfig(t *testing.T) {
 				"SERVICE_ID":     "abcd",
 				"INTEGRATION_ID": "abcd",
 			},
-			expectedHibernating:    false,
-			expectedLimitedSupport: false,
-			expectErr:              false,
-		},
-		{
-			name:      "hibernating",
-			cmName:    "cluster-pd-config",
-			namespace: "namespace",
-			data: map[string]string{
-				"SERVICE_ID":           "abcd",
-				"INTEGRATION_ID":       "abcd",
-				"ESCALATION_POLICY_ID": "abcd",
-				"HIBERNATING":          "true",
-			},
-			expectedHibernating:    true,
 			expectedLimitedSupport: false,
 			expectErr:              false,
 		},
@@ -191,7 +174,6 @@ func TestParseSetClusterConfig(t *testing.T) {
 				assert.NotNil(t, parseErr)
 			} else {
 				assert.Nil(t, parseErr)
-				assert.Equal(t, test.expectedHibernating, testData.Hibernating)
 				assert.Equal(t, test.expectedLimitedSupport, testData.LimitedSupport)
 			}
 

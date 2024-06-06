@@ -95,7 +95,7 @@ func (r *PagerDutyIntegrationReconciler) handleCreate(pdclient pd.Client, pdi *p
 		r.reqLogger.Info("Creating configmap")
 
 		// save config map
-		newCM := kube.GenerateConfigMap(cd.Namespace, configMapName, pdData.ServiceID, pdData.IntegrationID, pdData.EscalationPolicyID, false, false, pdData.ServiceOrchestrationEnabled, pdData.ServiceOrchestrationRuleApplied, pdData.AlertGroupingType, pdData.AlertGroupingTimeout)
+		newCM := kube.GenerateConfigMap(cd.Namespace, configMapName, pdData.ServiceID, pdData.IntegrationID, pdData.EscalationPolicyID, false, pdData.ServiceOrchestrationEnabled, pdData.ServiceOrchestrationRuleApplied, pdData.AlertGroupingType, pdData.AlertGroupingTimeout)
 		if err = controllerutil.SetControllerReference(cd, newCM, r.Scheme); err != nil {
 			r.reqLogger.Error(err, "Error setting controller reference on configmap")
 			return err

@@ -23,7 +23,7 @@ import (
 )
 
 // GenerateConfigMap returns a configmap that can be created with the oc client
-func GenerateConfigMap(namespace string, cmName string, pdServiceID, pdIntegrationID, pdEscalationPolicyID string, hibernating, limitedSupport, serviceOrchestrationEnabled bool, serviceOrchestrationRuleApplied, alertGroupingType string, alertGroupingTimeout uint) *corev1.ConfigMap {
+func GenerateConfigMap(namespace string, cmName string, pdServiceID, pdIntegrationID, pdEscalationPolicyID string, limitedSupport, serviceOrchestrationEnabled bool, serviceOrchestrationRuleApplied, alertGroupingType string, alertGroupingTimeout uint) *corev1.ConfigMap {
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cmName,
@@ -33,7 +33,6 @@ func GenerateConfigMap(namespace string, cmName string, pdServiceID, pdIntegrati
 			"SERVICE_ID":                         pdServiceID,
 			"INTEGRATION_ID":                     pdIntegrationID,
 			"ESCALATION_POLICY_ID":               pdEscalationPolicyID,
-			"HIBERNATING":                        strconv.FormatBool(hibernating),
 			"LIMITED_SUPPORT":                    strconv.FormatBool(limitedSupport),
 			"SERVICE_ORCHESTRATION_ENABLED":      strconv.FormatBool(serviceOrchestrationEnabled),
 			"SERVICE_ORCHESTRATION_RULE_APPLIED": serviceOrchestrationRuleApplied,

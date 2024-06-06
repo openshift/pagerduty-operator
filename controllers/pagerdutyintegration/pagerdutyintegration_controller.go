@@ -223,10 +223,6 @@ func (r *PagerDutyIntegrationReconciler) Reconcile(ctx context.Context, req ctrl
 				}
 			}
 
-			if err := r.handleHibernation(pdClient, pdi, &cd); err != nil {
-				reconcileErrors = append(reconcileErrors, err)
-			}
-
 			if err := r.handleLimitedSupport(pdClient, pdi, &cd); err != nil {
 				reconcileErrors = append(reconcileErrors, err)
 			}
