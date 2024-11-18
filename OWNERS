@@ -1,13 +1,10 @@
 reviewers:
 - wshearn
-- mjlshen
 - bmeng
 - typeid
 - srep-team-leads
 approvers:
 - wshearn
-- mjlshen
 - typeid
 - srep-team-leads
 maintainers:
-- mjlshen
