@@ -6,5 +6,6 @@ reviewers:
 approvers:
 - wshearn
 - typeid
+- srep-functional-leads
 - srep-team-leads
 maintainers:
