@@ -35,7 +35,7 @@ const (
 	LegacyPagerDutyFinalizer string = "pd.managed.openshift.io/pagerduty"
 	SecretSuffix             string = "-pd-secret"
 	ConfigMapSuffix          string = "-pd-config"
-
+	EnableOLMSkipRange              = "true"
 	// PagerDutyUrgencyRule is the type of IncidentUrgencyRule for new incidents
 	// coming into the Service. This is for the creation of NEW SERVICES ONLY
 	// Supported values (by this operator) are:
