@@ -22,7 +22,7 @@ const (
 )
 
 // handleServiceOrchestration enables and applies the service orchestration rule to the PD service if it is enabled in PDI
-func (r *PagerDutyIntegrationReconciler) handleServiceOrchestration(pdclient pd.Client, pdi *pagerdutyv1alpha1.PagerDutyIntegration, cd *hivev1.ClusterDeployment) error {
+func (r *PagerDutyIntegrationReconciler) handleServiceOrchestration(pdclient pd.Client, pdi *pagerdutyv1alpha1.PagerDutyIntegration, cd *hivev1.ClusterDeployment, requestNamespace string) error {
 	if reflect.ValueOf(pdi.Spec.ServiceOrchestration.RuleConfigConfigMapRef).IsZero() {
 		r.reqLogger.Info("service orchestration is not defined correctly in PagerdutyIntegration, skipping...")
 		return nil
@@ -95,7 +95,7 @@ func (r *PagerDutyIntegrationReconciler) handleServiceOrchestration(pdclient pd.
 
 	serviceOrchestrationConfigMap := types.NamespacedName{
 		Name:      orchestrationConfigmapName,
-		Namespace: pdi.Spec.ServiceOrchestration.RuleConfigConfigMapRef.Namespace,
+		Namespace: requestNamespace,
 	}
 
 	orchestrationRuleConfigData := ""

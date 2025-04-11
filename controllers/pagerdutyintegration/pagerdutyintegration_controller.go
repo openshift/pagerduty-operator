@@ -124,7 +124,7 @@ func (r *PagerDutyIntegrationReconciler) Reconcile(ctx context.Context, req ctrl
 	pdApiKey, err := utils.LoadSecretData(
 		r.Client,
 		pdi.Spec.PagerdutyApiKeySecretRef.Name,
-		pdi.Spec.PagerdutyApiKeySecretRef.Namespace,
+		req.Namespace,
 		config.PagerDutyAPISecretKey,
 	)
 	if err != nil {
@@ -218,7 +218,7 @@ func (r *PagerDutyIntegrationReconciler) Reconcile(ctx context.Context, req ctrl
 
 			// Do nothing if the orchestration is not enabled and leave it as default for now
 			if pdi.Spec.ServiceOrchestration.Enabled {
-				if err := r.handleServiceOrchestration(pdClient, pdi, &cd); err != nil {
+				if err := r.handleServiceOrchestration(pdClient, pdi, &cd, req.Namespace); err != nil {
 					reconcileErrors = append(reconcileErrors, err)
 				}
 			}

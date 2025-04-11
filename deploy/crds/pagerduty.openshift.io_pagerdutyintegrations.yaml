@@ -120,8 +120,9 @@ spec:
                       secret resource.
                     type: string
                   namespace:
-                    description: namespace defines the space within which the secret
-                      name must be unique.
+                    description: |-
+                      DEPRECATED and unused;
+                      This field will be removed in a later version
                     type: string
                 type: object
                 x-kubernetes-map-type: atomic
@@ -184,8 +185,8 @@ spec:
                         type: string
                       namespace:
                         description: |-
-                          Namespace of the referent.
-                          More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/
+                          DEPRECATED and unused;
+                          This field will be removed in a later version
                         type: string
                       resourceVersion:
                         description: |-
