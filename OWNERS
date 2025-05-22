@@ -1,11 +1,9 @@
 reviewers:
-- wshearn
-- bmeng
-- typeid
-- srep-team-leads
+- srep-functional-team-rocket
 approvers:
-- wshearn
-- typeid
+- srep-functional-team-rocket
 - srep-functional-leads
 - srep-team-leads
 maintainers:
+- clcollins
+- drow
