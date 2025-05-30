@@ -450,14 +450,14 @@ func (m *mockApi) setupCreateIntegrationHandler(serviceId string) {
 func (m *mockApi) setupDefaultGetIntegrationHandler() {
 	for _, svc := range m.State.Services {
 		for _, integration := range svc.Integrations {
-			if integration.APIObject.ID == "" {
+			if integration.ID == "" {
 				panic("integration is missing required field: ID")
 			}
 			integrationData := map[string]pd.Integration{
 				"integration": integration,
 			}
 
-			m.mux.HandleFunc(fmt.Sprintf("/services/%s/integrations/%s", svc.APIObject.ID, integration.APIObject.ID), func(w http.ResponseWriter, r *http.Request) {
+			m.mux.HandleFunc(fmt.Sprintf("/services/%s/integrations/%s", svc.ID, integration.ID), func(w http.ResponseWriter, r *http.Request) {
 				resp, err := json.Marshal(integrationData)
 				if err != nil {
 					w.WriteHeader(http.StatusInternalServerError)

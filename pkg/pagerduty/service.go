@@ -537,7 +537,7 @@ func (c *SvcClient) resolvePendingIncidents(data *Data, summary string) error {
 	}
 
 	for _, incident := range incidents {
-		alerts, err := c.getUnresolvedAlerts(incident.APIObject.ID)
+		alerts, err := c.getUnresolvedAlerts(incident.ID)
 		if err != nil {
 			return fmt.Errorf("unable to get unresolved alerts for incident %v: %w", incident.ID, err)
 		}
