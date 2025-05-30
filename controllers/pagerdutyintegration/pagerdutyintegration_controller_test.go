@@ -1152,7 +1152,7 @@ func verifySyncSetExists(c client.Client, expected *SyncSetEntry) bool {
 	if expected.clusterDeploymentRefName != ss.Spec.ClusterDeploymentRefs[0].Name {
 		return false
 	}
-	secretReferences := ss.Spec.SyncSetCommonSpec.Secrets[0].SourceRef.Name
+	secretReferences := ss.Spec.Secrets[0].SourceRef.Name
 	if secretReferences == "" {
 		return false
 	}
