@@ -59,7 +59,8 @@ objects:
     name: pagerduty-operator-og
   spec:
     targetNamespaces:
-    - pagerduty-operator
+      - pagerduty-operator
+    upgradeStrategy: TechPreviewUnsafeFailForward
 
 - apiVersion: operators.coreos.com/v1alpha1
   kind: Subscription

@@ -24,6 +24,7 @@ const (
 	OperatorConfigMapName  string = "pagerduty-config"
 	OperatorName           string = "pagerduty-operator"
 	OperatorNamespace      string = "pagerduty-operator"
+	EnableOLMSkipRange     string = "true"
 	PagerDutyAPISecretName string = "pagerduty-api-key" // #nosec G101 -- This is a false positive
 	PagerDutyAPISecretKey  string = "PAGERDUTY_API_KEY" // #nosec G101 -- This is a false positive
 	PagerDutySecretKey     string = "PAGERDUTY_KEY"     // #nosec G101 -- This is a false positive
