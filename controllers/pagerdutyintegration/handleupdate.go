@@ -34,10 +34,10 @@ func (r *PagerDutyIntegrationReconciler) handleUpdate(pdclient pd.Client, pdi *p
 	var (
 		// configMapName is the name of the ConfigMap containing the
 		// SERVICE_ID and INTEGRATION_ID
-		configMapName string = config.Name(pdi.Spec.ServicePrefix, cd.Name, config.ConfigMapSuffix)
+		configMapName = config.Name(pdi.Spec.ServicePrefix, cd.Name, config.ConfigMapSuffix)
 	)
 	cm := &corev1.ConfigMap{}
-	err := r.Client.Get(context.TODO(), types.NamespacedName{Namespace: cd.ObjectMeta.Namespace, Name: configMapName}, cm)
+	err := r.Get(context.TODO(), types.NamespacedName{Namespace: cd.Namespace, Name: configMapName}, cm)
 	if err != nil {
 		return nil // requeue and wait for the configmap to be created
 	}
@@ -50,7 +50,7 @@ func (r *PagerDutyIntegrationReconciler) handleUpdate(pdclient pd.Client, pdi *p
 		if err != nil {
 			return err
 		}
-		err = pdData.ParseClusterConfig(r.Client, cd.ObjectMeta.Namespace, configMapName)
+		err = pdData.ParseClusterConfig(r.Client, cd.Namespace, configMapName)
 		if err != nil {
 			return err
 		}
@@ -62,7 +62,7 @@ func (r *PagerDutyIntegrationReconciler) handleUpdate(pdclient pd.Client, pdi *p
 
 		cm.Data["ALERT_GROUPING_TYPE"] = pdi.Spec.AlertGroupingParameters.Type
 		cm.Data["ALERT_GROUPING_TIMEOUT"] = fmt.Sprintf("%d", pdi.Spec.AlertGroupingParameters.Config.Timeout)
-		err = r.Client.Update(context.TODO(), cm)
+		err = r.Update(context.TODO(), cm)
 		if err != nil {
 			return err
 		}

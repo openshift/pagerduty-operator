@@ -39,17 +39,17 @@ func (r *PagerDutyIntegrationReconciler) handleDelete(pdclient pd.Client, pdi *p
 		// secretName is the name of the Secret deployed to the target
 		// cluster, and also the name of the SyncSet that causes it to
 		// be deployed.
-		secretName string = config.Name(pdi.Spec.ServicePrefix, cd.Name, config.SecretSuffix)
+		secretName = config.Name(pdi.Spec.ServicePrefix, cd.Name, config.SecretSuffix)
 
 		// configMapName is the name of the ConfigMap containing the
 		// SERVICE_ID and INTEGRATION_ID
-		configMapName string = config.Name(pdi.Spec.ServicePrefix, cd.Name, config.ConfigMapSuffix)
+		configMapName = config.Name(pdi.Spec.ServicePrefix, cd.Name, config.ConfigMapSuffix)
 
 		// There can be more than one PagerDutyIntegration that causes
 		// creation of resources for a ClusterDeployment, and each one
 		// will need a finalizer here. We add a suffix of the CR
 		// name to distinguish them.
-		finalizer string = config.PagerDutyFinalizerPrefix + pdi.Name
+		finalizer = config.PagerDutyFinalizerPrefix + pdi.Name
 	)
 
 	if !utils.HasFinalizer(cd, finalizer) {

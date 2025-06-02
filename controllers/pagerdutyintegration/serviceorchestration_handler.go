@@ -31,11 +31,11 @@ func (r *PagerDutyIntegrationReconciler) handleServiceOrchestration(pdclient pd.
 	var (
 		// clusterConfigmapName is the name of the ConfigMap containing the
 		// SERVICE_ID and INTEGRATION_ID
-		clusterConfigmapName string = config.Name(pdi.Spec.ServicePrefix, cd.Name, config.ConfigMapSuffix)
+		clusterConfigmapName = config.Name(pdi.Spec.ServicePrefix, cd.Name, config.ConfigMapSuffix)
 
 		// orchestrationConfigmapName is the name of the configmap containing the
 		// service orchestration rules
-		orchestrationConfigmapName string = pdi.Spec.ServiceOrchestration.RuleConfigConfigMapRef.Name
+		orchestrationConfigmapName = pdi.Spec.ServiceOrchestration.RuleConfigConfigMapRef.Name
 
 		fakeClusterDeploymentAnnotation = "managed.openshift.com/fake"
 	)
@@ -59,7 +59,7 @@ func (r *PagerDutyIntegrationReconciler) handleServiceOrchestration(pdclient pd.
 
 	clusterConfigMap := &corev1.ConfigMap{}
 
-	err = r.Client.Get(context.TODO(), types.NamespacedName{
+	err = r.Get(context.TODO(), types.NamespacedName{
 		Namespace: cd.Namespace, Name: clusterConfigmapName}, clusterConfigMap)
 	if err != nil {
 		return err
