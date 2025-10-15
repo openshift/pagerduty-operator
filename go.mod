@@ -2,6 +2,8 @@ module github.com/openshift/pagerduty-operator
 
 go 1.23.0
 
+toolchain go1.24.7
+
 require (
 	github.com/PagerDuty/go-pagerduty v1.8.0
 	github.com/go-logr/logr v1.4.3
