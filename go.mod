@@ -13,7 +13,7 @@ require (
 	github.com/openshift/hive/apis v0.0.0-20220525143918-dc755f3f28f2
 	github.com/openshift/operator-custom-metrics v0.5.1
 	github.com/prometheus/client_golang v1.23.0
-	github.com/stretchr/testify v1.11.0
+	github.com/stretchr/testify v1.11.1
 	go.uber.org/zap v1.27.0
 	k8s.io/api v0.29.3
 	k8s.io/apimachinery v0.29.3
