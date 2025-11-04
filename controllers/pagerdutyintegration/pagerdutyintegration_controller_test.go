@@ -171,7 +171,7 @@ func testCDSecret() *corev1.Secret {
 // testCDSyncSet returns a SyncSet for an existing testClusterDeployment to use in testing.
 func testCDSyncSet() *hivev1.SyncSet {
 	secretName := config.Name(testServicePrefix, testClusterName, config.SecretSuffix)
-	secret := kube.GeneratePdSecret(testNamespace, secretName, testIntegrationID)
+	secret := kube.GeneratePdSecret(testNamespace, secretName, testIntegrationID, "")
 	pdi := testPagerDutyIntegration()
 	ss := kube.GenerateSyncSet(testNamespace, testClusterName, secret, pdi)
 	return ss

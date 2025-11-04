@@ -56,6 +56,15 @@ type PagerDutyIntegrationSpec struct {
 
 	// Configures alert grouping for PD services
 	AlertGroupingParameters *AlertGroupingParametersSpec `json:"alertGroupingParameters,omitempty"`
+
+	// ID of the CAD service in PagerDuty.
+	// If set, the operator will fetch the integration key for this service
+	// and distribute it to clusters as CAD_PAGERDUTY_KEY.
+	CADServiceID string `json:"cadServiceID,omitempty"`
+
+	// ID of the CAD integration within the CAD service.
+	// Required if CADServiceID is set.
+	CADIntegrationID string `json:"cadIntegrationID,omitempty"`
 }
 
 // ServiceOrchestration defines if the service orchestration is enabled

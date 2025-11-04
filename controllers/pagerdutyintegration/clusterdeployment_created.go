@@ -146,6 +146,7 @@ func (r *PagerDutyIntegrationReconciler) handleCreate(pdclient pd.Client, pdi *p
 
 	// To prevent scoping issues in the err check below.
 	var pdIntegrationKey string
+	var cadIntegrationKey string
 
 	// try to load integration key (secret)
 	sc := &corev1.Secret{}
@@ -155,6 +156,11 @@ func (r *PagerDutyIntegrationReconciler) handleCreate(pdclient pd.Client, pdi *p
 		// successfully loaded secret, snag the integration key
 		r.reqLogger.Info("pdIntegrationKey found, skipping create", "ClusterID", pdData.ClusterID, "BaseDomain", pdData.BaseDomain, "ClusterDeployment.Namespace", cd.Namespace)
 		pdIntegrationKey = string(sc.Data[config.PagerDutySecretKey])
+
+		if val, ok := sc.Data[config.CADPagerDutySecretKey]; ok {
+			cadIntegrationKey = string(val)
+		}
+
 	} else {
 		// unable to load an integration key, create one.
 		r.reqLogger.Info("pdIntegrationKey not found, creating one", "ClusterID", pdData.ClusterID, "BaseDomain", pdData.BaseDomain, "ClusterDeployment.Namespace", cd.Namespace)
@@ -165,8 +171,22 @@ func (r *PagerDutyIntegrationReconciler) handleCreate(pdclient pd.Client, pdi *p
 		}
 	}
 
+	// Fetch CAD integration key if CADServiceID and CADIntegrationID are set
+	if pdi.Spec.CADServiceID != "" && pdi.Spec.CADIntegrationID != "" && cadIntegrationKey == "" {
+		r.reqLogger.Info("Fetching CAD integration key", "CADServiceID", pdi.Spec.CADServiceID, "CADIntegrationID", pdi.Spec.CADIntegrationID)
+		cadData := &pd.Data{
+			ServiceID:     pdi.Spec.CADServiceID,
+			IntegrationID: pdi.Spec.CADIntegrationID,
+		}
+		cadIntegrationKey, err = pdclient.GetIntegrationKey(cadData)
+		if err != nil {
+			r.reqLogger.Error(err, "Failed to fetch CAD integration key", "CADServiceID", pdi.Spec.CADServiceID, "CADIntegrationID", pdi.Spec.CADIntegrationID)
+			return err
+		}
+	}
+
 	//add secret part
-	secret := kube.GeneratePdSecret(cd.Namespace, secretName, pdIntegrationKey)
+	secret := kube.GeneratePdSecret(cd.Namespace, secretName, pdIntegrationKey, cadIntegrationKey)
 	r.reqLogger.Info("creating pd secret", "ClusterDeployment.Namespace", cd.Namespace)
 	//add reference
 	if err = controllerutil.SetControllerReference(cd, secret, r.Scheme); err != nil {
@@ -178,14 +198,18 @@ func (r *PagerDutyIntegrationReconciler) handleCreate(pdclient pd.Client, pdi *p
 			return err
 		}
 
-		r.reqLogger.Info("the pd secret exist, check if pdIntegrationKey is changed or not", "ClusterDeployment.Namespace", cd.Namespace)
+		r.reqLogger.Info("the pd secret exist, check if pdIntegrationKey or cadIntegrationKey is changed or not", "ClusterDeployment.Namespace", cd.Namespace)
 		sc := &corev1.Secret{}
 		err = r.Get(context.TODO(), types.NamespacedName{Name: secret.Name, Namespace: cd.Namespace}, sc)
 		if err != nil {
 			return nil
 		}
-		if string(sc.Data[config.PagerDutySecretKey]) != pdIntegrationKey {
-			r.reqLogger.Info("pdIntegrationKey is changed, delete the secret first")
+		existingCADKey := ""
+		if val, ok := sc.Data[config.CADPagerDutySecretKey]; ok {
+			existingCADKey = string(val)
+		}
+		if string(sc.Data[config.PagerDutySecretKey]) != pdIntegrationKey || existingCADKey != cadIntegrationKey {
+			r.reqLogger.Info("pdIntegrationKey or cadIntegrationKey is changed, delete the secret first")
 			if err = r.Delete(context.TODO(), secret); err != nil {
 				log.Info("failed to delete existing pd secret")
 				return err

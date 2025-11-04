@@ -28,6 +28,7 @@ const (
 	PagerDutyAPISecretName string = "pagerduty-api-key" // #nosec G101 -- This is a false positive
 	PagerDutyAPISecretKey  string = "PAGERDUTY_API_KEY" // #nosec G101 -- This is a false positive
 	PagerDutySecretKey     string = "PAGERDUTY_KEY"     // #nosec G101 -- This is a false positive
+	CADPagerDutySecretKey  string = "CAD_PAGERDUTY_KEY" // #nosec G101 -- This is a false positive
 	// PagerDutyFinalizerPrefix prefix used for finalizers on resources other than PDI
 	PagerDutyFinalizerPrefix string = "pd.managed.openshift.io/"
 	// PagerDutyIntegrationFinalizer name of finalizer used for PDI

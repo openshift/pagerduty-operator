@@ -56,7 +56,16 @@ func GenerateSyncSet(namespace string, clusterDeploymentName string, secret *cor
 }
 
 // GeneratePdSecret returns a secret that can be created with the oc client
-func GeneratePdSecret(namespace string, name string, pdIntegrationKey string) *corev1.Secret {
+func GeneratePdSecret(namespace string, name string, pdIntegrationKey string, cadIntegrationKey string) *corev1.Secret {
+	secretData := map[string][]byte{
+		config.PagerDutySecretKey: []byte(pdIntegrationKey),
+	}
+
+	// Add CAD integration key if provided
+	if cadIntegrationKey != "" {
+		secretData[config.CADPagerDutySecretKey] = []byte(cadIntegrationKey)
+	}
+
 	secret := &corev1.Secret{
 		Type: "Opaque",
 		TypeMeta: metav1.TypeMeta{
@@ -67,9 +76,7 @@ func GeneratePdSecret(namespace string, name string, pdIntegrationKey string) *c
 			Name:      name,
 			Namespace: namespace,
 		},
-		Data: map[string][]byte{
-			config.PagerDutySecretKey: []byte(pdIntegrationKey),
-		},
+		Data: secretData,
 	}
 
 	return secret
