@@ -90,3 +90,7 @@ saas-pagerduty-operator-bundle/
 
 # IntelliJ
 .idea/
+
+# Claude
+CLAUDE.md
+.claude/
