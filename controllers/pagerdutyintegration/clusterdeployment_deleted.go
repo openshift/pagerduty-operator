@@ -123,7 +123,7 @@ func (r *PagerDutyIntegrationReconciler) handleDelete(pdclient pd.Client, pdi *p
 		r.reqLogger.Info("Deleting PD finalizer from ClusterDeployment", "ClusterDeployment.Namespace", cd.Namespace, "ClusterDeployment Name", cd.Name)
 		baseToPatch := client.MergeFrom(cd.DeepCopy())
 		utils.DeleteFinalizer(cd, finalizer)
-		err = r.Patch(context.TODO(), cd, baseToPatch);
+		err = r.Patch(context.TODO(), cd, baseToPatch)
 		if err != nil {
 			r.reqLogger.Error(err, "Error deleting Finalizer from cluster deployment", "ClusterDeployment.Namespace", cd.Namespace, "ClusterDeployment Name", cd.Name)
 			metrics.UpdateMetricPagerDutyDeleteFailure(1, clusterID, pdi.Name)
