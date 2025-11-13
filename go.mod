@@ -7,13 +7,13 @@ toolchain go1.24.7
 require (
 	github.com/PagerDuty/go-pagerduty v1.8.0
 	github.com/go-logr/logr v1.4.3
-	github.com/golang/mock v1.6.0
 	// go get -u github.com/openshift/api@release-4.15
 	github.com/openshift/api v0.0.0-20240228005710-4511c790cc60
 	github.com/openshift/hive/apis v0.0.0-20220525143918-dc755f3f28f2
 	github.com/openshift/operator-custom-metrics v0.5.1
 	github.com/prometheus/client_golang v1.23.2
 	github.com/stretchr/testify v1.11.1
+	go.uber.org/mock v0.6.0
 	go.uber.org/zap v1.27.0
 	k8s.io/api v0.29.3
 	k8s.io/apimachinery v0.29.3
