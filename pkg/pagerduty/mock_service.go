@@ -20,7 +20,6 @@ import (
 type MockClient struct {
 	ctrl     *gomock.Controller
 	recorder *MockClientMockRecorder
-	isgomock struct{}
 }
 
 // MockClientMockRecorder is the mock recorder for MockClient.
@@ -187,7 +186,6 @@ func (mr *MockClientMockRecorder) UpdateEscalationPolicy(data any) *gomock.Call 
 type MockPdClient struct {
 	ctrl     *gomock.Controller
 	recorder *MockPdClientMockRecorder
-	isgomock struct{}
 }
 
 // MockPdClientMockRecorder is the mock recorder for MockPdClient.
