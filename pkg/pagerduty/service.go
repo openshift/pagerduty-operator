@@ -14,6 +14,8 @@
 
 package pagerduty
 
+//go:generate mockgen -source=service.go -destination=mock_service.go -package=pagerduty
+
 import (
 	"context"
 	"fmt"
