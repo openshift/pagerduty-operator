@@ -1,6 +1,17 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "github>openshift/boilerplate//.github/renovate.json"
+    "github>openshift/boilerplate//.github/renovate.json",
+    "security:only-security-updates"
+  ],
+  "enabledManagers": [
+    "tekton",
+    "gomod"
+  ],
+  "packageRules": [
+    {
+      "matchManagers": ["tekton"],
+      "enabled": true
+    }
   ]
 }
