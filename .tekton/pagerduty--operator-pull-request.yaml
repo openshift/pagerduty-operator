@@ -10,14 +10,14 @@ metadata:
     pipelinesascode.tekton.dev/max-keep-runs: '3'
     pipelinesascode.tekton.dev/on-cel-expression: "event == \"pull_request\" \n&&\
       \ target_branch == \"master\"\n&& (\"**/*.go\".pathChanged() ||\n    \"**/go.*\"\
-      .pathChanged() ||\n    \"build/Dockerfile\".pathChanged() ||\n    \".tekton/pagerduty-operator-pull-request.yaml\"\
+      .pathChanged() ||\n    \"build/Dockerfile\".pathChanged() ||\n    \".tekton/pagerduty--operator-pull-request.yaml\"\
       .pathChanged() )\n"
   creationTimestamp: null
   labels:
     appstudio.openshift.io/application: pagerduty-operator
-    appstudio.openshift.io/component: pagerduty-operator
+    appstudio.openshift.io/component: pagerduty--operator
     pipelines.appstudio.openshift.io/type: build
-  name: pagerduty-operator-on-pull-request
+  name: pagerduty--operator-on-pull-request
   namespace: pagerduty-operator-tenant
 spec:
   params:
@@ -26,7 +26,7 @@ spec:
   - name: revision
     value: '{{revision}}'
   - name: output-image
-    value: quay.io/redhat-user-workloads/pagerduty-operator-tenant/openshift/pagerduty-operator:on-pr-{{revision}}
+    value: quay.io/redhat-user-workloads/pagerduty-operator-tenant/openshift/pagerduty--operator:on-pr-{{revision}}
   - name: image-expires-after
     value: 5d
   - name: dockerfile
@@ -34,7 +34,7 @@ spec:
   - name: path-context
     value: .
   taskRunTemplate:
-    serviceAccountName: build-pipeline-pagerduty-operator
+    serviceAccountName: build-pipeline-pagerduty--operator
   workspaces:
   - name: git-auth
     secret:
