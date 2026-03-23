@@ -1,0 +1,85 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: olm-cleanup
+  namespace: pagerduty-operator
+  annotations:
+    package-operator.run/phase: cleanup-rbac
+    package-operator.run/collision-protection: IfNoController
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: olm-cleanup
+  namespace: pagerduty-operator
+  annotations:
+    package-operator.run/phase: cleanup-rbac
+    package-operator.run/collision-protection: IfNoController
+rules:
+  - apiGroups:
+      - operators.coreos.com
+    resources:
+      - clusterserviceversions
+      - subscriptions
+      - catalogsources
+      - operatorgroups
+    verbs:
+      - list
+      - get
+      - watch
+      - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: olm-cleanup
+  namespace: pagerduty-operator
+  annotations:
+    package-operator.run/phase: cleanup-rbac
+    package-operator.run/collision-protection: IfNoController
+roleRef:
+  kind: Role
+  name: olm-cleanup
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+  - kind: ServiceAccount
+    name: olm-cleanup
+    namespace: pagerduty-operator
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: olm-cleanup
+  namespace: pagerduty-operator
+  annotations:
+    package-operator.run/phase: cleanup-deploy
+    package-operator.run/collision-protection: IfNoController
+spec:
+  ttlSecondsAfterFinished: 100
+  template:
+    metadata:
+      annotations:
+        openshift.io/required-scc: restricted-v2
+    spec:
+      serviceAccountName: olm-cleanup
+      priorityClassName: openshift-user-critical
+      restartPolicy: Never
+      containers:
+        - name: delete-csv
+          image: image-registry.openshift-image-registry.svc:5000/openshift/cli:latest
+          imagePullPolicy: Always
+          command:
+            - sh
+            - -c
+            - |
+              #!/bin/sh
+              set -euxo pipefail
+              oc -n pagerduty-operator delete csv -l "operators.coreos.com/pagerduty-operator.pagerduty-operator" || true
+              oc -n pagerduty-operator delete subscription.operators.coreos.com pagerduty-operator || true
+              oc -n pagerduty-operator delete catalogsource.operators.coreos.com pagerduty-operator-catalog || true
+              oc -n pagerduty-operator delete operatorgroup.operators.coreos.com pagerduty-operator-og || true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100Mi
