@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pagerduty-operator
+  namespace: pagerduty-operator
+  annotations:
+    package-operator.run/phase: deploy
+    package-operator.run/collision-protection: IfNoController
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: pagerduty-operator
+  template:
+    metadata:
+      labels:
+        name: pagerduty-operator
+    spec:
+      serviceAccountName: pagerduty-operator
+      containers:
+      - name: pagerduty-operator
+        image: '{{ .config.image }}'
+        command:
+        - pagerduty-operator
+        imagePullPolicy: Always
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          requests:
+            memory: "2G"
+            cpu: "100m"
+          limits:
+            memory: "2G"
+            cpu: "100m"
+        env:
+        - name: WATCH_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: OPERATOR_NAME
+          value: "pagerduty-operator"
+        - name: FEDRAMP
+          value: '{{ .config.fedramp }}'
