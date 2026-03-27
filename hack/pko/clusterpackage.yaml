@@ -11,31 +11,29 @@ parameters:
     required: true
   - name: IMAGE_DIGEST
     required: true
-  - name: NAMESPACE
-    value: pagerduty-operator
   - name: REPO_NAME
     value: pagerduty-operator
     required: true
+  - name: FEDRAMP
+    value: "false"
   - name: ACKNOWLEDGE_TIMEOUT
     required: true
   - name: RESOLVE_TIMEOUT
-    required: true
-  - name: SERVICE_PREFIX
     required: true
   - name: ESCALATION_POLICY
     required: true
   - name: ESCALATION_POLICY_SILENT
     required: true
-  - name: SILENT_ALERT_LEGALENTITY_IDS
-    value: '["None"]'
-  - name: SCALE_TEST_SERVICE_PREFIX
+  - name: SERVICE_PREFIX
     required: true
+  - name: SILENT_ALERT_LEGALENTITY_IDS
+    value: '[]'
   - name: SCALE_TEST_ESCALATION_POLICY
     required: true
+  - name: SCALE_TEST_SERVICE_PREFIX
+    required: true
   - name: SCALE_TEST_LEGALENTITY_IDS
-    value: '["None"]'
-  - name: FEDRAMP
-    value: "false"
+    value: '[]'
   - name: SERVICE_ORCHESTRATION_ENABLED
     value: "false"
   - name: SERVICE_ORCHESTRATION_RULE_CONFIGMAP
@@ -44,6 +42,10 @@ parameters:
     value: ""
   - name: ALERT_GROUPING_TIMEOUT
     value: "0"
+  - name: SERVICE_ORCHESTRATION_RULES
+    value: "{}"
+  - name: RH_INFRA_SERVICE_ORCHESTRATION_RULES
+    value: "{}"
 metadata:
   name: clusterpackage-template
 objects:
@@ -58,139 +60,18 @@ objects:
       config:
         image: ${OPERATOR_IMAGE}:${IMAGE_TAG}
         fedramp: ${FEDRAMP}
-  - apiVersion: pagerduty.openshift.io/v1alpha1
-    kind: PagerDutyIntegration
-    metadata:
-      name: osd
-      namespace: ${NAMESPACE}
-    spec:
-      acknowledgeTimeout: ${{ACKNOWLEDGE_TIMEOUT}}
-      resolveTimeout: ${{RESOLVE_TIMEOUT}}
-      escalationPolicy: ${{ESCALATION_POLICY}}
-      servicePrefix: ${{SERVICE_PREFIX}}
-      pagerdutyApiKeySecretRef:
-        name: pagerduty-api-key
-        namespace: ${NAMESPACE}
-      serviceOrchestration:
-        enabled: ${{SERVICE_ORCHESTRATION_ENABLED}}
-        ruleConfigConfigMapRef:
-          name: ${{SERVICE_ORCHESTRATION_RULE_CONFIGMAP}}
-          namespace: ${NAMESPACE}
-      alertGroupingParameters:
-        type: ${{ALERT_GROUPING_TYPE}}
-        config:
-          timeout: ${{ALERT_GROUPING_TIMEOUT}}
-      clusterDeploymentSelector:
-        matchExpressions:
-        - key: api.openshift.com/managed
-          operator: In
-          values: ["true"]
-        - key: api.openshift.com/legal-entity-id
-          operator: NotIn
-          values: ${{SCALE_TEST_LEGALENTITY_IDS}}
-        - key: api.openshift.com/legal-entity-id
-          operator: NotIn
-          values: ${{SILENT_ALERT_LEGALENTITY_IDS}}
-        - key: api.openshift.com/channel-group
-          operator: NotIn
-          values: ["nightly"]
-        - key: api.openshift.com/noalerts
-          operator: NotIn
-          values: ["true"]
-        - key: ext-managed.openshift.io/noalerts
-          operator: NotIn
-          values: ["true"]
-        - key: api.openshift.com/fedramp
-          operator: NotIn
-          values: ["true"]
-      targetSecretRef:
-        name: pd-secret
-        namespace: openshift-monitoring
-  - apiVersion: pagerduty.openshift.io/v1alpha1
-    kind: PagerDutyIntegration
-    metadata:
-      name: osd-silent
-      namespace: ${NAMESPACE}
-    spec:
-      acknowledgeTimeout: ${{ACKNOWLEDGE_TIMEOUT}}
-      resolveTimeout: ${{RESOLVE_TIMEOUT}}
-      escalationPolicy: ${{ESCALATION_POLICY_SILENT}}
-      servicePrefix: ${SERVICE_PREFIX}-silent
-      pagerdutyApiKeySecretRef:
-        name: pagerduty-api-key
-        namespace: ${NAMESPACE}
-      clusterDeploymentSelector:
-        matchExpressions:
-        - key: api.openshift.com/managed
-          operator: In
-          values: ["true"]
-        - key: api.openshift.com/legal-entity-id
-          operator: NotIn
-          values: ${{SCALE_TEST_LEGALENTITY_IDS}}
-        - key: api.openshift.com/legal-entity-id
-          operator: In
-          values: ${{SILENT_ALERT_LEGALENTITY_IDS}}
-        - key: api.openshift.com/noalerts
-          operator: NotIn
-          values: ["true"]
-        - key: ext-managed.openshift.io/noalerts
-          operator: NotIn
-          values: ["true"]
-        - key: api.openshift.com/fedramp
-          operator: NotIn
-          values: ["true"]
-      targetSecretRef:
-        name: pd-secret
-        namespace: openshift-monitoring
-  - apiVersion: pagerduty.openshift.io/v1alpha1
-    kind: PagerDutyIntegration
-    metadata:
-      name: osd-scale-test
-      namespace: ${NAMESPACE}
-    spec:
-      acknowledgeTimeout: ${{ACKNOWLEDGE_TIMEOUT}}
-      resolveTimeout: ${{RESOLVE_TIMEOUT}}
-      escalationPolicy: ${{SCALE_TEST_ESCALATION_POLICY}}
-      servicePrefix: ${{SCALE_TEST_SERVICE_PREFIX}}
-      pagerdutyApiKeySecretRef:
-        name: pagerduty-api-key
-        namespace: ${NAMESPACE}
-      clusterDeploymentSelector:
-        matchExpressions:
-        - key: api.openshift.com/managed
-          operator: In
-          values: ["true"]
-        - key: api.openshift.com/legal-entity-id
-          operator: In
-          values: ${{SCALE_TEST_LEGALENTITY_IDS}}
-        - key: api.openshift.com/channel-group
-          operator: NotIn
-          values: ["nightly"]
-        - key: api.openshift.com/noalerts
-          operator: NotIn
-          values: ["true"]
-        - key: ext-managed.openshift.io/noalerts
-          operator: NotIn
-          values: ["true"]
-        - key: api.openshift.com/fedramp
-          operator: NotIn
-          values: ["true"]
-      targetSecretRef:
-        name: pd-secret
-        namespace: openshift-monitoring
-  - apiVersion: monitoring.coreos.com/v1
-    kind: PrometheusRule
-    metadata:
-      name: pagerduty-integration-api-secret
-      namespace: ${NAMESPACE}
-    spec:
-      groups:
-        - name: pagerduty-integration-api-secret
-          rules:
-            - alert: PagerDutyIntegrationAPISecretError
-              annotations:
-                message: PagerDuty Operator is failing to load PAGERDUTY_API_KEY from Secret specified in PagerDutyIntegration {{ $labels.pagerdutyintegration_name }}. Either the Secret might be missing, or the key might be missing from within the Secret.
-              expr: pagerdutyintegration_secret_loaded < 1
-              for: 15m
-              labels:
-                severity: warning
+        acknowledgeTimeout: ${{ACKNOWLEDGE_TIMEOUT}}
+        resolveTimeout: ${{RESOLVE_TIMEOUT}}
+        escalationPolicy: ${ESCALATION_POLICY}
+        escalationPolicySilent: ${ESCALATION_POLICY_SILENT}
+        servicePrefix: ${SERVICE_PREFIX}
+        silentAlertLegalEntityIds: ${{SILENT_ALERT_LEGALENTITY_IDS}}
+        scaleTestEscalationPolicy: ${SCALE_TEST_ESCALATION_POLICY}
+        scaleTestServicePrefix: ${SCALE_TEST_SERVICE_PREFIX}
+        scaleTestLegalEntityIds: ${{SCALE_TEST_LEGALENTITY_IDS}}
+        serviceOrchestrationEnabled: ${SERVICE_ORCHESTRATION_ENABLED}
+        serviceOrchestrationRuleConfigmap: ${SERVICE_ORCHESTRATION_RULE_CONFIGMAP}
+        alertGroupingType: ${ALERT_GROUPING_TYPE}
+        alertGroupingTimeout: ${{ALERT_GROUPING_TIMEOUT}}
+        serviceOrchestrationRules: ${SERVICE_ORCHESTRATION_RULES}
+        rhInfraServiceOrchestrationRules: ${RH_INFRA_SERVICE_ORCHESTRATION_RULES}

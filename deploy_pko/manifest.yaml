@@ -10,6 +10,7 @@ spec:
   - name: namespace
   - name: rbac
   - name: deploy
+  - name: integrations
   - name: cleanup-rbac
   - name: cleanup-deploy
   availabilityProbes:
@@ -31,8 +32,67 @@ spec:
         image:
           description: Operator image to deploy
           type: string
-          default: None
+          default: ""
         fedramp:
           description: FedRAMP mode flag
           type: string
           default: "false"
+        acknowledgeTimeout:
+          description: PagerDuty incident acknowledge timeout in seconds
+          type: integer
+          default: 21600
+        resolveTimeout:
+          description: PagerDuty incident resolve timeout in seconds
+          type: integer
+          default: 0
+        escalationPolicy:
+          description: PagerDuty escalation policy ID for standard alerts
+          type: string
+        escalationPolicySilent:
+          description: PagerDuty escalation policy ID for silent alerts
+          type: string
+        servicePrefix:
+          description: Prefix for PagerDuty service names
+          type: string
+        silentAlertLegalEntityIds:
+          description: Legal entity IDs routed to silent escalation policy
+          type: array
+          items:
+            type: string
+          default: []
+        scaleTestEscalationPolicy:
+          description: PagerDuty escalation policy ID for scale test alerts
+          type: string
+        scaleTestServicePrefix:
+          description: Prefix for scale test PagerDuty service names
+          type: string
+        scaleTestLegalEntityIds:
+          description: Legal entity IDs for scale test organizations
+          type: array
+          items:
+            type: string
+          default: []
+        serviceOrchestrationEnabled:
+          description: Enable PagerDuty service orchestration
+          type: string
+          default: "false"
+        serviceOrchestrationRuleConfigmap:
+          description: ConfigMap name containing service orchestration rules
+          type: string
+          default: "osd-serviceorchestration"
+        alertGroupingType:
+          description: PagerDuty alert grouping type
+          type: string
+          default: ""
+        alertGroupingTimeout:
+          description: PagerDuty alert grouping timeout in minutes
+          type: integer
+          default: 0
+        serviceOrchestrationRules:
+          description: JSON rules for PagerDuty service orchestration
+          type: string
+          default: "{}"
+        rhInfraServiceOrchestrationRules:
+          description: JSON rules for RH infra PagerDuty service orchestration
+          type: string
+          default: "{}"
