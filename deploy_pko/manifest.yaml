@@ -96,3 +96,131 @@ spec:
           description: JSON rules for RH infra PagerDuty service orchestration
           type: string
           default: "{}"
+test:
+  template:
+  - name: default
+    context:
+      package:
+        metadata:
+          name: pagerduty-operator
+          namespace: pagerduty-operator
+      config:
+        image: quay.io/example/pagerduty-operator:test
+        fedramp: "false"
+        acknowledgeTimeout: 21600
+        resolveTimeout: 0
+        escalationPolicy: PTEST123
+        escalationPolicySilent: PSILENT1
+        servicePrefix: osd
+        silentAlertLegalEntityIds:
+        - "1aV37K1VQv2zSStwSkdwBNOUBGI"
+        - "2Mo8exhgEA5ir1lsVypXUb9v902"
+        scaleTestEscalationPolicy: PSCALE01
+        scaleTestServicePrefix: osd-scale-test
+        scaleTestLegalEntityIds:
+        - "1ep4WsPDKikDQCFLsi2yKdzH8xB"
+        serviceOrchestrationEnabled: "true"
+        serviceOrchestrationRuleConfigmap: osd-serviceorchestration
+        alertGroupingType: time
+        alertGroupingTimeout: 300
+        serviceOrchestrationRules: '{"orchestration_path":{"catch_all":{"actions":{}},"sets":[{"id":"start","rules":[{"actions":{"suppress":true},"conditions":[{"expression":"event.severity matches ''Warning''"}]}]}],"type":"service"}}'
+        rhInfraServiceOrchestrationRules: '{"orchestration_path":{"catch_all":{"actions":{}},"sets":[{"id":"start","rules":[{"actions":{"suppress":true},"conditions":[{"expression":"event.severity matches ''Warning''"}]},{"actions":{"priority":"PDPJP5Q"},"conditions":[]}]}],"type":"service"}}'
+  - name: integration
+    context:
+      package:
+        metadata:
+          name: pagerduty-operator
+          namespace: pagerduty-operator
+      config:
+        image: quay.io/example/pagerduty-operator:test
+        fedramp: "false"
+        acknowledgeTimeout: 21600
+        resolveTimeout: 0
+        escalationPolicy: PA2GM5L
+        escalationPolicySilent: PNCPMTV
+        servicePrefix: osdint
+        silentAlertLegalEntityIds: []
+        scaleTestEscalationPolicy: PKCHC7O
+        scaleTestServicePrefix: osd-scale-test
+        scaleTestLegalEntityIds:
+        - "1ep4WsPDKikDQCFLsi2yKdzH8xB"
+        serviceOrchestrationEnabled: "true"
+        serviceOrchestrationRuleConfigmap: osd-serviceorchestration
+        alertGroupingType: ""
+        alertGroupingTimeout: 0
+        serviceOrchestrationRules: '{"orchestration_path":{"catch_all":{"actions":{}},"sets":[{"id":"start","rules":[{"actions":{"suppress":true},"conditions":[{"expression":"event.severity matches ''Warning''"}]}]}],"type":"service"}}'
+        rhInfraServiceOrchestrationRules: '{"orchestration_path":{"catch_all":{"actions":{}},"sets":[{"id":"start","rules":[{"actions":{"suppress":true},"conditions":[{"expression":"event.severity matches ''Warning''"}]},{"actions":{"priority":"PDPJP5Q"},"conditions":[]}]}],"type":"service"}}'
+  - name: empty-arrays
+    context:
+      package:
+        metadata:
+          name: pagerduty-operator
+          namespace: pagerduty-operator
+      config:
+        image: quay.io/example/pagerduty-operator:test
+        fedramp: "false"
+        acknowledgeTimeout: 21600
+        resolveTimeout: 0
+        escalationPolicy: PTEST123
+        escalationPolicySilent: PSILENT1
+        servicePrefix: osd
+        silentAlertLegalEntityIds: []
+        scaleTestEscalationPolicy: PSCALE01
+        scaleTestServicePrefix: osd-scale-test
+        scaleTestLegalEntityIds: []
+        serviceOrchestrationEnabled: "true"
+        serviceOrchestrationRuleConfigmap: osd-serviceorchestration
+        alertGroupingType: ""
+        alertGroupingTimeout: 0
+        serviceOrchestrationRules: "{}"
+        rhInfraServiceOrchestrationRules: "{}"
+  - name: fedramp
+    context:
+      package:
+        metadata:
+          name: pagerduty-operator
+          namespace: pagerduty-operator
+      config:
+        image: quay.io/example/pagerduty-operator:test
+        fedramp: "true"
+        acknowledgeTimeout: 21600
+        resolveTimeout: 0
+        escalationPolicy: PTEST123
+        escalationPolicySilent: PSILENT1
+        servicePrefix: osd
+        silentAlertLegalEntityIds: []
+        scaleTestEscalationPolicy: PSCALE01
+        scaleTestServicePrefix: osd-scale-test
+        scaleTestLegalEntityIds: []
+        serviceOrchestrationEnabled: "false"
+        serviceOrchestrationRuleConfigmap: osd-serviceorchestration
+        alertGroupingType: ""
+        alertGroupingTimeout: 0
+        serviceOrchestrationRules: "{}"
+        rhInfraServiceOrchestrationRules: "{}"
+  - name: orchestration-disabled
+    context:
+      package:
+        metadata:
+          name: pagerduty-operator
+          namespace: pagerduty-operator
+      config:
+        image: quay.io/example/pagerduty-operator:test
+        fedramp: "false"
+        acknowledgeTimeout: 21600
+        resolveTimeout: 0
+        escalationPolicy: PTEST123
+        escalationPolicySilent: PSILENT1
+        servicePrefix: osd
+        silentAlertLegalEntityIds:
+        - "1aV37K1VQv2zSStwSkdwBNOUBGI"
+        scaleTestEscalationPolicy: PSCALE01
+        scaleTestServicePrefix: osd-scale-test
+        scaleTestLegalEntityIds:
+        - "1ep4WsPDKikDQCFLsi2yKdzH8xB"
+        serviceOrchestrationEnabled: "false"
+        serviceOrchestrationRuleConfigmap: osd-serviceorchestration
+        alertGroupingType: ""
+        alertGroupingTimeout: 0
+        serviceOrchestrationRules: "{}"
+        rhInfraServiceOrchestrationRules: "{}"
