@@ -13,6 +13,10 @@
     - [Create PagerDutyIntegration](#create-the-pagerdutyintegration-object)
     - [Create ClusterDeployment](#create-the-clusterdeployment-object)
     - [Delete ClusterDeployment](#delete-the-clusterdeployment-object)
+  - [Testing](#testing)
+    - [Unit tests](#unit-tests)
+    - [PKO template tests](#pko-template-tests)
+    - [Regenerating test fixtures](#regenerating-test-fixtures)
 
 ## About
 
@@ -227,3 +231,68 @@ You may need to remove dangling finalizers from the `clusterdeployment` object.
 ```bash
 oc edit clusterdeployment fake-cluster -n fake-cluster-namespace
 ```
+
+## Testing
+
+### Unit tests
+
+Run the full test suite:
+
+```bash
+make test
+```
+
+This runs all Go unit tests including controller tests, utility tests, and PKO
+template tests.
+
+### PKO template tests
+
+The operator is deployed via [Package Operator (PKO)](https://package-operator.run/).
+Deployment manifests live in `deploy_pko/` as Go templates (`.gotmpl` files)
+that PKO renders using config values from the ClusterPackage.
+
+Template tests validate that all `.gotmpl` files render correctly with
+different configurations. There are two layers of testing:
+
+**Go unit tests** (`pkg/pko/template_test.go`):
+
+Structural validation of rendered templates — verifies correct `kind`,
+metadata, phase annotations, config substitution (image, fedramp, escalation
+policies), array rendering via `toJson`, JSON blob quoting, and that
+osd-silent/osd-scale-test PDIs correctly include or omit fields relative to
+the main osd PDI.
+
+```bash
+go test ./pkg/pko/... -v
+```
+
+**PKO snapshot tests** (`deploy_pko/manifest.yaml` `test.template` section):
+
+The `manifest.yaml` defines test contexts with different config values
+(production, integration, empty arrays, fedramp, orchestration-disabled).
+`kubectl-package validate` renders all templates with each context and
+compares the output against snapshot fixtures in `deploy_pko/.test-fixtures/`.
+
+```bash
+kubectl-package validate deploy_pko/
+```
+
+If the output doesn't match the fixtures, validation fails — this catches
+unintended changes to template rendering.
+
+### Regenerating test fixtures
+
+After intentionally modifying a `.gotmpl` file or the `manifest.yaml` config
+schema, the snapshot fixtures need to be regenerated:
+
+```bash
+rm -rf deploy_pko/.test-fixtures
+kubectl-package validate deploy_pko/
+```
+
+This regenerates the fixture directories. Review the changes with `git diff`
+to confirm only the expected fields changed, then commit the updated fixtures
+alongside the template changes.
+
+If `kubectl-package` is not installed, download it from the
+[package-operator releases](https://github.com/package-operator/package-operator/releases).
