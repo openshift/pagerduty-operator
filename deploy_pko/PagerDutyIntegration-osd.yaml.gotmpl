@@ -20,7 +20,7 @@ spec:
       name: {{ .config.serviceOrchestrationRuleConfigmap }}
       namespace: pagerduty-operator
   alertGroupingParameters:
-    type: {{ .config.alertGroupingType }}
+    type: "{{ .config.alertGroupingType }}"
     config:
       timeout: {{ .config.alertGroupingTimeout }}
   clusterDeploymentSelector:

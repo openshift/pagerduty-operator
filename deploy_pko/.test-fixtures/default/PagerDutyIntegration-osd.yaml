@@ -20,7 +20,7 @@ spec:
       name: osd-serviceorchestration
       namespace: pagerduty-operator
   alertGroupingParameters:
-    type: time
+    type: "time"
     config:
       timeout: 300
   clusterDeploymentSelector:
