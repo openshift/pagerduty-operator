@@ -92,5 +92,4 @@ saas-pagerduty-operator-bundle/
 .idea/
 
 # Claude
-CLAUDE.md
 .claude/
