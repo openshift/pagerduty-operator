@@ -243,7 +243,12 @@ func (r *PagerDutyIntegrationReconciler) getAllClusterDeployments() (*hivev1.Clu
 }
 
 func (r *PagerDutyIntegrationReconciler) getMatchingClusterDeployments(pdi *pagerdutyv1alpha1.PagerDutyIntegration) (*hivev1.ClusterDeploymentList, error) {
-	selector, err := metav1.LabelSelectorAsSelector(&pdi.Spec.ClusterDeploymentSelector)
+	sanitized, matchesNothing := sanitizeLabelSelector(&pdi.Spec.ClusterDeploymentSelector, r.reqLogger)
+	if matchesNothing {
+		return &hivev1.ClusterDeploymentList{}, nil
+	}
+
+	selector, err := metav1.LabelSelectorAsSelector(sanitized)
 	if err != nil {
 		return nil, err
 	}
@@ -252,6 +257,52 @@ func (r *PagerDutyIntegrationReconciler) getMatchingClusterDeployments(pdi *page
 	listOpts := &client.ListOptions{LabelSelector: selector}
 	err = r.List(context.TODO(), matchingClusterDeployments, listOpts)
 	return matchingClusterDeployments, err
+}
+
+// sanitizeLabelSelector returns a sanitized copy of the selector with empty-values
+// expressions handled idiomatically:
+//   - NotIn with empty values → expression removed (always true, no-op)
+//   - In with empty values → signal caller that selector matches nothing
+//
+// The returned selector is always a deep copy — the original is never modified.
+// Other expressions (Exists, DoesNotExist, or In/NotIn with populated values)
+// pass through unchanged. Validation errors other than empty values are left
+// for LabelSelectorAsSelector() to report.
+func sanitizeLabelSelector(
+	sel *metav1.LabelSelector,
+	logger logr.Logger,
+) (sanitized *metav1.LabelSelector, matchesNothing bool) {
+	if sel == nil || len(sel.MatchExpressions) == 0 {
+		return sel, false
+	}
+
+	result := sel.DeepCopy()
+	var filtered []metav1.LabelSelectorRequirement
+
+	for _, expr := range result.MatchExpressions {
+		if len(expr.Values) == 0 {
+			switch expr.Operator {
+			case metav1.LabelSelectorOpIn:
+				// In [] means "value must be in empty set" — impossible.
+				// Short-circuit: entire selector matches nothing.
+				logger.Info("matchExpression with In operator has empty values, selector matches nothing",
+					"key", expr.Key)
+				return result, true
+			case metav1.LabelSelectorOpNotIn:
+				// NotIn [] means "don't exclude anything" — always true.
+				// Drop the expression as a no-op.
+				logger.Info("matchExpression with NotIn operator has empty values, dropping expression",
+					"key", expr.Key)
+				continue
+			default:
+				// Exists/DoesNotExist don't use values — pass through
+			}
+		}
+		filtered = append(filtered, expr)
+	}
+
+	result.MatchExpressions = filtered
+	return result, false
 }
 
 func (r *PagerDutyIntegrationReconciler) doNotRequeue() (reconcile.Result, error) {
