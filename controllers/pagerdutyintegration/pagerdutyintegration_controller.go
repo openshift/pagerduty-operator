@@ -272,11 +272,14 @@ func sanitizeLabelSelector(
 	sel *metav1.LabelSelector,
 	logger logr.Logger,
 ) (sanitized *metav1.LabelSelector, matchesNothing bool) {
-	if sel == nil || len(sel.MatchExpressions) == 0 {
-		return sel, false
+	if sel == nil {
+		return nil, false
 	}
 
 	result := sel.DeepCopy()
+	if len(result.MatchExpressions) == 0 {
+		return result, false
+	}
 	var filtered []metav1.LabelSelectorRequirement
 
 	for _, expr := range result.MatchExpressions {
