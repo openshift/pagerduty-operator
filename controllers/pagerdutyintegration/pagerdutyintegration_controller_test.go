@@ -40,6 +40,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -1321,4 +1322,177 @@ func verifyNoConfigMapExists(c client.Client) bool {
 
 	// if we got here, it's good.  list was empty or everything passed
 	return true
+}
+
+func TestSanitizeLabelSelector(t *testing.T) {
+	logger := logf.Log.WithName("test_sanitize_label_selector")
+
+	tests := []struct {
+		name                    string
+		selector                *metav1.LabelSelector
+		expectMatchesNothing    bool
+		expectedExpressionCount int
+		verifyOriginalUnchanged bool
+	}{
+		{
+			name:                    "nil selector passes through",
+			selector:                nil,
+			expectMatchesNothing:    false,
+			expectedExpressionCount: -1, // skip check for nil
+		},
+		{
+			name: "empty matchExpressions passes through",
+			selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"foo": "bar"},
+			},
+			expectMatchesNothing:    false,
+			expectedExpressionCount: 0,
+		},
+		{
+			name: "matchLabels only passes through",
+			selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"foo": "bar"},
+			},
+			expectMatchesNothing:    false,
+			expectedExpressionCount: 0,
+		},
+		{
+			name: "In with populated values is unchanged",
+			selector: &metav1.LabelSelector{
+				MatchExpressions: []metav1.LabelSelectorRequirement{
+					{Key: "key1", Operator: metav1.LabelSelectorOpIn, Values: []string{"val1"}},
+				},
+			},
+			expectMatchesNothing:    false,
+			expectedExpressionCount: 1,
+		},
+		{
+			name: "NotIn with populated values is unchanged",
+			selector: &metav1.LabelSelector{
+				MatchExpressions: []metav1.LabelSelectorRequirement{
+					{Key: "key1", Operator: metav1.LabelSelectorOpNotIn, Values: []string{"val1"}},
+				},
+			},
+			expectMatchesNothing:    false,
+			expectedExpressionCount: 1,
+		},
+		{
+			name: "NotIn with empty values is dropped",
+			selector: &metav1.LabelSelector{
+				MatchExpressions: []metav1.LabelSelectorRequirement{
+					{Key: "key1", Operator: metav1.LabelSelectorOpNotIn, Values: []string{}},
+				},
+			},
+			expectMatchesNothing:    false,
+			expectedExpressionCount: 0,
+		},
+		{
+			name: "NotIn with nil values is dropped",
+			selector: &metav1.LabelSelector{
+				MatchExpressions: []metav1.LabelSelectorRequirement{
+					{Key: "key1", Operator: metav1.LabelSelectorOpNotIn, Values: nil},
+				},
+			},
+			expectMatchesNothing:    false,
+			expectedExpressionCount: 0,
+		},
+		{
+			name: "In with empty values returns matchesNothing",
+			selector: &metav1.LabelSelector{
+				MatchExpressions: []metav1.LabelSelectorRequirement{
+					{Key: "key1", Operator: metav1.LabelSelectorOpIn, Values: []string{}},
+				},
+			},
+			expectMatchesNothing: true,
+		},
+		{
+			name: "In with nil values returns matchesNothing",
+			selector: &metav1.LabelSelector{
+				MatchExpressions: []metav1.LabelSelectorRequirement{
+					{Key: "key1", Operator: metav1.LabelSelectorOpIn, Values: nil},
+				},
+			},
+			expectMatchesNothing: true,
+		},
+		{
+			name: "Mixed In empty and NotIn populated short-circuits on In",
+			selector: &metav1.LabelSelector{
+				MatchExpressions: []metav1.LabelSelectorRequirement{
+					{Key: "key1", Operator: metav1.LabelSelectorOpIn, Values: []string{}},
+					{Key: "key2", Operator: metav1.LabelSelectorOpNotIn, Values: []string{"val1"}},
+				},
+			},
+			expectMatchesNothing: true,
+		},
+		{
+			name: "Mixed NotIn empty and In populated drops NotIn and keeps In",
+			selector: &metav1.LabelSelector{
+				MatchExpressions: []metav1.LabelSelectorRequirement{
+					{Key: "key1", Operator: metav1.LabelSelectorOpNotIn, Values: []string{}},
+					{Key: "key2", Operator: metav1.LabelSelectorOpIn, Values: []string{"val1"}},
+				},
+			},
+			expectMatchesNothing:    false,
+			expectedExpressionCount: 1,
+		},
+		{
+			name: "Exists with empty values passes through",
+			selector: &metav1.LabelSelector{
+				MatchExpressions: []metav1.LabelSelectorRequirement{
+					{Key: "key1", Operator: metav1.LabelSelectorOpExists, Values: nil},
+				},
+			},
+			expectMatchesNothing:    false,
+			expectedExpressionCount: 1,
+		},
+		{
+			name: "DoesNotExist with empty values passes through",
+			selector: &metav1.LabelSelector{
+				MatchExpressions: []metav1.LabelSelectorRequirement{
+					{Key: "key1", Operator: metav1.LabelSelectorOpDoesNotExist, Values: nil},
+				},
+			},
+			expectMatchesNothing:    false,
+			expectedExpressionCount: 1,
+		},
+		{
+			name: "original selector is not modified",
+			selector: &metav1.LabelSelector{
+				MatchExpressions: []metav1.LabelSelectorRequirement{
+					{Key: "key1", Operator: metav1.LabelSelectorOpNotIn, Values: []string{}},
+					{Key: "key2", Operator: metav1.LabelSelectorOpIn, Values: []string{"val1"}},
+				},
+			},
+			expectMatchesNothing:    false,
+			expectedExpressionCount: 1, // NotIn dropped, In kept
+			verifyOriginalUnchanged: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var originalExprCount int
+			if tt.selector != nil {
+				originalExprCount = len(tt.selector.MatchExpressions)
+			}
+
+			sanitized, matchesNothing := sanitizeLabelSelector(tt.selector, logger)
+
+			assert.Equal(t, tt.expectMatchesNothing, matchesNothing, "matchesNothing")
+
+			if tt.selector == nil {
+				assert.Nil(t, sanitized, "nil selector should return nil")
+				return
+			}
+
+			if !matchesNothing && tt.expectedExpressionCount >= 0 {
+				assert.Equal(t, tt.expectedExpressionCount, len(sanitized.MatchExpressions), "expression count")
+			}
+
+			if tt.verifyOriginalUnchanged {
+				assert.Equal(t, originalExprCount, len(tt.selector.MatchExpressions),
+					"original selector must not be modified")
+			}
+		})
+	}
 }

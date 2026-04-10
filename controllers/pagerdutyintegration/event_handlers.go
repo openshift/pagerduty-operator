@@ -74,7 +74,11 @@ func (e *enqueueRequestForClusterDeployment) toRequests(obj client.Object) []rec
 
 	for _, pdi := range pdiList.Items {
 		pdi := pdi // gosec G601 compliance - avoid memory aliasing in for-loops
-		selector, err := metav1.LabelSelectorAsSelector(&pdi.Spec.ClusterDeploymentSelector)
+		sanitized, matchesNothing := sanitizeLabelSelector(&pdi.Spec.ClusterDeploymentSelector, log)
+		if matchesNothing {
+			continue
+		}
+		selector, err := metav1.LabelSelectorAsSelector(sanitized)
 		if err != nil {
 			continue
 		}
@@ -171,7 +175,11 @@ func (e *enqueueRequestForClusterDeploymentOwner) getAssociatedPagerDutyIntegrat
 
 	for _, pdi := range pdiList.Items {
 		pdi := pdi // gosec G601 compliance - avoid memory aliasing in for-loops
-		selector, err := metav1.LabelSelectorAsSelector(&pdi.Spec.ClusterDeploymentSelector)
+		sanitized, matchesNothing := sanitizeLabelSelector(&pdi.Spec.ClusterDeploymentSelector, log)
+		if matchesNothing {
+			continue
+		}
+		selector, err := metav1.LabelSelectorAsSelector(sanitized)
 		if err != nil {
 			log.Error(err, "could not build ClusterDeployment label selector")
 			continue
@@ -245,7 +253,11 @@ func (e *enqueueRequestForConfigMap) toRequests(obj client.Object) []reconcile.R
 
 	for _, pdi := range pdiList.Items {
 		pdi := pdi // gosec G601 compliance - avoid memory aliasing in for-loops
-		selector, err := metav1.LabelSelectorAsSelector(&pdi.Spec.ClusterDeploymentSelector)
+		sanitized, matchesNothing := sanitizeLabelSelector(&pdi.Spec.ClusterDeploymentSelector, log)
+		if matchesNothing {
+			continue
+		}
+		selector, err := metav1.LabelSelectorAsSelector(sanitized)
 		if err != nil {
 			continue
 		}

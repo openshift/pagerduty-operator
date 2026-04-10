@@ -19,6 +19,7 @@ package pagerdutyintegration
 import (
 	hivev1 "github.com/openshift/hive/apis/hive/v1"
 	pagerdutyv1alpha1 "github.com/openshift/pagerduty-operator/api/v1alpha1"
+	"github.com/openshift/pagerduty-operator/config"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -64,6 +65,38 @@ func Test_enqueueRequestForClusterDeployment_toRequests(t *testing.T) {
 				mockPagerDutyIntegration("pdi3", map[string]string{"pdiWatching": "clusterDeployment1"}),
 			},
 			expectedRequests: 2,
+		},
+		{
+			name: "PDI with In empty values matches nothing",
+			obj: &hivev1.ClusterDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"key1": "val1",
+					},
+				},
+			},
+			pdiObjs: []runtime.Object{
+				mockPagerDutyIntegrationWithExpressions("pdi-in-empty", []metav1.LabelSelectorRequirement{
+					{Key: "key1", Operator: metav1.LabelSelectorOpIn, Values: []string{}},
+				}),
+			},
+			expectedRequests: 0,
+		},
+		{
+			name: "PDI with NotIn empty values drops expression and matches",
+			obj: &hivev1.ClusterDeployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"key1": "val1",
+					},
+				},
+			},
+			pdiObjs: []runtime.Object{
+				mockPagerDutyIntegrationWithExpressions("pdi-notin-empty", []metav1.LabelSelectorRequirement{
+					{Key: "key1", Operator: metav1.LabelSelectorOpNotIn, Values: []string{}},
+				}),
+			},
+			expectedRequests: 1,
 		},
 	}
 	for _, test := range tests {
@@ -141,6 +174,88 @@ func Test_enqueueRequestForClusterDeploymentOwner_getAssociatedPagerDutyIntegrat
 			},
 			expectedRequests: 2,
 		},
+		{
+			name: "PDI with In empty values matches nothing via owner",
+			obj: &corev1.Secret{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Secret",
+					APIVersion: "v1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "secret-empty",
+					Namespace: "ns1",
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							APIVersion: "hive.openshift.io/v1",
+							Kind:       "ClusterDeployment",
+							Name:       "cd-empty",
+						},
+					},
+				},
+			},
+			cdObjs: []runtime.Object{
+				&hivev1.ClusterDeployment{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "ClusterDeployment",
+						APIVersion: "hive.openshift.io/v1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "cd-empty",
+						Namespace: "ns1",
+						Labels: map[string]string{
+							"key1": "val1",
+						},
+					},
+				},
+			},
+			pdiObjs: []runtime.Object{
+				mockPagerDutyIntegrationWithExpressions("pdi-in-empty", []metav1.LabelSelectorRequirement{
+					{Key: "key1", Operator: metav1.LabelSelectorOpIn, Values: []string{}},
+				}),
+			},
+			expectedRequests: 0,
+		},
+		{
+			name: "PDI with NotIn empty values drops expression and matches via owner",
+			obj: &corev1.Secret{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Secret",
+					APIVersion: "v1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "secret-notin-empty",
+					Namespace: "ns1",
+					OwnerReferences: []metav1.OwnerReference{
+						{
+							APIVersion: "hive.openshift.io/v1",
+							Kind:       "ClusterDeployment",
+							Name:       "cd-notin-empty",
+						},
+					},
+				},
+			},
+			cdObjs: []runtime.Object{
+				&hivev1.ClusterDeployment{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "ClusterDeployment",
+						APIVersion: "hive.openshift.io/v1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "cd-notin-empty",
+						Namespace: "ns1",
+						Labels: map[string]string{
+							"key1": "val1",
+						},
+					},
+				},
+			},
+			pdiObjs: []runtime.Object{
+				mockPagerDutyIntegrationWithExpressions("pdi-notin-empty", []metav1.LabelSelectorRequirement{
+					{Key: "key1", Operator: metav1.LabelSelectorOpNotIn, Values: []string{}},
+				}),
+			},
+			expectedRequests: 1,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -178,6 +293,42 @@ func Test_enqueueRequestForConfigmap_toRequests(t *testing.T) {
 			pdiObjs:          []runtime.Object{},
 			expectedRequests: 0,
 		},
+		{
+			name: "PDI with In empty values matches nothing via configmap",
+			obj: &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-cm",
+					Namespace: config.OperatorNamespace,
+					Labels: map[string]string{
+						"key1": "val1",
+					},
+				},
+			},
+			pdiObjs: []runtime.Object{
+				mockPagerDutyIntegrationWithExpressions("pdi-in-empty", []metav1.LabelSelectorRequirement{
+					{Key: "key1", Operator: metav1.LabelSelectorOpIn, Values: []string{}},
+				}),
+			},
+			expectedRequests: 0,
+		},
+		{
+			name: "PDI with NotIn empty values drops expression via configmap",
+			obj: &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-cm-notin",
+					Namespace: config.OperatorNamespace,
+					Labels: map[string]string{
+						"key1": "val1",
+					},
+				},
+			},
+			pdiObjs: []runtime.Object{
+				mockPagerDutyIntegrationWithExpressions("pdi-notin-empty", []metav1.LabelSelectorRequirement{
+					{Key: "key1", Operator: metav1.LabelSelectorOpNotIn, Values: []string{}},
+				}),
+			},
+			expectedRequests: 1,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -187,6 +338,30 @@ func Test_enqueueRequestForConfigmap_toRequests(t *testing.T) {
 			reqs := e.toRequests(test.obj)
 			assert.Equal(t, test.expectedRequests, len(reqs))
 		})
+	}
+}
+
+func mockPagerDutyIntegrationWithExpressions(name string, exprs []metav1.LabelSelectorRequirement) *pagerdutyv1alpha1.PagerDutyIntegration {
+	return &pagerdutyv1alpha1.PagerDutyIntegration{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: "test",
+		},
+		Spec: pagerdutyv1alpha1.PagerDutyIntegrationSpec{
+			EscalationPolicy: "ABC123",
+			ClusterDeploymentSelector: metav1.LabelSelector{
+				MatchExpressions: exprs,
+			},
+			ServicePrefix: "test",
+			PagerdutyApiKeySecretRef: corev1.SecretReference{
+				Name:      "test",
+				Namespace: "test",
+			},
+			TargetSecretRef: corev1.SecretReference{
+				Name:      "test",
+				Namespace: "test",
+			},
+		},
 	}
 }
 
