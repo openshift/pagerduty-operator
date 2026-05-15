@@ -15,6 +15,7 @@
 package localmetrics
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	neturl "net/url"
@@ -94,10 +95,10 @@ var (
 )
 
 // UpdateAPIMetrics updates all API endpoint metrics every 5 minutes
-func UpdateAPIMetrics(APIKey string, timer *prometheus.Timer) {
+func UpdateAPIMetrics(ctx context.Context, apiKey string, timer *prometheus.Timer) {
 	d := time.Tick(5 * time.Minute)
 	for range d {
-		UpdateMetricPagerDutyHeartbeat(APIKey, timer)
+		UpdateMetricPagerDutyHeartbeat(ctx, apiKey, timer)
 	}
 
 }
@@ -151,17 +152,17 @@ func SetReconcileDuration(controller string, duration float64) {
 
 // UpdateMetricPagerDutyHeartbeat curls the PD API, updates the gauge to 1
 // when successful.
-func UpdateMetricPagerDutyHeartbeat(APIKey string, timer *prometheus.Timer) {
+func UpdateMetricPagerDutyHeartbeat(ctx context.Context, apiKey string, timer *prometheus.Timer) {
 	metricLogger := log.WithValues("Namespace", "pagerduty-operator")
 	metricLogger.Info("Metrics for PD API")
 
 	// if there is an api key make an authenticated called
-	if APIKey != "" {
-		req, _ := http.NewRequest("GET", apiEndpoint, nil)
+	if apiKey != "" {
+		req, _ := http.NewRequestWithContext(ctx, http.MethodGet, apiEndpoint, nil)
 		req.Header.Set("Accept", "application/vnd.pagerduty+json;version=2")
 		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", fmt.Sprintf("Token token=%s", APIKey))
-		resp, err := http.DefaultClient.Do(req)
+		req.Header.Set("Authorization", fmt.Sprintf("Token token=%s", apiKey))
+		resp, err := http.DefaultClient.Do(req) // #nosec G107 G704
 
 		if err != nil {
 			metricLogger.Error(err, "Failed to reach api when authenticated")

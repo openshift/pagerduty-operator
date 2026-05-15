@@ -21,13 +21,14 @@ import (
 	"github.com/openshift/pagerduty-operator/config"
 	pd "github.com/openshift/pagerduty-operator/pkg/pagerduty"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 
 	hivev1 "github.com/openshift/hive/apis/hive/v1"
 	pagerdutyv1alpha1 "github.com/openshift/pagerduty-operator/api/v1alpha1"
 )
 
-func (r *PagerDutyIntegrationReconciler) handleUpdate(pdclient pd.Client, pdi *pagerdutyv1alpha1.PagerDutyIntegration, cd *hivev1.ClusterDeployment) error {
+func (r *PagerDutyIntegrationReconciler) handleUpdate(ctx context.Context, pdclient pd.Client, pdi *pagerdutyv1alpha1.PagerDutyIntegration, cd *hivev1.ClusterDeployment) error {
 	if pdi.Spec.AlertGroupingParameters == nil {
 		return nil
 	}
@@ -37,9 +38,11 @@ func (r *PagerDutyIntegrationReconciler) handleUpdate(pdclient pd.Client, pdi *p
 		configMapName = config.Name(pdi.Spec.ServicePrefix, cd.Name, config.ConfigMapSuffix)
 	)
 	cm := &corev1.ConfigMap{}
-	err := r.Get(context.TODO(), types.NamespacedName{Namespace: cd.Namespace, Name: configMapName}, cm)
-	if err != nil {
-		return nil // requeue and wait for the configmap to be created
+	if err := r.Get(ctx, types.NamespacedName{Namespace: cd.Namespace, Name: configMapName}, cm); err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil
+		}
+		return err
 	}
 
 	alertGroupingType := cm.Data["ALERT_GROUPING_TYPE"]
@@ -50,7 +53,7 @@ func (r *PagerDutyIntegrationReconciler) handleUpdate(pdclient pd.Client, pdi *p
 		if err != nil {
 			return err
 		}
-		err = pdData.ParseClusterConfig(r.Client, cd.Namespace, configMapName)
+		err = pdData.ParseClusterConfig(ctx, r.Client, cd.Namespace, configMapName)
 		if err != nil {
 			return err
 		}
@@ -62,7 +65,7 @@ func (r *PagerDutyIntegrationReconciler) handleUpdate(pdclient pd.Client, pdi *p
 
 		cm.Data["ALERT_GROUPING_TYPE"] = pdi.Spec.AlertGroupingParameters.Type
 		cm.Data["ALERT_GROUPING_TIMEOUT"] = fmt.Sprintf("%d", pdi.Spec.AlertGroupingParameters.Config.Timeout)
-		err = r.Update(context.TODO(), cm)
+		err = r.Update(ctx, cm)
 		if err != nil {
 			return err
 		}

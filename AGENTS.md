@@ -17,7 +17,7 @@ make generate                # CRDs, deepcopy, openapi-gen, go:generate (mockgen
 make validate                # Ensure generated code is committed and unchanged
 make go-build                # Build binary (FIPS-enabled, may fail locally - see below)
 make coverage                # Code coverage report
-make container-test          # Run tests in boilerplate backing container (matches CI)
+make test                    # Run tests locally
 ```
 
 **Running a single test or package:**
@@ -33,7 +33,7 @@ kubectl-package validate deploy_pko/        # Compare rendered templates against
 rm -rf deploy_pko/.test-fixtures && kubectl-package validate deploy_pko/  # Regenerate fixtures
 ```
 
-**FIPS note:** `FIPS_ENABLED=true` sets `GOEXPERIMENT=boringcrypto` which will fail outside the CI container. For local Go builds, use `go build .` directly or use `make container-test` to run in the CI-equivalent container.
+**FIPS note:** `FIPS_ENABLED=true` sets `GOEXPERIMENT=boringcrypto` which will fail outside the CI container. For local Go builds, use `go build .` directly.
 
 ## Architecture
 

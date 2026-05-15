@@ -1,6 +1,7 @@
 package pagerduty
 
 import (
+	"context"
 	"os"
 	"testing"
 	"time"
@@ -172,7 +173,7 @@ func TestParseSetClusterConfig(t *testing.T) {
 			testData := Data{
 				EscalationPolicyID: mockEscalationPolicyId,
 			}
-			parseErr := testData.ParseClusterConfig(client, test.namespace, test.cmName)
+			parseErr := testData.ParseClusterConfig(context.Background(), client, test.namespace, test.cmName)
 
 			if test.expectErr {
 				assert.NotNil(t, parseErr)
@@ -181,7 +182,7 @@ func TestParseSetClusterConfig(t *testing.T) {
 				assert.Equal(t, test.expectedLimitedSupport, testData.LimitedSupport)
 			}
 
-			setErr := testData.SetClusterConfig(client, test.namespace, test.cmName)
+			setErr := testData.SetClusterConfig(context.Background(), client, test.namespace, test.cmName)
 			assert.Nil(t, setErr)
 		})
 	}

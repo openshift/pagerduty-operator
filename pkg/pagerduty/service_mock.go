@@ -224,7 +224,7 @@ func (m *mockApi) setupDefaultServiceHandlers() {
 					return
 				}
 				w.WriteHeader(http.StatusOK)
-				_, err = w.Write(resp)
+				_, err = w.Write(resp) // #nosec G705
 				if err != nil {
 					return
 				}
@@ -254,7 +254,7 @@ func (m *mockApi) setupDefaultServiceHandlers() {
 					return
 				}
 				w.WriteHeader(http.StatusCreated)
-				_, err = w.Write(resp)
+				_, err = w.Write(resp) // #nosec G705
 				if err != nil {
 					return
 				}
@@ -270,7 +270,7 @@ func (m *mockApi) setupDefaultServiceHandlers() {
 
 // setupDefaultListIncidentsHandler sets up a handler to respond to listing incidents
 func (m *mockApi) setupDefaultListIncidentsHandler() {
-	var incidents []pd.Incident
+	incidents := make([]pd.Incident, 0, len(m.State.Incidents))
 	for _, inc := range m.State.Incidents {
 		incidents = append(incidents, *inc)
 	}
@@ -289,7 +289,7 @@ func (m *mockApi) setupDefaultListIncidentsHandler() {
 		}
 
 		w.WriteHeader(http.StatusOK)
-		_, err = w.Write(resp)
+		_, err = w.Write(resp) // #nosec G705
 		if err != nil {
 			return
 		}
@@ -300,7 +300,7 @@ func (m *mockApi) setupDefaultListIncidentsHandler() {
 func (m *mockApi) setupDefaultListIncidentAlertsHandler() {
 	for incidentId, alerts := range m.State.Alerts {
 		// Convert []*pd.IncidentAlert to []pd.IncidentAlert
-		var alertSlice []pd.IncidentAlert
+		alertSlice := make([]pd.IncidentAlert, 0, len(alerts))
 		for _, alert := range alerts {
 			alertSlice = append(alertSlice, *alert)
 		}
@@ -317,7 +317,7 @@ func (m *mockApi) setupDefaultListIncidentAlertsHandler() {
 			}
 
 			w.WriteHeader(http.StatusOK)
-			_, err = w.Write(resp)
+			_, err = w.Write(resp) // #nosec G705
 			if err != nil {
 				return
 			}
@@ -330,7 +330,7 @@ func (m *mockApi) setupServicesHandler() {
 	m.mux.HandleFunc("/services", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
-			var services []pd.Service
+			services := make([]pd.Service, 0, len(m.State.Services))
 
 			for _, svc := range m.State.Services {
 				services = append(services, *svc)
@@ -408,7 +408,7 @@ func (m *mockApi) setupDefaultGetEscalationPolicyHandler() {
 				return
 			}
 			w.WriteHeader(http.StatusOK)
-			_, err = w.Write(resp)
+			_, err = w.Write(resp) // #nosec G705
 			if err != nil {
 				return
 			}
@@ -446,7 +446,7 @@ func (m *mockApi) setupCreateIntegrationHandler(serviceId string) {
 			return
 		}
 		w.WriteHeader(http.StatusCreated)
-		_, err = w.Write(resp)
+		_, err = w.Write(resp) // #nosec G705
 		if err != nil {
 			return
 		}
@@ -471,7 +471,7 @@ func (m *mockApi) setupDefaultGetIntegrationHandler() {
 					return
 				}
 				w.WriteHeader(http.StatusOK)
-				_, err = w.Write(resp)
+				_, err = w.Write(resp) // #nosec G705
 				if err != nil {
 					return
 				}
@@ -525,7 +525,7 @@ func (m *mockApi) setupV2EventsHandler() {
 			if err != nil {
 				return
 			}
-			if _, err = w.Write(resp); err != nil {
+			if _, err = w.Write(resp); err != nil { // #nosec G705
 				return
 			}
 			return
@@ -539,7 +539,7 @@ func (m *mockApi) setupV2EventsHandler() {
 			return
 		}
 		w.WriteHeader(http.StatusOK)
-		if _, err = w.Write(resp); err != nil {
+		if _, err = w.Write(resp); err != nil { // #nosec G705
 			return
 		}
 	})

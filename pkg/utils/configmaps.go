@@ -4,15 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // LoadConfigMapData loads a given configmap key and returns its data as a string.
-func LoadConfigMapData(c client.Client, configMap types.NamespacedName, dataKey string) (string, error) {
+func LoadConfigMapData(ctx context.Context, c client.Client, configMap types.NamespacedName, dataKey string) (string, error) {
 	cm := &corev1.ConfigMap{}
-	if err := c.Get(context.TODO(), configMap, cm); err != nil {
+	if err := c.Get(ctx, configMap, cm); err != nil {
 		return "", err
 	}
 
@@ -27,7 +28,7 @@ func LoadConfigMapData(c client.Client, configMap types.NamespacedName, dataKey 
 	var js json.RawMessage
 	err := json.Unmarshal([]byte(cmData), &js)
 	if err != nil {
-		return "", fmt.Errorf("failed to read configmap data as json: %v", err)
+		return "", fmt.Errorf("failed to read configmap data as json: %w", err)
 	}
 
 	return cmData, nil

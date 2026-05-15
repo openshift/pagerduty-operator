@@ -1,13 +1,15 @@
 package utils
 
 import (
+	"context"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	"testing"
 )
 
 const (
@@ -113,7 +115,7 @@ func TestLoadConfigMapData(t *testing.T) {
 			s.AddKnownTypes(corev1.SchemeGroupVersion, &corev1.ConfigMap{})
 			client := fake.NewClientBuilder().WithScheme(s).WithObjects(test.configmap).Build()
 
-			result, err := LoadConfigMapData(client, types.NamespacedName{Namespace: testNamespace, Name: testConfigmapName}, testConfigmapDataKey)
+			result, err := LoadConfigMapData(context.Background(), client, types.NamespacedName{Namespace: testNamespace, Name: testConfigmapName}, testConfigmapDataKey)
 			if err != nil && !test.expectError {
 				t.Errorf("Unexpected error: %v", err)
 			}

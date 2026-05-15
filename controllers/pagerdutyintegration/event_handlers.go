@@ -18,6 +18,7 @@ package pagerdutyintegration
 
 import (
 	"context"
+
 	hivev1 "github.com/openshift/hive/apis/hive/v1"
 	pagerdutyv1alpha1 "github.com/openshift/pagerduty-operator/api/v1alpha1"
 	"github.com/openshift/pagerduty-operator/config"
@@ -43,32 +44,32 @@ type enqueueRequestForClusterDeployment struct {
 
 func (e *enqueueRequestForClusterDeployment) Create(ctx context.Context, evt event.CreateEvent, q workqueue.RateLimitingInterface) {
 	reqs := map[reconcile.Request]struct{}{}
-	e.mapAndEnqueue(q, evt.Object, reqs)
+	e.mapAndEnqueue(ctx, q, evt.Object, reqs)
 }
 
 func (e *enqueueRequestForClusterDeployment) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
 	reqs := map[reconcile.Request]struct{}{}
-	e.mapAndEnqueue(q, evt.ObjectOld, reqs)
-	e.mapAndEnqueue(q, evt.ObjectNew, reqs)
+	e.mapAndEnqueue(ctx, q, evt.ObjectOld, reqs)
+	e.mapAndEnqueue(ctx, q, evt.ObjectNew, reqs)
 }
 
 func (e *enqueueRequestForClusterDeployment) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
 	reqs := map[reconcile.Request]struct{}{}
-	e.mapAndEnqueue(q, evt.Object, reqs)
+	e.mapAndEnqueue(ctx, q, evt.Object, reqs)
 }
 
 func (e *enqueueRequestForClusterDeployment) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
 	reqs := map[reconcile.Request]struct{}{}
-	e.mapAndEnqueue(q, evt.Object, reqs)
+	e.mapAndEnqueue(ctx, q, evt.Object, reqs)
 }
 
 // toRequests receives a ClusterDeployment objects that have fired an event and checks if it can find an associated
 // PagerDutyIntegration object that has a matching label selector, if so it creates a request for the reconciler to
 // take a look at that PagerDutyIntegration object.
-func (e *enqueueRequestForClusterDeployment) toRequests(obj client.Object) []reconcile.Request {
+func (e *enqueueRequestForClusterDeployment) toRequests(ctx context.Context, obj client.Object) []reconcile.Request {
 	reqs := []reconcile.Request{}
 	pdiList := &pagerdutyv1alpha1.PagerDutyIntegrationList{}
-	if err := e.Client.List(context.TODO(), pdiList, &client.ListOptions{}); err != nil {
+	if err := e.Client.List(ctx, pdiList, &client.ListOptions{}); err != nil {
 		return reqs
 	}
 
@@ -94,8 +95,8 @@ func (e *enqueueRequestForClusterDeployment) toRequests(obj client.Object) []rec
 	return reqs
 }
 
-func (e *enqueueRequestForClusterDeployment) mapAndEnqueue(q workqueue.RateLimitingInterface, obj client.Object, reqs map[reconcile.Request]struct{}) {
-	for _, req := range e.toRequests(obj) {
+func (e *enqueueRequestForClusterDeployment) mapAndEnqueue(ctx context.Context, q workqueue.RateLimitingInterface, obj client.Object, reqs map[reconcile.Request]struct{}) {
+	for _, req := range e.toRequests(ctx, obj) {
 		_, ok := reqs[req]
 		if !ok {
 			q.Add(req)
@@ -116,20 +117,20 @@ type enqueueRequestForClusterDeploymentOwner struct {
 }
 
 func (e *enqueueRequestForClusterDeploymentOwner) Create(ctx context.Context, evt event.CreateEvent, q workqueue.RateLimitingInterface) {
-	e.mapAndEnqueue(q, evt.Object)
+	e.mapAndEnqueue(ctx, q, evt.Object)
 }
 
 func (e *enqueueRequestForClusterDeploymentOwner) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
-	e.mapAndEnqueue(q, evt.ObjectOld)
-	e.mapAndEnqueue(q, evt.ObjectNew)
+	e.mapAndEnqueue(ctx, q, evt.ObjectOld)
+	e.mapAndEnqueue(ctx, q, evt.ObjectNew)
 }
 
 func (e *enqueueRequestForClusterDeploymentOwner) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
-	e.mapAndEnqueue(q, evt.Object)
+	e.mapAndEnqueue(ctx, q, evt.Object)
 }
 
 func (e *enqueueRequestForClusterDeploymentOwner) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
-	e.mapAndEnqueue(q, evt.Object)
+	e.mapAndEnqueue(ctx, q, evt.Object)
 }
 
 func (e *enqueueRequestForClusterDeploymentOwner) getClusterDeploymentGroupKind() {
@@ -141,7 +142,7 @@ func (e *enqueueRequestForClusterDeploymentOwner) getClusterDeploymentGroupKind(
 
 // getAssociatedPagerDutyIntegrations receives objects and checks if they're owned by a ClusterDeployment. If so, it then
 // collects associated PagerDutyIntegration CRs and creates requests for the reconciler to consider.
-func (e *enqueueRequestForClusterDeploymentOwner) getAssociatedPagerDutyIntegrations(obj metav1.Object) map[reconcile.Request]struct{} {
+func (e *enqueueRequestForClusterDeploymentOwner) getAssociatedPagerDutyIntegrations(ctx context.Context, obj metav1.Object) map[reconcile.Request]struct{} {
 	e.getClusterDeploymentGroupKind()
 
 	cds := []*hivev1.ClusterDeployment{}
@@ -154,7 +155,7 @@ func (e *enqueueRequestForClusterDeploymentOwner) getAssociatedPagerDutyIntegrat
 
 		if ref.Kind == e.groupKind.Kind && refGV.Group == e.groupKind.Group {
 			cd := &hivev1.ClusterDeployment{}
-			if err := e.Client.Get(context.TODO(), client.ObjectKey{Namespace: obj.GetNamespace(), Name: ref.Name}, cd); err != nil {
+			if err := e.Client.Get(ctx, client.ObjectKey{Namespace: obj.GetNamespace(), Name: ref.Name}, cd); err != nil {
 				log.Error(err, "could not get ClusterDeployment", "namespace", obj.GetNamespace(), "name", ref.Name)
 				continue
 			}
@@ -168,7 +169,7 @@ func (e *enqueueRequestForClusterDeploymentOwner) getAssociatedPagerDutyIntegrat
 
 	reqs := map[reconcile.Request]struct{}{}
 	pdiList := &pagerdutyv1alpha1.PagerDutyIntegrationList{}
-	if err := e.Client.List(context.TODO(), pdiList, &client.ListOptions{}); err != nil {
+	if err := e.Client.List(ctx, pdiList, &client.ListOptions{}); err != nil {
 		log.Error(err, "could not list PagerDutyIntegrations")
 		return reqs
 	}
@@ -200,8 +201,8 @@ func (e *enqueueRequestForClusterDeploymentOwner) getAssociatedPagerDutyIntegrat
 	return reqs
 }
 
-func (e *enqueueRequestForClusterDeploymentOwner) mapAndEnqueue(q workqueue.RateLimitingInterface, obj client.Object) {
-	for req := range e.getAssociatedPagerDutyIntegrations(obj) {
+func (e *enqueueRequestForClusterDeploymentOwner) mapAndEnqueue(ctx context.Context, q workqueue.RateLimitingInterface, obj client.Object) {
+	for req := range e.getAssociatedPagerDutyIntegrations(ctx, obj) {
 		q.Add(req)
 	}
 }
@@ -216,29 +217,29 @@ type enqueueRequestForConfigMap struct {
 
 func (e *enqueueRequestForConfigMap) Create(ctx context.Context, evt event.CreateEvent, q workqueue.RateLimitingInterface) {
 	reqs := map[reconcile.Request]struct{}{}
-	e.mapAndEnqueue(q, evt.Object, reqs)
+	e.mapAndEnqueue(ctx, q, evt.Object, reqs)
 }
 
 func (e *enqueueRequestForConfigMap) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
 	reqs := map[reconcile.Request]struct{}{}
-	e.mapAndEnqueue(q, evt.ObjectOld, reqs)
-	e.mapAndEnqueue(q, evt.ObjectNew, reqs)
+	e.mapAndEnqueue(ctx, q, evt.ObjectOld, reqs)
+	e.mapAndEnqueue(ctx, q, evt.ObjectNew, reqs)
 }
 
 func (e *enqueueRequestForConfigMap) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
 	reqs := map[reconcile.Request]struct{}{}
-	e.mapAndEnqueue(q, evt.Object, reqs)
+	e.mapAndEnqueue(ctx, q, evt.Object, reqs)
 }
 
 func (e *enqueueRequestForConfigMap) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
 	reqs := map[reconcile.Request]struct{}{}
-	e.mapAndEnqueue(q, evt.Object, reqs)
+	e.mapAndEnqueue(ctx, q, evt.Object, reqs)
 }
 
 // toRequests receives a Configmap objects that have fired an event and checks if it can find an associated
 // PagerDutyIntegration object that has a matching label selector, if so it creates a request for the reconciler to
 // take a look at that PagerDutyIntegration object.
-func (e *enqueueRequestForConfigMap) toRequests(obj client.Object) []reconcile.Request {
+func (e *enqueueRequestForConfigMap) toRequests(ctx context.Context, obj client.Object) []reconcile.Request {
 	reqs := []reconcile.Request{}
 
 	// enqueue for configmap in the operator namespace only
@@ -247,7 +248,7 @@ func (e *enqueueRequestForConfigMap) toRequests(obj client.Object) []reconcile.R
 	}
 
 	pdiList := &pagerdutyv1alpha1.PagerDutyIntegrationList{}
-	if err := e.Client.List(context.TODO(), pdiList, &client.ListOptions{}); err != nil {
+	if err := e.Client.List(ctx, pdiList, &client.ListOptions{}); err != nil {
 		return reqs
 	}
 
@@ -273,8 +274,8 @@ func (e *enqueueRequestForConfigMap) toRequests(obj client.Object) []reconcile.R
 	return reqs
 }
 
-func (e *enqueueRequestForConfigMap) mapAndEnqueue(q workqueue.RateLimitingInterface, obj client.Object, reqs map[reconcile.Request]struct{}) {
-	for _, req := range e.toRequests(obj) {
+func (e *enqueueRequestForConfigMap) mapAndEnqueue(ctx context.Context, q workqueue.RateLimitingInterface, obj client.Object, reqs map[reconcile.Request]struct{}) {
+	for _, req := range e.toRequests(ctx, obj) {
 		_, ok := reqs[req]
 		if !ok {
 			q.Add(req)

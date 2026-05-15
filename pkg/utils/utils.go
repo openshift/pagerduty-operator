@@ -36,9 +36,9 @@ func DeleteFinalizer(object metav1.Object, finalizer string) {
 }
 
 // DeleteConfigMap deletes a ConfigMap
-func DeleteConfigMap(name string, namespace string, client client.Client, reqLogger logr.Logger) error {
+func DeleteConfigMap(ctx context.Context, name string, namespace string, client client.Client, reqLogger logr.Logger) error {
 	configmap := &v1.ConfigMap{}
-	err := client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, configmap)
+	err := client.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, configmap)
 
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -52,7 +52,7 @@ func DeleteConfigMap(name string, namespace string, client client.Client, reqLog
 	}
 
 	reqLogger.Info("Deleting ConfigMap", "ClusterDeployment.Namespace", namespace, "Name", name)
-	err = client.Delete(context.TODO(), configmap)
+	err = client.Delete(ctx, configmap)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -68,9 +68,9 @@ func DeleteConfigMap(name string, namespace string, client client.Client, reqLog
 }
 
 // DeleteSyncSet deletes a SyncSet
-func DeleteSyncSet(name string, namespace string, client client.Client, reqLogger logr.Logger) error {
+func DeleteSyncSet(ctx context.Context, name string, namespace string, client client.Client, reqLogger logr.Logger) error {
 	syncset := &hivev1.SyncSet{}
-	err := client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, syncset)
+	err := client.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, syncset)
 
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -86,7 +86,7 @@ func DeleteSyncSet(name string, namespace string, client client.Client, reqLogge
 	// Only delete the syncset, this is just cleanup of the synced secret.
 	// The ClusterDeployment controller manages deletion of the pagerduty serivce.
 	reqLogger.Info("Deleting SyncSet", "ClusterDeployment.Namespace", namespace, "Name", name)
-	err = client.Delete(context.TODO(), syncset)
+	err = client.Delete(ctx, syncset)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -102,9 +102,9 @@ func DeleteSyncSet(name string, namespace string, client client.Client, reqLogge
 }
 
 // DeleteSecret deletes a Secret
-func DeleteSecret(name string, namespace string, client client.Client, reqLogger logr.Logger) error {
+func DeleteSecret(ctx context.Context, name string, namespace string, client client.Client, reqLogger logr.Logger) error {
 	secret := &v1.Secret{}
-	err := client.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: name}, secret)
+	err := client.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, secret)
 
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -118,7 +118,7 @@ func DeleteSecret(name string, namespace string, client client.Client, reqLogger
 	}
 
 	reqLogger.Info("Deleting Secret", "ClusterDeployment.Namespace", namespace, "Name", name)
-	err = client.Delete(context.TODO(), secret)
+	err = client.Delete(ctx, secret)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.

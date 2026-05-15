@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +13,36 @@ import (
 
 	"gopkg.in/yaml.v3"
 )
+
+// asMap performs a safe map[string]interface{} type assertion, panicking on failure.
+// Use in config builder functions that have no *testing.T.
+func asMap(v interface{}) map[string]interface{} {
+	m, ok := v.(map[string]interface{})
+	if !ok {
+		panic(fmt.Sprintf("expected map[string]interface{}, got %T", v))
+	}
+	return m
+}
+
+// mustToMap asserts v is map[string]interface{} and returns it, failing the test if not.
+func mustToMap(t *testing.T, v interface{}) map[string]interface{} {
+	t.Helper()
+	m, ok := v.(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected map[string]interface{}, got %T", v)
+	}
+	return m
+}
+
+// mustToSlice asserts v is []interface{} and returns it, failing the test if not.
+func mustToSlice(t *testing.T, v interface{}) []interface{} {
+	t.Helper()
+	s, ok := v.([]interface{})
+	if !ok {
+		t.Fatalf("expected []interface{}, got %T", v)
+	}
+	return s
+}
 
 // deployPkoDir returns the path to the deploy_pko directory relative to the repo root.
 func deployPkoDir() string {
@@ -45,11 +76,12 @@ func templateFuncMap() template.FuncMap {
 // renderTemplate renders a gotmpl file with the given config data and returns the output.
 func renderTemplate(t *testing.T, filename string, data map[string]interface{}) string {
 	t.Helper()
-	tmplPath := filepath.Join(deployPkoDir(), filename)
-	content, err := os.ReadFile(tmplPath)
+	dirFS := os.DirFS(deployPkoDir())
+	contentBytes, err := fs.ReadFile(dirFS, filename)
 	if err != nil {
-		t.Fatalf("failed to read template %s: %v", tmplPath, err)
+		t.Fatalf("failed to read template %s: %v", filename, err)
 	}
+	content := contentBytes
 
 	tmpl, err := template.New(filename).Funcs(templateFuncMap()).Parse(string(content))
 	if err != nil {
@@ -77,19 +109,19 @@ func parseYAMLDocument(t *testing.T, data string) map[string]interface{} {
 func defaultConfig() map[string]interface{} {
 	return map[string]interface{}{
 		"config": map[string]interface{}{
-			"image":                            "quay.io/example/pagerduty-operator:test",
-			"fedramp":                          "false",
-			"acknowledgeTimeout":               21600,
-			"resolveTimeout":                   0,
-			"escalationPolicy":                 "PTEST123",
-			"escalationPolicySilent":           "PSILENT1",
-			"servicePrefix":                    "osd",
-			"scaleTestEscalationPolicy":        "PSCALE01",
-			"scaleTestServicePrefix":           "osd-scale-test",
-			"serviceOrchestrationEnabled":      "true",
+			"image":                             "quay.io/example/pagerduty-operator:test",
+			"fedramp":                           "false",
+			"acknowledgeTimeout":                21600,
+			"resolveTimeout":                    0,
+			"escalationPolicy":                  "PTEST123",
+			"escalationPolicySilent":            "PSILENT1",
+			"servicePrefix":                     "osd",
+			"scaleTestEscalationPolicy":         "PSCALE01",
+			"scaleTestServicePrefix":            "osd-scale-test",
+			"serviceOrchestrationEnabled":       "true",
 			"serviceOrchestrationRuleConfigmap": "osd-serviceorchestration",
-			"alertGroupingType":                "time",
-			"alertGroupingTimeout":             300,
+			"alertGroupingType":                 "time",
+			"alertGroupingTimeout":              300,
 			"silentAlertLegalEntityIds": []string{
 				"1aV37K1VQv2zSStwSkdwBNOUBGI",
 				"2Mo8exhgEA5ir1lsVypXUb9v902",
@@ -106,7 +138,7 @@ func defaultConfig() map[string]interface{} {
 // emptyArraysConfig returns a config with empty arrays for edge-case testing.
 func emptyArraysConfig() map[string]interface{} {
 	config := defaultConfig()
-	inner := config["config"].(map[string]interface{})
+	inner := asMap(config["config"])
 	inner["silentAlertLegalEntityIds"] = []string{}
 	inner["scaleTestLegalEntityIds"] = []string{}
 	inner["servicePrefix"] = "osdint"
@@ -116,14 +148,14 @@ func emptyArraysConfig() map[string]interface{} {
 // fedrampConfig returns a config with fedramp enabled.
 func fedrampConfig() map[string]interface{} {
 	config := defaultConfig()
-	config["config"].(map[string]interface{})["fedramp"] = "true"
+	asMap(config["config"])["fedramp"] = "true"
 	return config
 }
 
 // orchestrationDisabledConfig returns a config with service orchestration disabled.
 func orchestrationDisabledConfig() map[string]interface{} {
 	config := defaultConfig()
-	inner := config["config"].(map[string]interface{})
+	inner := asMap(config["config"])
 	inner["serviceOrchestrationEnabled"] = "false"
 	inner["serviceOrchestrationRules"] = "{}"
 	inner["rhInfraServiceOrchestrationRules"] = "{}"
@@ -138,7 +170,7 @@ func TestDeploymentGotmpl(t *testing.T) {
 		t.Errorf("expected kind=Deployment, got %v", doc["kind"])
 	}
 
-	metadata := doc["metadata"].(map[string]interface{})
+	metadata := mustToMap(t, doc["metadata"])
 	if metadata["name"] != "pagerduty-operator" {
 		t.Errorf("expected name=pagerduty-operator, got %v", metadata["name"])
 	}
@@ -146,7 +178,7 @@ func TestDeploymentGotmpl(t *testing.T) {
 		t.Errorf("expected namespace=pagerduty-operator, got %v", metadata["namespace"])
 	}
 
-	annotations := metadata["annotations"].(map[string]interface{})
+	annotations := mustToMap(t, metadata["annotations"])
 	if annotations["package-operator.run/phase"] != "deploy" {
 		t.Errorf("expected phase=deploy, got %v", annotations["package-operator.run/phase"])
 	}
@@ -176,17 +208,17 @@ func TestPDIOsdGotmpl(t *testing.T) {
 		t.Errorf("expected kind=PagerDutyIntegration, got %v", doc["kind"])
 	}
 
-	metadata := doc["metadata"].(map[string]interface{})
+	metadata := mustToMap(t, doc["metadata"])
 	if metadata["name"] != "osd" {
 		t.Errorf("expected name=osd, got %v", metadata["name"])
 	}
 
-	annotations := metadata["annotations"].(map[string]interface{})
+	annotations := mustToMap(t, metadata["annotations"])
 	if annotations["package-operator.run/phase"] != "integrations" {
 		t.Errorf("expected phase=integrations, got %v", annotations["package-operator.run/phase"])
 	}
 
-	spec := doc["spec"].(map[string]interface{})
+	spec := mustToMap(t, doc["spec"])
 
 	if spec["escalationPolicy"] != "PTEST123" {
 		t.Errorf("expected escalationPolicy=PTEST123, got %v", spec["escalationPolicy"])
@@ -196,7 +228,7 @@ func TestPDIOsdGotmpl(t *testing.T) {
 	}
 
 	// Verify serviceOrchestration block is present
-	orch := spec["serviceOrchestration"].(map[string]interface{})
+	orch := mustToMap(t, spec["serviceOrchestration"])
 	// The gotmpl renders enabled: {{ .config.serviceOrchestrationEnabled }} which YAML
 	// may parse as boolean true or string "true" depending on the value
 	if fmt.Sprintf("%v", orch["enabled"]) != "true" {
@@ -204,7 +236,7 @@ func TestPDIOsdGotmpl(t *testing.T) {
 	}
 
 	// Verify alertGroupingParameters block is present
-	alertGrouping := spec["alertGroupingParameters"].(map[string]interface{})
+	alertGrouping := mustToMap(t, spec["alertGroupingParameters"])
 	if alertGrouping["type"] != "time" {
 		t.Errorf("expected alertGroupingParameters.type=time, got %v", alertGrouping["type"])
 	}
@@ -240,12 +272,12 @@ func TestPDISilentGotmpl(t *testing.T) {
 	output := renderTemplate(t, "PagerDutyIntegration-osd-silent.yaml.gotmpl", defaultConfig())
 	doc := parseYAMLDocument(t, output)
 
-	metadata := doc["metadata"].(map[string]interface{})
+	metadata := mustToMap(t, doc["metadata"])
 	if metadata["name"] != "osd-silent" {
 		t.Errorf("expected name=osd-silent, got %v", metadata["name"])
 	}
 
-	spec := doc["spec"].(map[string]interface{})
+	spec := mustToMap(t, doc["spec"])
 
 	// Should use escalationPolicySilent
 	if spec["escalationPolicy"] != "PSILENT1" {
@@ -272,13 +304,13 @@ func TestPDISilentGotmpl_SilentIdsInValues(t *testing.T) {
 	output := renderTemplate(t, "PagerDutyIntegration-osd-silent.yaml.gotmpl", defaultConfig())
 	doc := parseYAMLDocument(t, output)
 
-	spec := doc["spec"].(map[string]interface{})
-	selector := spec["clusterDeploymentSelector"].(map[string]interface{})
-	expressions := selector["matchExpressions"].([]interface{})
+	spec := mustToMap(t, doc["spec"])
+	selector := mustToMap(t, spec["clusterDeploymentSelector"])
+	expressions := mustToSlice(t, selector["matchExpressions"])
 
 	// Find the silent alert legal entity ID expression — should use operator: In
 	for _, expr := range expressions {
-		e := expr.(map[string]interface{})
+		e := mustToMap(t, expr)
 		if e["key"] == "api.openshift.com/legal-entity-id" && e["operator"] == "In" {
 			return // Found the expected In operator for silent IDs
 		}
@@ -290,12 +322,12 @@ func TestPDIScaleTestGotmpl(t *testing.T) {
 	output := renderTemplate(t, "PagerDutyIntegration-osd-scale-test.yaml.gotmpl", defaultConfig())
 	doc := parseYAMLDocument(t, output)
 
-	metadata := doc["metadata"].(map[string]interface{})
+	metadata := mustToMap(t, doc["metadata"])
 	if metadata["name"] != "osd-scale-test" {
 		t.Errorf("expected name=osd-scale-test, got %v", metadata["name"])
 	}
 
-	spec := doc["spec"].(map[string]interface{})
+	spec := mustToMap(t, doc["spec"])
 
 	if spec["escalationPolicy"] != "PSCALE01" {
 		t.Errorf("expected escalationPolicy=PSCALE01, got %v", spec["escalationPolicy"])
@@ -305,11 +337,11 @@ func TestPDIScaleTestGotmpl(t *testing.T) {
 	}
 
 	// scaleTestLegalEntityIds should use operator: In
-	selector := spec["clusterDeploymentSelector"].(map[string]interface{})
-	expressions := selector["matchExpressions"].([]interface{})
+	selector := mustToMap(t, spec["clusterDeploymentSelector"])
+	expressions := mustToSlice(t, selector["matchExpressions"])
 
 	for _, expr := range expressions {
-		e := expr.(map[string]interface{})
+		e := mustToMap(t, expr)
 		if e["key"] == "api.openshift.com/legal-entity-id" && e["operator"] == "In" {
 			return
 		}
@@ -325,18 +357,18 @@ func TestConfigMapGotmpl(t *testing.T) {
 		t.Errorf("expected kind=ConfigMap, got %v", doc["kind"])
 	}
 
-	metadata := doc["metadata"].(map[string]interface{})
+	metadata := mustToMap(t, doc["metadata"])
 	if metadata["name"] != "osd-serviceorchestration" {
 		t.Errorf("expected name=osd-serviceorchestration, got %v", metadata["name"])
 	}
 
-	annotations := metadata["annotations"].(map[string]interface{})
+	annotations := mustToMap(t, metadata["annotations"])
 	if annotations["package-operator.run/phase"] != "integrations" {
 		t.Errorf("expected phase=integrations, got %v", annotations["package-operator.run/phase"])
 	}
 
 	// Verify both data keys are present
-	data := doc["data"].(map[string]interface{})
+	data := mustToMap(t, doc["data"])
 	if _, ok := data["service-orchestration.json"]; !ok {
 		t.Error("expected data key 'service-orchestration.json'")
 	}

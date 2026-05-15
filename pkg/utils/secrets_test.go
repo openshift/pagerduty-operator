@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -90,7 +91,7 @@ func TestLoadSecretData(t *testing.T) {
 			s.AddKnownTypes(corev1.SchemeGroupVersion, &corev1.Secret{})
 			client := fake.NewClientBuilder().WithScheme(s).WithObjects(test.secret).Build()
 
-			result, err := LoadSecretData(client, testSecretName, testNamespace, testDataKey)
+			result, err := LoadSecretData(context.Background(), client, testSecretName, testNamespace, testDataKey)
 			if err != nil && !test.expectError {
 				t.Errorf("Unexpected error: %v", err)
 			}

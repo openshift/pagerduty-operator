@@ -22,7 +22,7 @@ const (
 )
 
 // handleServiceOrchestration enables and applies the service orchestration rule to the PD service if it is enabled in PDI
-func (r *PagerDutyIntegrationReconciler) handleServiceOrchestration(pdclient pd.Client, pdi *pagerdutyv1alpha1.PagerDutyIntegration, cd *hivev1.ClusterDeployment) error {
+func (r *PagerDutyIntegrationReconciler) handleServiceOrchestration(ctx context.Context, pdclient pd.Client, pdi *pagerdutyv1alpha1.PagerDutyIntegration, cd *hivev1.ClusterDeployment) error {
 	if reflect.ValueOf(pdi.Spec.ServiceOrchestration.RuleConfigConfigMapRef).IsZero() {
 		r.reqLogger.Info("service orchestration is not defined correctly in PagerdutyIntegration, skipping...")
 		return nil
@@ -59,14 +59,14 @@ func (r *PagerDutyIntegrationReconciler) handleServiceOrchestration(pdclient pd.
 
 	clusterConfigMap := &corev1.ConfigMap{}
 
-	err = r.Get(context.TODO(), types.NamespacedName{
+	err = r.Get(ctx, types.NamespacedName{
 		Namespace: cd.Namespace, Name: clusterConfigmapName}, clusterConfigMap)
 	if err != nil {
 		return err
 	}
 
 	// load configuration
-	err = pdData.ParseClusterConfig(r.Client, cd.Namespace, clusterConfigmapName)
+	err = pdData.ParseClusterConfig(ctx, r.Client, cd.Namespace, clusterConfigmapName)
 	if err != nil {
 		return err
 	}
@@ -85,7 +85,7 @@ func (r *PagerDutyIntegrationReconciler) handleServiceOrchestration(pdclient pd.
 
 		pdData.ServiceOrchestrationEnabled = true
 
-		err = pdData.SetClusterConfig(r.Client, cd.Namespace, clusterConfigmapName)
+		err = pdData.SetClusterConfig(ctx, r.Client, cd.Namespace, clusterConfigmapName)
 		if err != nil {
 			r.reqLogger.Error(err, "Error updating PagerDuty cluster config", "Name",
 				clusterConfigmapName)
@@ -101,7 +101,7 @@ func (r *PagerDutyIntegrationReconciler) handleServiceOrchestration(pdclient pd.
 	orchestrationRuleConfigData := ""
 
 	if utils.IsRedHatInfrastructure(cd) {
-		orchestrationRuleConfigData, err = utils.LoadConfigMapData(r.Client,
+		orchestrationRuleConfigData, err = utils.LoadConfigMapData(ctx, r.Client,
 			serviceOrchestrationConfigMap, RedHatInfraServiceOrchestrationDataName)
 
 		if errors.IsNotFound(err) {
@@ -112,7 +112,7 @@ func (r *PagerDutyIntegrationReconciler) handleServiceOrchestration(pdclient pd.
 			return err
 		}
 	} else {
-		orchestrationRuleConfigData, err = utils.LoadConfigMapData(r.Client,
+		orchestrationRuleConfigData, err = utils.LoadConfigMapData(ctx, r.Client,
 			serviceOrchestrationConfigMap, StandardServiceOrchestrationDataName)
 
 		if errors.IsNotFound(err) {
@@ -135,7 +135,7 @@ func (r *PagerDutyIntegrationReconciler) handleServiceOrchestration(pdclient pd.
 			return err
 		}
 
-		err = pdData.SetClusterConfig(r.Client, cd.Namespace, clusterConfigmapName)
+		err = pdData.SetClusterConfig(ctx, r.Client, cd.Namespace, clusterConfigmapName)
 		if err != nil {
 			r.reqLogger.Error(err, "Error updating PagerDuty cluster config", "Name",
 				clusterConfigmapName)

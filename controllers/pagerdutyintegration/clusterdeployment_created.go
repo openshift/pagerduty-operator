@@ -34,7 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-func (r *PagerDutyIntegrationReconciler) handleCreate(pdclient pd.Client, pdi *pagerdutyv1alpha1.PagerDutyIntegration, cd *hivev1.ClusterDeployment) error {
+func (r *PagerDutyIntegrationReconciler) handleCreate(ctx context.Context, pdclient pd.Client, pdi *pagerdutyv1alpha1.PagerDutyIntegration, cd *hivev1.ClusterDeployment) error {
 	var (
 		// secretName is the name of the Secret deployed to the target
 		// cluster, and also the name of the SyncSet that causes it to
@@ -69,7 +69,7 @@ func (r *PagerDutyIntegrationReconciler) handleCreate(pdclient pd.Client, pdi *p
 	if !utils.HasFinalizer(cd, finalizer) {
 		baseToPatch := client.MergeFrom(cd.DeepCopy())
 		utils.AddFinalizer(cd, finalizer)
-		return r.Patch(context.TODO(), cd, baseToPatch)
+		return r.Patch(ctx, cd, baseToPatch)
 	}
 
 	clusterID := utils.GetClusterID(cd)
@@ -78,128 +78,136 @@ func (r *PagerDutyIntegrationReconciler) handleCreate(pdclient pd.Client, pdi *p
 		return err
 	}
 
-	// load configuration
-	err = pdData.ParseClusterConfig(r.Client, cd.Namespace, configMapName)
-
-	if err != nil || pdData.ServiceID == "" {
-		// unable to load configuration, therefore create the PD service
-		var createErr error
-		r.reqLogger.Info("Creating PD service", "ClusterID", pdData.ClusterID, "BaseDomain", pdData.BaseDomain, "ClusterDeployment.Namespace", cd.Namespace)
-		_, createErr = pdclient.CreateService(pdData)
-		if createErr != nil {
-			localmetrics.UpdateMetricPagerDutyCreateFailure(1, clusterID, pdi.Name)
-			return createErr
-		}
-		localmetrics.UpdateMetricPagerDutyCreateFailure(0, clusterID, pdi.Name)
-
-		r.reqLogger.Info("Creating configmap")
-
-		// save config map
-		newCM := kube.GenerateConfigMap(cd.Namespace, configMapName, pdData.ServiceID, pdData.IntegrationID, pdData.EscalationPolicyID, false, pdData.ServiceOrchestrationEnabled, pdData.ServiceOrchestrationRuleApplied, pdData.AlertGroupingType, pdData.AlertGroupingTimeout)
-		if err = controllerutil.SetControllerReference(cd, newCM, r.Scheme); err != nil {
-			r.reqLogger.Error(err, "Error setting controller reference on configmap")
-			return err
-		}
-		if err := r.Create(context.TODO(), newCM); err != nil {
-			if errors.IsAlreadyExists(err) {
-				if updateErr := r.Update(context.TODO(), newCM); updateErr != nil {
-					r.reqLogger.Error(err, "Error updating existing configmap", "Name", configMapName)
-					return err
-				}
-				return nil
-			}
-			r.reqLogger.Error(err, "Error creating configmap", "Name", configMapName)
+	// load configuration; if missing, create the PD service and configmap
+	if err = pdData.ParseClusterConfig(ctx, r.Client, cd.Namespace, configMapName); err != nil || pdData.ServiceID == "" {
+		if err = r.createPDServiceAndConfigMap(ctx, pdclient, pdi, cd, pdData, clusterID, configMapName); err != nil {
 			return err
 		}
 	}
 
-	// If no value in ConfigMap for EscalationPolicyID set it from pdi.EscalationPolicyID
-	if pdData.EscalationPolicyID == "" {
-		// update policy ID from PDI, it is used in next set call
-		pdData.EscalationPolicyID = pdi.Spec.EscalationPolicy
-		if err = pdData.SetClusterConfig(r.Client, cd.Namespace, configMapName); err != nil {
-			r.reqLogger.Error(err, "Error updating PagerDuty cluster config", "Name", configMapName)
-			return err
-		}
-	} else {
-		// ConfigMap has a value for EscalationPolicyID
-		// Check if the value is the same EscalationPolicyID as from PDI
-		if pdData.EscalationPolicyID != pdi.Spec.EscalationPolicy {
-			r.reqLogger.Info("PDI EscalationPolicy changed, updating service", "ClusterID", pdData.ClusterID, "ServiceID", pdData.ServiceID, "ClusterDeployment.Namespace", cd.Namespace)
-			// update policy ID from PDI, it is used in next update call
-			pdData.EscalationPolicyID = pdi.Spec.EscalationPolicy
-			err := pdclient.UpdateEscalationPolicy(pdData)
-			if err != nil {
-				r.reqLogger.Error(err, "Error updating PagerDuty service", "ClusterID", pdData.ClusterID, "ServiceID", pdData.ServiceID, "ClusterDeployment.Namespace", cd.Namespace)
-				return err
-			}
-
-			// Update ConfigMap to reflect the new escalation policy changes
-			if err := pdData.SetClusterConfig(r.Client, cd.Namespace, configMapName); err != nil {
-				r.reqLogger.Error(err, "Error updating PagerDuty cluster config", "Name", configMapName)
-				return err
-			}
-
-			return nil
-		}
+	// Sync the escalation policy
+	if err = r.syncEscalationPolicy(ctx, pdclient, pdi, cd, pdData, configMapName); err != nil {
+		return err
 	}
 
-	// To prevent scoping issues in the err check below.
-	var pdIntegrationKey string
-
-	// try to load integration key (secret)
-	sc := &corev1.Secret{}
-	err = r.Get(context.TODO(), types.NamespacedName{Name: secretName, Namespace: cd.Namespace}, sc)
-
-	if err == nil {
-		// successfully loaded secret, snag the integration key
-		r.reqLogger.Info("pdIntegrationKey found, skipping create", "ClusterID", pdData.ClusterID, "BaseDomain", pdData.BaseDomain, "ClusterDeployment.Namespace", cd.Namespace)
-		pdIntegrationKey = string(sc.Data[config.PagerDutySecretKey])
-	} else {
-		// unable to load an integration key, create one.
-		r.reqLogger.Info("pdIntegrationKey not found, creating one", "ClusterID", pdData.ClusterID, "BaseDomain", pdData.BaseDomain, "ClusterDeployment.Namespace", cd.Namespace)
-		pdIntegrationKey, err = pdclient.GetIntegrationKey(pdData)
-		if err != nil {
-			// unable to get an integration key
-			return err
-		}
+	// Get or create the integration key
+	pdIntegrationKey, err := r.getOrCreateIntegrationKey(ctx, pdclient, pdData, secretName, cd)
+	if err != nil {
+		return err
 	}
 
-	//add secret part
+	// Create / reconcile the PD Secret
 	secret := kube.GeneratePdSecret(cd.Namespace, secretName, pdIntegrationKey)
 	r.reqLogger.Info("creating pd secret", "ClusterDeployment.Namespace", cd.Namespace)
-	//add reference
 	if err = controllerutil.SetControllerReference(cd, secret, r.Scheme); err != nil {
 		r.reqLogger.Error(err, "Error setting controller reference on secret", "ClusterDeployment.Namespace", cd.Namespace)
 		return err
 	}
-	if err = r.Create(context.TODO(), secret); err != nil {
+	if err = r.reconcilePDSecret(ctx, secret, pdIntegrationKey, cd); err != nil {
+		return err
+	}
+
+	// Create the SyncSet if it doesn't exist
+	return r.ensureSyncSet(ctx, pdi, cd, secret, secretName)
+}
+
+// createPDServiceAndConfigMap creates the PD service and saves its config to a ConfigMap.
+func (r *PagerDutyIntegrationReconciler) createPDServiceAndConfigMap(ctx context.Context, pdclient pd.Client, pdi *pagerdutyv1alpha1.PagerDutyIntegration, cd *hivev1.ClusterDeployment, pdData *pd.Data, clusterID, configMapName string) error {
+	r.reqLogger.Info("Creating PD service", "ClusterID", pdData.ClusterID, "BaseDomain", pdData.BaseDomain, "ClusterDeployment.Namespace", cd.Namespace)
+	if _, err := pdclient.CreateService(pdData); err != nil {
+		localmetrics.UpdateMetricPagerDutyCreateFailure(1, clusterID, pdi.Name)
+		return err
+	}
+	localmetrics.UpdateMetricPagerDutyCreateFailure(0, clusterID, pdi.Name)
+
+	r.reqLogger.Info("Creating configmap")
+	newCM := kube.GenerateConfigMap(cd.Namespace, configMapName, pdData.ServiceID, pdData.IntegrationID, pdData.EscalationPolicyID, false, pdData.ServiceOrchestrationEnabled, pdData.ServiceOrchestrationRuleApplied, pdData.AlertGroupingType, pdData.AlertGroupingTimeout)
+	if err := controllerutil.SetControllerReference(cd, newCM, r.Scheme); err != nil {
+		r.reqLogger.Error(err, "Error setting controller reference on configmap")
+		return err
+	}
+	if err := r.Create(ctx, newCM); err != nil {
+		if errors.IsAlreadyExists(err) {
+			if updateErr := r.Update(ctx, newCM); updateErr != nil {
+				r.reqLogger.Error(updateErr, "Error updating existing configmap", "Name", configMapName)
+				return updateErr
+			}
+			return nil
+		}
+		r.reqLogger.Error(err, "Error creating configmap", "Name", configMapName)
+		return err
+	}
+	return nil
+}
+
+// syncEscalationPolicy ensures the escalation policy in PD matches the PDI spec.
+func (r *PagerDutyIntegrationReconciler) syncEscalationPolicy(ctx context.Context, pdclient pd.Client, pdi *pagerdutyv1alpha1.PagerDutyIntegration, cd *hivev1.ClusterDeployment, pdData *pd.Data, configMapName string) error {
+	if pdData.EscalationPolicyID == "" {
+		pdData.EscalationPolicyID = pdi.Spec.EscalationPolicy
+		if err := pdData.SetClusterConfig(ctx, r.Client, cd.Namespace, configMapName); err != nil {
+			r.reqLogger.Error(err, "Error updating PagerDuty cluster config", "Name", configMapName)
+			return err
+		}
+		return nil
+	}
+
+	if pdData.EscalationPolicyID != pdi.Spec.EscalationPolicy {
+		r.reqLogger.Info("PDI EscalationPolicy changed, updating service", "ClusterID", pdData.ClusterID, "ServiceID", pdData.ServiceID, "ClusterDeployment.Namespace", cd.Namespace)
+		pdData.EscalationPolicyID = pdi.Spec.EscalationPolicy
+		if err := pdclient.UpdateEscalationPolicy(pdData); err != nil {
+			r.reqLogger.Error(err, "Error updating PagerDuty service", "ClusterID", pdData.ClusterID, "ServiceID", pdData.ServiceID, "ClusterDeployment.Namespace", cd.Namespace)
+			return err
+		}
+		if err := pdData.SetClusterConfig(ctx, r.Client, cd.Namespace, configMapName); err != nil {
+			r.reqLogger.Error(err, "Error updating PagerDuty cluster config", "Name", configMapName)
+			return err
+		}
+	}
+	return nil
+}
+
+// getOrCreateIntegrationKey returns the existing integration key or creates a new one.
+func (r *PagerDutyIntegrationReconciler) getOrCreateIntegrationKey(ctx context.Context, pdclient pd.Client, pdData *pd.Data, secretName string, cd *hivev1.ClusterDeployment) (string, error) {
+	sc := &corev1.Secret{}
+	if err := r.Get(ctx, types.NamespacedName{Name: secretName, Namespace: cd.Namespace}, sc); err == nil {
+		r.reqLogger.Info("pdIntegrationKey found, skipping create", "ClusterID", pdData.ClusterID, "BaseDomain", pdData.BaseDomain, "ClusterDeployment.Namespace", cd.Namespace)
+		return string(sc.Data[config.PagerDutySecretKey]), nil
+	}
+	r.reqLogger.Info("pdIntegrationKey not found, creating one", "ClusterID", pdData.ClusterID, "BaseDomain", pdData.BaseDomain, "ClusterDeployment.Namespace", cd.Namespace)
+	return pdclient.GetIntegrationKey(pdData)
+}
+
+// reconcilePDSecret creates or updates the PD secret as needed.
+func (r *PagerDutyIntegrationReconciler) reconcilePDSecret(ctx context.Context, secret *corev1.Secret, pdIntegrationKey string, cd *hivev1.ClusterDeployment) error {
+	if err := r.Create(ctx, secret); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return err
 		}
-
 		r.reqLogger.Info("the pd secret exist, check if pdIntegrationKey is changed or not", "ClusterDeployment.Namespace", cd.Namespace)
 		sc := &corev1.Secret{}
-		err = r.Get(context.TODO(), types.NamespacedName{Name: secret.Name, Namespace: cd.Namespace}, sc)
-		if err != nil {
-			return nil
+		if err = r.Get(ctx, types.NamespacedName{Name: secret.Name, Namespace: cd.Namespace}, sc); err != nil {
+			return err
 		}
 		if string(sc.Data[config.PagerDutySecretKey]) != pdIntegrationKey {
 			r.reqLogger.Info("pdIntegrationKey is changed, delete the secret first")
-			if err = r.Delete(context.TODO(), secret); err != nil {
+			if err = r.Delete(ctx, secret); err != nil {
 				log.Info("failed to delete existing pd secret")
 				return err
 			}
 			r.reqLogger.Info("creating pd secret", "ClusterDeployment.Namespace", cd.Namespace)
-			if err = r.Create(context.TODO(), secret); err != nil {
+			if err = r.Create(ctx, secret); err != nil {
 				return err
 			}
 		}
 	}
+	return nil
+}
 
+// ensureSyncSet creates the SyncSet if it does not already exist.
+func (r *PagerDutyIntegrationReconciler) ensureSyncSet(ctx context.Context, pdi *pagerdutyv1alpha1.PagerDutyIntegration, cd *hivev1.ClusterDeployment, secret *corev1.Secret, secretName string) error {
 	r.reqLogger.Info("Creating syncset", "ClusterDeployment.Namespace", cd.Namespace)
 	ss := &hivev1.SyncSet{}
-	err = r.Get(context.TODO(), types.NamespacedName{Name: secretName, Namespace: cd.Namespace}, ss)
+	err := r.Get(ctx, types.NamespacedName{Name: secretName, Namespace: cd.Namespace}, ss)
 	if err != nil {
 		r.reqLogger.Info("error finding the old syncset")
 		if !errors.IsNotFound(err) {
@@ -211,10 +219,9 @@ func (r *PagerDutyIntegrationReconciler) handleCreate(pdclient pd.Client, pdi *p
 			r.reqLogger.Error(err, "Error setting controller reference on syncset", "ClusterDeployment.Namespace", cd.Namespace)
 			return err
 		}
-		if err := r.Create(context.TODO(), ss); err != nil {
+		if err := r.Create(ctx, ss); err != nil {
 			return err
 		}
 	}
-
 	return nil
 }

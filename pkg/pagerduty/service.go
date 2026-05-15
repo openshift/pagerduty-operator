@@ -88,7 +88,7 @@ type DelayFunc func(time.Duration)
 
 // SvcClient wraps pdApi.Client
 type SvcClient struct {
-	APIKey   string
+	APIKey   string `json:"apiKey"` //nolint:gosec
 	PdClient PdClient
 	Delay    DelayFunc
 	BaseURL  string
@@ -123,10 +123,10 @@ func WithCustomHTTPClient(controllerName string) pdApi.ClientOptions {
 }
 
 // NewClient creates out client wrapper object for the actual pdApi.Client we use.
-func NewClient(APIKey string, controllerName string) Client {
+func NewClient(apiKey string, controllerName string) Client {
 	return &SvcClient{
-		APIKey:   APIKey,
-		PdClient: pdApi.NewClient(APIKey, WithCustomHTTPClient(controllerName)),
+		APIKey:   apiKey,
+		PdClient: pdApi.NewClient(apiKey, WithCustomHTTPClient(controllerName)),
 		Delay:    time.Sleep,
 		BaseURL:  apiEndpoint,
 	}
@@ -187,9 +187,9 @@ func NewData(pdi *pagerdutyv1alpha1.PagerDutyIntegration, clusterId string, base
 // ParseClusterConfig parses the cluster specific config map and stores the IDs in the data struct
 // SERVICE_ID and INTEGRATION_ID are required ConfigMap data fields
 // LIMITED_SUPPORT are optional.
-func (data *Data) ParseClusterConfig(osc client.Client, namespace string, cmName string) error {
+func (data *Data) ParseClusterConfig(ctx context.Context, osc client.Client, namespace string, cmName string) error {
 	pdAPIConfigMap := &corev1.ConfigMap{}
-	err := osc.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: cmName}, pdAPIConfigMap)
+	err := osc.Get(ctx, types.NamespacedName{Namespace: namespace, Name: cmName}, pdAPIConfigMap)
 	if err != nil {
 		return err
 	}
@@ -229,9 +229,9 @@ func (data *Data) ParseClusterConfig(osc client.Client, namespace string, cmName
 }
 
 // SetClusterConfig updates a specific ClusterDeployment's PagerDuty Configmap with the contents of the data struct
-func (data *Data) SetClusterConfig(osc client.Client, namespace string, cmName string) error {
+func (data *Data) SetClusterConfig(ctx context.Context, osc client.Client, namespace string, cmName string) error {
 	pdAPIConfigMap := &corev1.ConfigMap{}
-	if err := osc.Get(context.TODO(), types.NamespacedName{Namespace: namespace, Name: cmName}, pdAPIConfigMap); err != nil {
+	if err := osc.Get(ctx, types.NamespacedName{Namespace: namespace, Name: cmName}, pdAPIConfigMap); err != nil {
 		return err
 	}
 
@@ -244,7 +244,7 @@ func (data *Data) SetClusterConfig(osc client.Client, namespace string, cmName s
 	pdAPIConfigMap.Data["ALERT_GROUPING_TYPE"] = data.AlertGroupingType
 	pdAPIConfigMap.Data["ALERT_GROUPING_TIMEOUT"] = fmt.Sprintf("%d", data.AlertGroupingTimeout)
 
-	if err := osc.Update(context.TODO(), pdAPIConfigMap); err != nil {
+	if err := osc.Update(ctx, pdAPIConfigMap); err != nil {
 		return err
 	}
 
@@ -467,7 +467,7 @@ func (c *SvcClient) ApplyServiceOrchestrationRule(data *Data) error {
 
 // pdHttpRequest is a wrapper func to help send the PD http request
 func (c *SvcClient) pdHttpRequest(method string, reqUrl string, payload *strings.Reader) error {
-	req, err := http.NewRequest(method, reqUrl, payload)
+	req, err := http.NewRequestWithContext(context.Background(), method, reqUrl, payload)
 	if err != nil {
 		return fmt.Errorf("unable to create new http request: %w", err)
 	}
@@ -476,10 +476,11 @@ func (c *SvcClient) pdHttpRequest(method string, reqUrl string, payload *strings
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("Authorization", fmt.Sprintf("Token token=%s", c.APIKey))
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req) // #nosec G107 G704
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 
 	statusOK := resp.StatusCode >= 200 && resp.StatusCode < 300
 	if !statusOK {
@@ -629,7 +630,7 @@ func (c *SvcClient) waitForIncidentsToResolve(data *Data, maxWait time.Duration)
 
 // parseIncidentNumbers returns a slice of PagerDuty incident numbers
 func parseIncidentNumbers(incidents []pdApi.Incident) []uint {
-	var incidentNumbers []uint
+	incidentNumbers := make([]uint, 0, len(incidents))
 	for _, incident := range incidents {
 		incidentNumbers = append(incidentNumbers, incident.IncidentNumber)
 	}

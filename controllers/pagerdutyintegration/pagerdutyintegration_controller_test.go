@@ -116,7 +116,7 @@ func testPDISecret() *corev1.Secret {
 }
 
 // testCDConfigMap returns a fake configmap for a deployed cluster for testing.
-func testCDConfigMap(hasLimitedSupport, isOrchestrationEnabled, isOrchestrationApplied, isAlertGroupingConfigured bool) *corev1.ConfigMap {
+func testCDConfigMap(hasLimitedSupport bool, _ bool, _ bool, isAlertGroupingConfigured bool) *corev1.ConfigMap {
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
@@ -127,8 +127,8 @@ func testCDConfigMap(hasLimitedSupport, isOrchestrationEnabled, isOrchestrationA
 			"SERVICE_ID":                         testServiceID,
 			"ESCALATION_POLICY_ID":               testEscalationPolicy,
 			"LIMITED_SUPPORT":                    strconv.FormatBool(hasLimitedSupport),
-			"SERVICE_ORCHESTRATION_ENABLED":      strconv.FormatBool(isOrchestrationEnabled),
-			"SERVICE_ORCHESTRATION_RULE_APPLIED": strconv.FormatBool(isOrchestrationApplied),
+			"SERVICE_ORCHESTRATION_ENABLED":      strconv.FormatBool(false),
+			"SERVICE_ORCHESTRATION_RULE_APPLIED": strconv.FormatBool(false),
 		},
 	}
 

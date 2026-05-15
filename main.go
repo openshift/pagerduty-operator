@@ -138,7 +138,7 @@ func main() {
 		WithRoute().
 		GetConfig()
 
-	if err := metrics.ConfigureMetrics(context.TODO(), *metricsServer); err != nil {
+	if err := metrics.ConfigureMetrics(context.Background(), *metricsServer); err != nil {
 		setupLog.Error(err, "failed to configure custom metrics")
 		os.Exit(1)
 	}
@@ -147,14 +147,14 @@ func main() {
 	err = mgr.Add(manager.RunnableFunc(func(ctx context.Context) error {
 		client := mgr.GetClient()
 		pdAPISecret := &corev1.Secret{}
-		err = client.Get(context.TODO(), types.NamespacedName{Namespace: operatorconfig.OperatorNamespace, Name: operatorconfig.PagerDutyAPISecretName}, pdAPISecret)
+		err = client.Get(ctx, types.NamespacedName{Namespace: operatorconfig.OperatorNamespace, Name: operatorconfig.PagerDutyAPISecretName}, pdAPISecret)
 		if err != nil {
 			setupLog.Error(err, "Failed to get secret")
 			return err
 		}
 		var APIKey = string(pdAPISecret.Data[operatorconfig.PagerDutyAPISecretKey])
 		timer := prometheus.NewTimer(localmetrics.MetricPagerDutyHeartbeat)
-		localmetrics.UpdateAPIMetrics(APIKey, timer)
+		localmetrics.UpdateAPIMetrics(ctx, APIKey, timer)
 
 		return nil
 	}))

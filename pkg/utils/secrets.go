@@ -10,9 +10,9 @@ import (
 )
 
 // LoadSecretData loads a given secret key and returns its data as a string.
-func LoadSecretData(c client.Client, secretName, namespace, dataKey string) (string, error) {
+func LoadSecretData(ctx context.Context, c client.Client, secretName, namespace, dataKey string) (string, error) {
 	s := &corev1.Secret{}
-	if err := c.Get(context.TODO(), types.NamespacedName{Name: secretName, Namespace: namespace}, s); err != nil {
+	if err := c.Get(ctx, types.NamespacedName{Name: secretName, Namespace: namespace}, s); err != nil {
 		return "", err
 	}
 

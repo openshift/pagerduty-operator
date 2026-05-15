@@ -17,6 +17,9 @@ limitations under the License.
 package pagerdutyintegration
 
 import (
+	"context"
+	"testing"
+
 	hivev1 "github.com/openshift/hive/apis/hive/v1"
 	pagerdutyv1alpha1 "github.com/openshift/pagerduty-operator/api/v1alpha1"
 	"github.com/openshift/pagerduty-operator/config"
@@ -26,7 +29,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	"testing"
 )
 
 func Test_enqueueRequestForClusterDeployment_toRequests(t *testing.T) {
@@ -104,7 +106,7 @@ func Test_enqueueRequestForClusterDeployment_toRequests(t *testing.T) {
 			e := &enqueueRequestForClusterDeployment{
 				Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(test.obj).WithRuntimeObjects(test.pdiObjs...).Build(),
 			}
-			reqs := e.toRequests(test.obj)
+			reqs := e.toRequests(context.Background(), test.obj)
 			assert.Equal(t, test.expectedRequests, len(reqs))
 		})
 	}
@@ -267,7 +269,7 @@ func Test_enqueueRequestForClusterDeploymentOwner_getAssociatedPagerDutyIntegrat
 					WithRuntimeObjects(test.cdObjs...).
 					Build(),
 			}
-			reqs := e.getAssociatedPagerDutyIntegrations(test.obj)
+			reqs := e.getAssociatedPagerDutyIntegrations(context.Background(), test.obj)
 			assert.Equal(t, test.expectedRequests, len(reqs))
 		})
 	}
@@ -335,7 +337,7 @@ func Test_enqueueRequestForConfigmap_toRequests(t *testing.T) {
 			e := &enqueueRequestForConfigMap{
 				Client: fake.NewClientBuilder().WithScheme(scheme).WithObjects(test.obj).WithRuntimeObjects(test.pdiObjs...).Build(),
 			}
-			reqs := e.toRequests(test.obj)
+			reqs := e.toRequests(context.Background(), test.obj)
 			assert.Equal(t, test.expectedRequests, len(reqs))
 		})
 	}
