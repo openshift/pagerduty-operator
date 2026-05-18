@@ -65,8 +65,8 @@ func TestGenerateConfigMap(t *testing.T) {
 				test.alertGroupingTimeout,
 			)
 
-			assert.Equal(t, test.cmName, cm.ObjectMeta.Name)
-			assert.Equal(t, test.namespace, cm.ObjectMeta.Namespace)
+			assert.Equal(t, test.cmName, cm.Name)
+			assert.Equal(t, test.namespace, cm.Namespace)
 			assert.Equal(t, test.pdServiceID, cm.Data["SERVICE_ID"])
 			assert.Equal(t, test.pdIntegrationID, cm.Data["INTEGRATION_ID"])
 			assert.Equal(t, test.pdEscalationPolicyID, cm.Data["ESCALATION_POLICY_ID"])

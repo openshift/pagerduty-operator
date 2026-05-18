@@ -30,8 +30,8 @@ func TestGenerateSyncSet(t *testing.T) {
 
 	ss := GenerateSyncSet("hive-ns", "test-cluster", secret, pdi)
 
-	assert.Equal(t, "test-pd-secret", ss.ObjectMeta.Name)
-	assert.Equal(t, "hive-ns", ss.ObjectMeta.Namespace)
+	assert.Equal(t, "test-pd-secret", ss.Name)
+	assert.Equal(t, "hive-ns", ss.Namespace)
 	assert.Equal(t, 1, len(ss.Spec.ClusterDeploymentRefs))
 	assert.Equal(t, "test-cluster", ss.Spec.ClusterDeploymentRefs[0].Name)
 	assert.Equal(t, hivev1.SyncSetResourceApplyMode("Sync"), ss.Spec.ResourceApplyMode)
@@ -46,9 +46,9 @@ func TestGeneratePdSecret(t *testing.T) {
 	secret := GeneratePdSecret("hive-ns", "test-pd-secret", "integration-key-123")
 
 	assert.Equal(t, corev1.SecretType("Opaque"), secret.Type)
-	assert.Equal(t, "Secret", secret.TypeMeta.Kind)
-	assert.Equal(t, "v1", secret.TypeMeta.APIVersion)
-	assert.Equal(t, "test-pd-secret", secret.ObjectMeta.Name)
-	assert.Equal(t, "hive-ns", secret.ObjectMeta.Namespace)
+	assert.Equal(t, "Secret", secret.Kind)
+	assert.Equal(t, "v1", secret.APIVersion)
+	assert.Equal(t, "test-pd-secret", secret.Name)
+	assert.Equal(t, "hive-ns", secret.Namespace)
 	assert.Equal(t, []byte("integration-key-123"), secret.Data[config.PagerDutySecretKey])
 }
