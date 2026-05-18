@@ -34,6 +34,8 @@
 #   Auto-fix hooks (trailing-whitespace, end-of-file-fixer) will correct
 #   pre-existing violations on the first run. Stage and commit those fixes
 #   separately before day-to-day use.
+#   Fix commits can be excluded from git blame
+#   https://git-scm.com/docs/git-blame#Documentation/git-blame.txt---ignore-revs-filefile
 #
 # =============================================================================
 
