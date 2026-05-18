@@ -193,7 +193,7 @@ func withTestHttpClient(testClient *http.Client) pd.ClientOptions {
 func newMockClient(server *httptest.Server) *mockClient {
 	return &mockClient{
 		SvcClient{
-			APIKey: "apiKey",
+			apiToken: "apiKey",
 			PdClient: pd.NewClient(
 				"apiKey",
 				withTestHttpClient(server.Client()),

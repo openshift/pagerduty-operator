@@ -88,7 +88,7 @@ type DelayFunc func(time.Duration)
 
 // SvcClient wraps pdApi.Client
 type SvcClient struct {
-	APIKey   string `json:"apiKey"` //nolint:gosec
+	apiToken string
 	PdClient PdClient
 	Delay    DelayFunc
 	BaseURL  string
@@ -123,10 +123,10 @@ func WithCustomHTTPClient(controllerName string) pdApi.ClientOptions {
 }
 
 // NewClient creates out client wrapper object for the actual pdApi.Client we use.
-func NewClient(apiKey string, controllerName string) Client {
+func NewClient(apiToken string, controllerName string) Client {
 	return &SvcClient{
-		APIKey:   apiKey,
-		PdClient: pdApi.NewClient(apiKey, WithCustomHTTPClient(controllerName)),
+		apiToken: apiToken,
+		PdClient: pdApi.NewClient(apiToken, WithCustomHTTPClient(controllerName)),
 		Delay:    time.Sleep,
 		BaseURL:  apiEndpoint,
 	}
@@ -474,7 +474,7 @@ func (c *SvcClient) pdHttpRequest(method string, reqUrl string, payload *strings
 
 	req.Header.Add("Accept", "application/vnd.pagerduty+json;version=2")
 	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("Authorization", fmt.Sprintf("Token token=%s", c.APIKey))
+	req.Header.Add("Authorization", fmt.Sprintf("Token token=%s", c.apiToken))
 
 	resp, err := http.DefaultClient.Do(req) // #nosec G107 G704
 	if err != nil {
