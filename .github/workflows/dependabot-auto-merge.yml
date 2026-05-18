@@ -28,8 +28,14 @@ jobs:
       - name: Check PR Labels
         id: check-labels
         run: |
-          echo "has-required-labels=true" >> $GITHUB_OUTPUT
-          echo "✅ Dependabot PR detected - auto-merge enabled for safe updates"
+          labels="${{ join(github.event.pull_request.labels.*.name, ' ') }}"
+          if echo "$labels" | grep -qw "area/dependency" && echo "$labels" | grep -qw "ok-to-test"; then
+            echo "has-required-labels=true" >> "$GITHUB_OUTPUT"
+            echo "✅ Required labels present"
+          else
+            echo "has-required-labels=false" >> "$GITHUB_OUTPUT"
+            echo "❌ Required labels missing (need area/dependency and ok-to-test)"
+          fi
 
       - name: Enable Auto-Merge for Safe Updates
         if: |

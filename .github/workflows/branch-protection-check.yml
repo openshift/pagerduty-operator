@@ -87,9 +87,10 @@ jobs:
             echo "Missing: Branch protection rules"
             all_present=false
           elif [[ "$http_code" -ne 200 ]]; then
-            echo "Warning: Could not fetch branch protection settings (HTTP $http_code)"
-            echo "This may be due to insufficient permissions. Skipping branch protection validation."
+            echo "Could not fetch branch protection settings (HTTP $http_code)"
+            echo "Branch protection validation could not be completed."
             echo "Response: $protection_json"
+            all_present=false
           else
             echo "Branch protection is enabled for ${BRANCH}"
             echo ""

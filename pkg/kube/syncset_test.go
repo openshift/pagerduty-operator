@@ -7,6 +7,7 @@ import (
 	pagerdutyv1alpha1 "github.com/openshift/pagerduty-operator/api/v1alpha1"
 	"github.com/openshift/pagerduty-operator/config"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -32,10 +33,10 @@ func TestGenerateSyncSet(t *testing.T) {
 
 	assert.Equal(t, "test-pd-secret", ss.Name)
 	assert.Equal(t, "hive-ns", ss.Namespace)
-	assert.Equal(t, 1, len(ss.Spec.ClusterDeploymentRefs))
+	require.Len(t, ss.Spec.ClusterDeploymentRefs, 1)
 	assert.Equal(t, "test-cluster", ss.Spec.ClusterDeploymentRefs[0].Name)
 	assert.Equal(t, hivev1.SyncSetResourceApplyMode("Sync"), ss.Spec.ResourceApplyMode)
-	assert.Equal(t, 1, len(ss.Spec.Secrets))
+	require.Len(t, ss.Spec.Secrets, 1)
 	assert.Equal(t, "hive-ns", ss.Spec.Secrets[0].SourceRef.Namespace)
 	assert.Equal(t, "test-pd-secret", ss.Spec.Secrets[0].SourceRef.Name)
 	assert.Equal(t, "openshift-monitoring", ss.Spec.Secrets[0].TargetRef.Namespace)

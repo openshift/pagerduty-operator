@@ -438,7 +438,7 @@ func (c *SvcClient) ToggleServiceOrchestration(data *Data, active bool) error {
 		return fmt.Errorf("unable to get service with ID %v: %w", data.ServiceID, err)
 	}
 
-	reqUrl := fmt.Sprintf("%sevent_orchestrations/services/%s/active", c.BaseURL, service.ID)
+	reqUrl := fmt.Sprintf("%s/event_orchestrations/services/%s/active", strings.TrimRight(c.BaseURL, "/"), service.ID)
 	payload := strings.NewReader(fmt.Sprintf("{\"active\": %t}", active))
 
 	err = c.pdHttpRequest("PUT", reqUrl, payload)
@@ -455,7 +455,7 @@ func (c *SvcClient) ApplyServiceOrchestrationRule(data *Data) error {
 		return fmt.Errorf("unable to get service with ID %v: %w", data.ServiceID, err)
 	}
 
-	reqUrl := fmt.Sprintf("%sevent_orchestrations/services/%s", c.BaseURL, service.ID)
+	reqUrl := fmt.Sprintf("%s/event_orchestrations/services/%s", strings.TrimRight(c.BaseURL, "/"), service.ID)
 	payload := strings.NewReader(data.ServiceOrchestrationRuleApplied)
 
 	err = c.pdHttpRequest("PUT", reqUrl, payload)

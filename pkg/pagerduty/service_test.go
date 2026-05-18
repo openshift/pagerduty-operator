@@ -843,8 +843,15 @@ func TestGeneratePDServiceName(t *testing.T) {
 	}
 
 	t.Run("Non-fedramp", func(t *testing.T) {
+		orig, had := os.LookupEnv("FEDRAMP")
 		os.Unsetenv("FEDRAMP")
 		_ = config.SetIsFedramp()
+		t.Cleanup(func() {
+			if had {
+				_ = os.Setenv("FEDRAMP", orig)
+			}
+			_ = config.SetIsFedramp()
+		})
 
 		result := generatePDServiceName(data)
 		assert.Equal(t, "prefix-cluster123.example.com-hive-cluster", result)
@@ -868,8 +875,15 @@ func TestGeneratePDServiceDescription(t *testing.T) {
 	}
 
 	t.Run("Non-fedramp", func(t *testing.T) {
+		orig, had := os.LookupEnv("FEDRAMP")
 		os.Unsetenv("FEDRAMP")
 		_ = config.SetIsFedramp()
+		t.Cleanup(func() {
+			if had {
+				_ = os.Setenv("FEDRAMP", orig)
+			}
+			_ = config.SetIsFedramp()
+		})
 
 		result := generatePDServiceDescription(data)
 		assert.Equal(t, "cluster123 - A managed hive created cluster", result)

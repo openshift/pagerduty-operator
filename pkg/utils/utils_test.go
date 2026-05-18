@@ -268,8 +268,15 @@ func TestDeleteSecret(t *testing.T) {
 
 func TestGetClusterID(t *testing.T) {
 	t.Run("Non-fedramp returns ClusterName", func(t *testing.T) {
+		orig, had := os.LookupEnv("FEDRAMP")
 		os.Unsetenv("FEDRAMP")
 		_ = config.SetIsFedramp()
+		t.Cleanup(func() {
+			if had {
+				_ = os.Setenv("FEDRAMP", orig)
+			}
+			_ = config.SetIsFedramp()
+		})
 
 		cd := &hivev1.ClusterDeployment{
 			ObjectMeta: metav1.ObjectMeta{

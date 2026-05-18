@@ -201,7 +201,7 @@ func newMockClient(server *httptest.Server) *mockClient {
 				pd.WithV2EventsAPIEndpoint(server.URL),
 			),
 			Delay:   func(time.Duration) {},
-			BaseURL: server.URL + "/",
+			BaseURL: server.URL,
 		},
 	}
 }
