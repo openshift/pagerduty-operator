@@ -158,11 +158,13 @@ type Data struct {
 	// Alert grouping related parameters
 	AlertGroupingType    string `json:"alert_grouping_type,omitempty"`
 	AlertGroupingTimeout uint   `'json:"alert_grouping_timeout,omitempty"`
+
+	IsFedramp bool
 }
 
 // NewData initializes a Data struct from a v1alpha1 PagerDutyIntegration spec
 // pdi.Spec.EscalationPolicy is required
-func NewData(pdi *pagerdutyv1alpha1.PagerDutyIntegration, clusterId string, baseDomain string) (*Data, error) {
+func NewData(pdi *pagerdutyv1alpha1.PagerDutyIntegration, clusterId string, baseDomain string, isFedramp bool) (*Data, error) {
 	if pdi.Spec.EscalationPolicy == "" {
 		return nil, fmt.Errorf("found empty escalation policy in the pagerdutyintegration spec")
 	}
@@ -174,6 +176,7 @@ func NewData(pdi *pagerdutyv1alpha1.PagerDutyIntegration, clusterId string, base
 		ServicePrefix:      pdi.Spec.ServicePrefix,
 		ClusterID:          clusterId,
 		BaseDomain:         baseDomain,
+		IsFedramp:          isFedramp,
 	}
 
 	if pdi.Spec.AlertGroupingParameters != nil {
@@ -640,7 +643,7 @@ func parseIncidentNumbers(incidents []pdApi.Incident) []uint {
 // generateServiceName checks if FedRamp is enabled. If it is, it returns
 // an anonymized PD service name.
 func generatePDServiceName(data *Data) string {
-	if config.IsFedramp() {
+	if data.IsFedramp {
 		return data.ServicePrefix + "-" + data.ClusterID
 	} else {
 		return data.ServicePrefix + "-" + data.ClusterID + "." + data.BaseDomain + "-hive-cluster"
@@ -650,7 +653,7 @@ func generatePDServiceName(data *Data) string {
 // generateServiceDescription checks if FedRamp is enabled. If it is, it returns
 // an empty PD service description
 func generatePDServiceDescription(data *Data) string {
-	if config.IsFedramp() {
+	if data.IsFedramp {
 		return ""
 	} else {
 		return data.ClusterID + " - A managed hive created cluster"

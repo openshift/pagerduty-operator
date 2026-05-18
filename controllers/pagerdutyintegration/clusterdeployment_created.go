@@ -72,8 +72,8 @@ func (r *PagerDutyIntegrationReconciler) handleCreate(pdclient pd.Client, pdi *p
 		return r.Patch(context.TODO(), cd, baseToPatch)
 	}
 
-	clusterID := utils.GetClusterID(cd)
-	pdData, err := pd.NewData(pdi, clusterID, cd.Spec.BaseDomain)
+	clusterID := utils.GetClusterID(cd, r.IsFedramp)
+	pdData, err := pd.NewData(pdi, clusterID, cd.Spec.BaseDomain, r.IsFedramp)
 	if err != nil {
 		return err
 	}

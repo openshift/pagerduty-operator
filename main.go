@@ -90,11 +90,12 @@ func main() {
 
 	// Print configuration info
 	printVersion()
-	if err := operatorconfig.SetIsFedramp(); err != nil {
-		setupLog.Error(err, "failed to get fedramp value")
+	fedrampEnabled, err := operatorconfig.ParseFedrampEnv()
+	if err != nil {
+		setupLog.Error(err, "failed to parse FEDRAMP environment variable")
 		os.Exit(1)
 	}
-	if operatorconfig.IsFedramp() {
+	if fedrampEnabled {
 		setupLog.Info("running in fedramp environment.")
 	}
 
@@ -113,8 +114,9 @@ func main() {
 	}
 
 	if err = (&pagerdutyintegration.PagerDutyIntegrationReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:    mgr.GetClient(),
+		Scheme:    mgr.GetScheme(),
+		IsFedramp: fedrampEnabled,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "PagerDutyIntegration")
 		os.Exit(1)
