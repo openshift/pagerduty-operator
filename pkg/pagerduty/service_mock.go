@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"time"
 
 	pd "github.com/PagerDuty/go-pagerduty"
 	"github.com/openshift/pagerduty-operator/pkg/utils"
@@ -172,6 +173,7 @@ func defaultMockApi() *mockApi {
 	mockApi.setupDefaultGetEscalationPolicyHandler()
 	mockApi.setupDefaultListIncidentsHandler()
 	mockApi.setupDefaultListIncidentAlertsHandler()
+	mockApi.setupOrchestrationHandlers()
 	mockApi.setupV2EventsHandler()
 
 	return mockApi
@@ -198,6 +200,8 @@ func newMockClient(server *httptest.Server) *mockClient {
 				pd.WithAPIEndpoint(server.URL),
 				pd.WithV2EventsAPIEndpoint(server.URL),
 			),
+			Delay:   func(time.Duration) {},
+			BaseURL: server.URL + "/",
 		},
 	}
 }
@@ -254,6 +258,9 @@ func (m *mockApi) setupDefaultServiceHandlers() {
 				if err != nil {
 					return
 				}
+			case http.MethodDelete:
+				delete(m.State.Services, svc.ID)
+				w.WriteHeader(http.StatusOK)
 			default:
 				w.WriteHeader(http.StatusMethodNotAllowed)
 			}
@@ -470,6 +477,28 @@ func (m *mockApi) setupDefaultGetIntegrationHandler() {
 				}
 			})
 		}
+	}
+}
+
+func (m *mockApi) setupOrchestrationHandlers() {
+	for _, svc := range m.State.Services {
+		m.mux.HandleFunc(fmt.Sprintf("/event_orchestrations/services/%s/active", svc.ID), func(w http.ResponseWriter, r *http.Request) {
+			if r.Method != http.MethodPut {
+				w.WriteHeader(http.StatusMethodNotAllowed)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{}`))
+		})
+
+		m.mux.HandleFunc(fmt.Sprintf("/event_orchestrations/services/%s", svc.ID), func(w http.ResponseWriter, r *http.Request) {
+			if r.Method != http.MethodPut {
+				w.WriteHeader(http.StatusMethodNotAllowed)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{}`))
+		})
 	}
 }
 

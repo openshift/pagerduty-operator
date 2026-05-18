@@ -1,9 +1,13 @@
 package pagerduty
 
 import (
+	"os"
 	"testing"
+	"time"
 
+	pdApi "github.com/PagerDuty/go-pagerduty"
 	pagerdutyv1alpha1 "github.com/openshift/pagerduty-operator/api/v1alpha1"
+	"github.com/openshift/pagerduty-operator/config"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -571,4 +575,316 @@ func TestSvcClient_ResolvePendingIncidents(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSvcClient_DeleteService(t *testing.T) {
+	tests := []struct {
+		name      string
+		data      *Data
+		expectErr bool
+	}{
+		{
+			name: "Valid service ID",
+			data: &Data{
+				ServiceID: mockServiceId,
+			},
+			expectErr: false,
+		},
+		{
+			name: "Invalid service ID",
+			data: &Data{
+				ServiceID: "notfound",
+			},
+			expectErr: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			mock := defaultMockApi()
+			defer mock.cleanup()
+
+			err := mock.Client.DeleteService(test.data)
+			if test.expectErr {
+				assert.NotNil(t, err)
+			} else {
+				assert.Nil(t, err)
+				_, exists := mock.State.Services[test.data.ServiceID]
+				assert.False(t, exists)
+			}
+		})
+	}
+}
+
+func TestSvcClient_DisableService(t *testing.T) {
+	tests := []struct {
+		name      string
+		data      *Data
+		expectErr bool
+	}{
+		{
+			name: "Valid service ID",
+			data: &Data{
+				ServiceID: mockServiceId,
+			},
+			expectErr: false,
+		},
+		{
+			name: "Invalid service ID",
+			data: &Data{
+				ServiceID: "notfound",
+			},
+			expectErr: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			mock := defaultMockApi()
+			defer mock.cleanup()
+
+			err := mock.Client.DisableService(test.data)
+			if test.expectErr {
+				assert.NotNil(t, err)
+			} else {
+				assert.Nil(t, err)
+				svc := mock.State.Services[test.data.ServiceID]
+				assert.Equal(t, "disabled", svc.Status)
+			}
+		})
+	}
+}
+
+func TestSvcClient_ToggleServiceOrchestration(t *testing.T) {
+	tests := []struct {
+		name      string
+		data      *Data
+		active    bool
+		expectErr bool
+	}{
+		{
+			name: "Enable orchestration",
+			data: &Data{
+				ServiceID: mockServiceId,
+			},
+			active:    true,
+			expectErr: false,
+		},
+		{
+			name: "Disable orchestration",
+			data: &Data{
+				ServiceID: mockServiceId,
+			},
+			active:    false,
+			expectErr: false,
+		},
+		{
+			name: "Invalid service ID",
+			data: &Data{
+				ServiceID: "notfound",
+			},
+			active:    true,
+			expectErr: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			mock := defaultMockApi()
+			defer mock.cleanup()
+
+			err := mock.Client.ToggleServiceOrchestration(test.data, test.active)
+			if test.expectErr {
+				assert.NotNil(t, err)
+			} else {
+				assert.Nil(t, err)
+			}
+		})
+	}
+}
+
+func TestSvcClient_ApplyServiceOrchestrationRule(t *testing.T) {
+	tests := []struct {
+		name      string
+		data      *Data
+		expectErr bool
+	}{
+		{
+			name: "Valid service ID",
+			data: &Data{
+				ServiceID:                      mockServiceId,
+				ServiceOrchestrationRuleApplied: `{"orchestration_path":{"type":"service","parent":{"type":"service_reference"}}}`,
+			},
+			expectErr: false,
+		},
+		{
+			name: "Invalid service ID",
+			data: &Data{
+				ServiceID: "notfound",
+			},
+			expectErr: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			mock := defaultMockApi()
+			defer mock.cleanup()
+
+			err := mock.Client.ApplyServiceOrchestrationRule(test.data)
+			if test.expectErr {
+				assert.NotNil(t, err)
+			} else {
+				assert.Nil(t, err)
+			}
+		})
+	}
+}
+
+func TestSvcClient_WaitForIncidentsToResolve(t *testing.T) {
+	t.Run("No incidents for unknown service", func(t *testing.T) {
+		mock := defaultMockApi()
+		defer mock.cleanup()
+
+		err := mock.Client.waitForIncidentsToResolve(&Data{ServiceID: mockServiceId2}, 1*time.Second)
+		assert.Nil(t, err)
+	})
+
+	t.Run("Completes with default mock state", func(t *testing.T) {
+		mock := defaultMockApi()
+		defer mock.cleanup()
+
+		err := mock.Client.waitForIncidentsToResolve(&Data{ServiceID: mockServiceId}, 5*time.Second)
+		assert.Nil(t, err)
+	})
+}
+
+func TestSvcClient_ResolveAlert(t *testing.T) {
+	tests := []struct {
+		name           string
+		integrationKey string
+		alertKey       string
+		summary        string
+		expectErr      bool
+	}{
+		{
+			name:           "Valid alert resolution",
+			integrationKey: mockIntegrationKey,
+			alertKey:       "test-alert-key",
+			summary:        "Test resolution",
+			expectErr:      false,
+		},
+		{
+			name:           "Empty routing key",
+			integrationKey: "",
+			alertKey:       "test-alert-key",
+			summary:        "Test resolution",
+			expectErr:      true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			mock := defaultMockApi()
+			defer mock.cleanup()
+
+			err := mock.Client.resolveAlert(test.integrationKey, test.alertKey, test.summary)
+			if test.expectErr {
+				assert.NotNil(t, err)
+			} else {
+				assert.Nil(t, err)
+			}
+		})
+	}
+}
+
+func TestParseIncidentNumbers(t *testing.T) {
+	tests := []struct {
+		name      string
+		incidents []pdApi.Incident
+		expected  []uint
+	}{
+		{
+			name:      "Empty slice",
+			incidents: []pdApi.Incident{},
+			expected:  nil,
+		},
+		{
+			name: "Single incident",
+			incidents: []pdApi.Incident{
+				{IncidentNumber: 42},
+			},
+			expected: []uint{42},
+		},
+		{
+			name: "Multiple incidents",
+			incidents: []pdApi.Incident{
+				{IncidentNumber: 1},
+				{IncidentNumber: 2},
+				{IncidentNumber: 3},
+			},
+			expected: []uint{1, 2, 3},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := parseIncidentNumbers(test.incidents)
+			assert.Equal(t, test.expected, result)
+		})
+	}
+}
+
+func TestGeneratePDServiceName(t *testing.T) {
+	data := &Data{
+		ServicePrefix: "prefix",
+		ClusterID:     "cluster123",
+		BaseDomain:    "example.com",
+	}
+
+	t.Run("Non-fedramp", func(t *testing.T) {
+		os.Unsetenv("FEDRAMP")
+		_ = config.SetIsFedramp()
+
+		result := generatePDServiceName(data)
+		assert.Equal(t, "prefix-cluster123.example.com-hive-cluster", result)
+	})
+
+	t.Run("Fedramp", func(t *testing.T) {
+		os.Setenv("FEDRAMP", "true")
+		_ = config.SetIsFedramp()
+		defer func() {
+			os.Unsetenv("FEDRAMP")
+			_ = config.SetIsFedramp()
+		}()
+
+		result := generatePDServiceName(data)
+		assert.Equal(t, "prefix-cluster123", result)
+	})
+}
+
+func TestGeneratePDServiceDescription(t *testing.T) {
+	data := &Data{
+		ClusterID: "cluster123",
+	}
+
+	t.Run("Non-fedramp", func(t *testing.T) {
+		os.Unsetenv("FEDRAMP")
+		_ = config.SetIsFedramp()
+
+		result := generatePDServiceDescription(data)
+		assert.Equal(t, "cluster123 - A managed hive created cluster", result)
+	})
+
+	t.Run("Fedramp", func(t *testing.T) {
+		os.Setenv("FEDRAMP", "true")
+		_ = config.SetIsFedramp()
+		defer func() {
+			os.Unsetenv("FEDRAMP")
+			_ = config.SetIsFedramp()
+		}()
+
+		result := generatePDServiceDescription(data)
+		assert.Equal(t, "", result)
+	})
 }
