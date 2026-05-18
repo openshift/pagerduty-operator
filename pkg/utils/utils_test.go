@@ -286,12 +286,11 @@ func TestGetClusterID(t *testing.T) {
 	})
 
 	t.Run("Fedramp returns namespace suffix", func(t *testing.T) {
-		os.Setenv("FEDRAMP", "true")
+		t.Setenv("FEDRAMP", "true")
 		_ = config.SetIsFedramp()
-		defer func() {
-			os.Unsetenv("FEDRAMP")
+		t.Cleanup(func() {
 			_ = config.SetIsFedramp()
-		}()
+		})
 
 		cd := &hivev1.ClusterDeployment{
 			ObjectMeta: metav1.ObjectMeta{

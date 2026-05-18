@@ -712,7 +712,7 @@ func TestSvcClient_ApplyServiceOrchestrationRule(t *testing.T) {
 		{
 			name: "Valid service ID",
 			data: &Data{
-				ServiceID:                      mockServiceId,
+				ServiceID:                       mockServiceId,
 				ServiceOrchestrationRuleApplied: `{"orchestration_path":{"type":"service","parent":{"type":"service_reference"}}}`,
 			},
 			expectErr: false,
@@ -851,12 +851,11 @@ func TestGeneratePDServiceName(t *testing.T) {
 	})
 
 	t.Run("Fedramp", func(t *testing.T) {
-		os.Setenv("FEDRAMP", "true")
+		t.Setenv("FEDRAMP", "true")
 		_ = config.SetIsFedramp()
-		defer func() {
-			os.Unsetenv("FEDRAMP")
+		t.Cleanup(func() {
 			_ = config.SetIsFedramp()
-		}()
+		})
 
 		result := generatePDServiceName(data)
 		assert.Equal(t, "prefix-cluster123", result)
@@ -877,12 +876,11 @@ func TestGeneratePDServiceDescription(t *testing.T) {
 	})
 
 	t.Run("Fedramp", func(t *testing.T) {
-		os.Setenv("FEDRAMP", "true")
+		t.Setenv("FEDRAMP", "true")
 		_ = config.SetIsFedramp()
-		defer func() {
-			os.Unsetenv("FEDRAMP")
+		t.Cleanup(func() {
 			_ = config.SetIsFedramp()
-		}()
+		})
 
 		result := generatePDServiceDescription(data)
 		assert.Equal(t, "", result)
