@@ -161,7 +161,7 @@ if [[ -n "$ENVIRONMENT" ]]; then
 fi
 
 # Build common args
-COMMON_ARGS="-n $NAMESPACE"
+COMMON_ARGS="-n $NAMESPACE -t $TICKET"
 if [[ "$VERBOSE" == "true" ]]; then
     COMMON_ARGS="$COMMON_ARGS -v"
 fi
@@ -210,10 +210,10 @@ main() {
         log_header "2. Metrics Validation"
 
         if [[ "$JSON_OUTPUT" == "true" ]]; then
-            METRICS_RESULT=$("$SCRIPT_DIR/check-metrics.sh" $COMMON_ARGS -t "$TICKET" -j 2>&1)
+            METRICS_RESULT=$("$SCRIPT_DIR/check-metrics.sh" $COMMON_ARGS -j 2>&1)
             METRICS_EXIT=$?
         else
-            "$SCRIPT_DIR/check-metrics.sh" $COMMON_ARGS -t "$TICKET"
+            "$SCRIPT_DIR/check-metrics.sh" $COMMON_ARGS
             METRICS_EXIT=$?
         fi
 
@@ -229,7 +229,7 @@ main() {
         if [[ -n "$BASELINE_FILE" && -f "$BASELINE_FILE" ]]; then
             log_info ""
             log_info "Running metrics comparison against baseline..."
-            "$SCRIPT_DIR/compare-metrics.sh" $COMMON_ARGS -t "$TICKET" -c "$BASELINE_FILE" > /dev/null
+            "$SCRIPT_DIR/compare-metrics.sh" $COMMON_ARGS -c "$BASELINE_FILE" > /dev/null
         fi
 
         log_info ""

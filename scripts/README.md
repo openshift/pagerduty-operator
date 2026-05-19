@@ -97,10 +97,13 @@ If `validate-functional` reports "no new clusters since rollout", wait for clust
 **Checks**:
 - Cluster connection verified
 - Operator namespace exists
-- Pod is `Running` with 0 restarts
-- Pod image/version reported
+- ClusterPackage status — conditions (Unpacked/Available/Progressing), PKO and operator image tags, SAAS update timestamp, generation vs observed generation
+- Pod is `Running` with 0 restarts, image tag reported
+- Pod image matches ClusterPackage spec (detects stale pods during rollout)
+- ReplicaSet rollout state — active vs scaled-down ReplicaSets (detects in-progress or stuck rollouts)
 - Error-level logs scanned (benign "namespace terminating" errors filtered separately)
 - Deployment has desired replicas available and ready
+- Image pull failure detection — catches `ErrImagePull`/`ImagePullBackOff` when SAAS deploy races the Konflux build
 
 **Elevation**: All `oc` commands go through `ocm backplane elevate` using the provided ticket.
 
@@ -221,6 +224,15 @@ The operator may have just started. Wait 5 minutes for the first heartbeat cycle
 
 ### "No new clusters to validate"
 The functional check only validates clusters installed after the operator rollout. If no clusters have been provisioned, wait for provisioning activity or re-run later.
+
+### "Image pull failure detected — SAAS deploy may have raced the Konflux build"
+The SAAS deploy pipeline updated the ClusterPackage before the Konflux build finished pushing the operator image to Quay. The old pod remains running (no outage). Wait for the Konflux build to complete and the image to appear, then the new pod will start automatically.
+
+### "ClusterPackage update in progress"
+A SAAS deploy has updated the ClusterPackage but the new pod hasn't started yet. This is normal during rollout — re-run after a few minutes.
+
+### "Pod image does not match ClusterPackage spec"
+The running pod is still on the old image while the ClusterPackage specifies a new one. The rollout is in progress. Check ReplicaSet state for details.
 
 ### Resource count mismatches
 ConfigMap/Secret/SyncSet counts should be equal. Mismatches may indicate in-progress reconciliation — re-run after a few minutes.
