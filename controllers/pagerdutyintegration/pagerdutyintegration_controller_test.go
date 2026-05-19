@@ -1086,9 +1086,10 @@ func TestReconcilePagerDutyIntegration(t *testing.T) {
 			defer mocks.mockCtrl.Finish()
 
 			rpdi := &PagerDutyIntegrationReconciler{
-				Client:   mocks.fakeKubeClient,
-				Scheme:   scheme.Scheme,
-				pdclient: func(s1 string, s2 string) pd.Client { return mocks.mockPDClient },
+				Client:    mocks.fakeKubeClient,
+				Scheme:    scheme.Scheme,
+				IsFedramp: false,
+				pdclient:  func(s1 string, s2 string) pd.Client { return mocks.mockPDClient },
 			}
 
 			// 1st run sets finalizer

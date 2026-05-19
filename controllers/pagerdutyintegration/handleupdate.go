@@ -46,7 +46,7 @@ func (r *PagerDutyIntegrationReconciler) handleUpdate(pdclient pd.Client, pdi *p
 	alertGroupingTimeout := cm.Data["ALERT_GROUPING_TIMEOUT"]
 
 	if alertGroupingType != pdi.Spec.AlertGroupingParameters.Type || alertGroupingTimeout != fmt.Sprintf("%d", pdi.Spec.AlertGroupingParameters.Config.Timeout) {
-		pdData, err := pd.NewData(pdi, cd.Spec.ClusterMetadata.ClusterID, cd.Spec.BaseDomain)
+		pdData, err := pd.NewData(pdi, cd.Spec.ClusterMetadata.ClusterID, cd.Spec.BaseDomain, r.IsFedramp)
 		if err != nil {
 			return err
 		}

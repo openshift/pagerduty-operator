@@ -65,25 +65,18 @@ func Name(servicePrefix, clusterDeploymentName, suffix string) string {
 	return servicePrefix + "-" + clusterDeploymentName + suffix
 }
 
-var isFedramp = false
-
-// SetIsFedramp gets the value of fedramp
-func SetIsFedramp() error {
+// ParseFedrampEnv reads the FEDRAMP environment variable and returns its
+// boolean value. Returns (false, nil) when the variable is unset.
+func ParseFedrampEnv() (bool, error) {
 	fedramp, ok := os.LookupEnv("FEDRAMP")
 	if !ok {
-		fedramp = "false"
+		return false, nil
 	}
 
 	fedrampBool, err := strconv.ParseBool(fedramp)
 	if err != nil {
-		return fmt.Errorf("invalid value for FedRAMP environment variable: %w", err)
+		return false, fmt.Errorf("invalid value for FedRAMP environment variable: %w", err)
 	}
 
-	isFedramp = fedrampBool
-	return nil
-}
-
-// IsFedramp returns value of isFedramp var
-func IsFedramp() bool {
-	return isFedramp
+	return fedrampBool, nil
 }

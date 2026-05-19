@@ -1,13 +1,11 @@
 package pagerduty
 
 import (
-	"os"
 	"testing"
 	"time"
 
 	pdApi "github.com/PagerDuty/go-pagerduty"
 	pagerdutyv1alpha1 "github.com/openshift/pagerduty-operator/api/v1alpha1"
-	"github.com/openshift/pagerduty-operator/config"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -102,7 +100,7 @@ func TestNewData(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			_, err := NewData(test.pdi, "clusterId", "baseDomain")
+			_, err := NewData(test.pdi, "clusterId", "baseDomain", false)
 			if test.expectErr {
 				assert.NotNil(t, err)
 			} else {
@@ -110,6 +108,66 @@ func TestNewData(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNewData_IsFedramp(t *testing.T) {
+	pdi := &pagerdutyv1alpha1.PagerDutyIntegration{
+		Spec: pagerdutyv1alpha1.PagerDutyIntegrationSpec{
+			EscalationPolicy: "POLICY123",
+		},
+	}
+
+	t.Run("isFedramp false is stored in Data", func(t *testing.T) {
+		data, err := NewData(pdi, "cluster1", "example.com", false)
+		assert.Nil(t, err)
+		assert.False(t, data.IsFedramp)
+	})
+
+	t.Run("isFedramp true is stored in Data", func(t *testing.T) {
+		data, err := NewData(pdi, "cluster1", "example.com", true)
+		assert.Nil(t, err)
+		assert.True(t, data.IsFedramp)
+	})
+}
+
+func TestGeneratePDServiceName(t *testing.T) {
+	t.Run("non-fedramp includes base domain", func(t *testing.T) {
+		data := &Data{
+			ServicePrefix: "osd",
+			ClusterID:     "my-cluster",
+			BaseDomain:    "example.com",
+			IsFedramp:     false,
+		}
+		assert.Equal(t, "osd-my-cluster.example.com-hive-cluster", generatePDServiceName(data))
+	})
+
+	t.Run("fedramp returns anonymized name", func(t *testing.T) {
+		data := &Data{
+			ServicePrefix: "osd",
+			ClusterID:     "abc123",
+			BaseDomain:    "example.com",
+			IsFedramp:     true,
+		}
+		assert.Equal(t, "osd-abc123", generatePDServiceName(data))
+	})
+}
+
+func TestGeneratePDServiceDescription(t *testing.T) {
+	t.Run("non-fedramp returns description", func(t *testing.T) {
+		data := &Data{
+			ClusterID: "my-cluster",
+			IsFedramp: false,
+		}
+		assert.Equal(t, "my-cluster - A managed hive created cluster", generatePDServiceDescription(data))
+	})
+
+	t.Run("fedramp returns empty description", func(t *testing.T) {
+		data := &Data{
+			ClusterID: "abc123",
+			IsFedramp: true,
+		}
+		assert.Equal(t, "", generatePDServiceDescription(data))
+	})
 }
 
 func TestParseSetClusterConfig(t *testing.T) {
@@ -889,68 +947,3 @@ func TestParseIncidentNumbers(t *testing.T) {
 	}
 }
 
-func TestGeneratePDServiceName(t *testing.T) {
-	data := &Data{
-		ServicePrefix: "prefix",
-		ClusterID:     "cluster123",
-		BaseDomain:    "example.com",
-	}
-
-	t.Run("Non-fedramp", func(t *testing.T) {
-		orig, had := os.LookupEnv("FEDRAMP")
-		os.Unsetenv("FEDRAMP")
-		_ = config.SetIsFedramp()
-		t.Cleanup(func() {
-			if had {
-				_ = os.Setenv("FEDRAMP", orig)
-			}
-			_ = config.SetIsFedramp()
-		})
-
-		result := generatePDServiceName(data)
-		assert.Equal(t, "prefix-cluster123.example.com-hive-cluster", result)
-	})
-
-	t.Run("Fedramp", func(t *testing.T) {
-		t.Setenv("FEDRAMP", "true")
-		_ = config.SetIsFedramp()
-		t.Cleanup(func() {
-			_ = config.SetIsFedramp()
-		})
-
-		result := generatePDServiceName(data)
-		assert.Equal(t, "prefix-cluster123", result)
-	})
-}
-
-func TestGeneratePDServiceDescription(t *testing.T) {
-	data := &Data{
-		ClusterID: "cluster123",
-	}
-
-	t.Run("Non-fedramp", func(t *testing.T) {
-		orig, had := os.LookupEnv("FEDRAMP")
-		os.Unsetenv("FEDRAMP")
-		_ = config.SetIsFedramp()
-		t.Cleanup(func() {
-			if had {
-				_ = os.Setenv("FEDRAMP", orig)
-			}
-			_ = config.SetIsFedramp()
-		})
-
-		result := generatePDServiceDescription(data)
-		assert.Equal(t, "cluster123 - A managed hive created cluster", result)
-	})
-
-	t.Run("Fedramp", func(t *testing.T) {
-		t.Setenv("FEDRAMP", "true")
-		_ = config.SetIsFedramp()
-		t.Cleanup(func() {
-			_ = config.SetIsFedramp()
-		})
-
-		result := generatePDServiceDescription(data)
-		assert.Equal(t, "", result)
-	})
-}

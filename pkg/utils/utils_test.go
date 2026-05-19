@@ -1,12 +1,10 @@
 package utils
 
 import (
-	"os"
 	"testing"
 
 	"github.com/go-logr/logr"
 	hivev1 "github.com/openshift/hive/apis/hive/v1"
-	"github.com/openshift/pagerduty-operator/config"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -267,49 +265,23 @@ func TestDeleteSecret(t *testing.T) {
 }
 
 func TestGetClusterID(t *testing.T) {
-	t.Run("Non-fedramp returns ClusterName", func(t *testing.T) {
-		orig, had := os.LookupEnv("FEDRAMP")
-		os.Unsetenv("FEDRAMP")
-		_ = config.SetIsFedramp()
-		t.Cleanup(func() {
-			if had {
-				_ = os.Setenv("FEDRAMP", orig)
-			}
-			_ = config.SetIsFedramp()
-		})
+	cd := &hivev1.ClusterDeployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-cluster",
+			Namespace: "uhc-production-abc123",
+		},
+		Spec: hivev1.ClusterDeploymentSpec{
+			ClusterName: "my-cluster-name",
+		},
+	}
 
-		cd := &hivev1.ClusterDeployment{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-cd",
-				Namespace: "uhc-production-abc123",
-			},
-			Spec: hivev1.ClusterDeploymentSpec{
-				ClusterName: "my-cluster",
-			},
-		}
-
-		result := GetClusterID(cd)
-		assert.Equal(t, "my-cluster", result)
+	t.Run("non-fedramp returns ClusterName", func(t *testing.T) {
+		result := GetClusterID(cd, false)
+		assert.Equal(t, "my-cluster-name", result)
 	})
 
-	t.Run("Fedramp returns namespace suffix", func(t *testing.T) {
-		t.Setenv("FEDRAMP", "true")
-		_ = config.SetIsFedramp()
-		t.Cleanup(func() {
-			_ = config.SetIsFedramp()
-		})
-
-		cd := &hivev1.ClusterDeployment{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-cd",
-				Namespace: "uhc-production-abc123",
-			},
-			Spec: hivev1.ClusterDeploymentSpec{
-				ClusterName: "my-cluster",
-			},
-		}
-
-		result := GetClusterID(cd)
+	t.Run("fedramp returns namespace suffix", func(t *testing.T) {
+		result := GetClusterID(cd, true)
 		assert.Equal(t, "abc123", result)
 	})
 }

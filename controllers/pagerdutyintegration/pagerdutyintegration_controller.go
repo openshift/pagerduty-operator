@@ -61,7 +61,8 @@ func (p pdiReconcileErrors) Error() string {
 // PagerDutyIntegrationReconciler reconciles a PagerDutyIntegration object
 type PagerDutyIntegrationReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme    *runtime.Scheme
+	IsFedramp bool
 
 	reqLogger logr.Logger
 	pdclient  func(APIKey string, controllerName string) pd.Client
