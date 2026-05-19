@@ -4,11 +4,13 @@ import (
 	"os"
 	"testing"
 
+	"context"
 	"github.com/go-logr/logr"
 	hivev1 "github.com/openshift/hive/apis/hive/v1"
 	"github.com/openshift/pagerduty-operator/config"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -165,7 +167,7 @@ func TestDeleteConfigMap(t *testing.T) {
 			}
 			client := builder.Build()
 
-			err := DeleteConfigMap("test-cm", testNamespace, client, logr.Discard())
+			err := DeleteConfigMap(context.TODO(), "test-cm", testNamespace, client, logr.Discard())
 			if test.expectErr {
 				assert.NotNil(t, err)
 			} else {
@@ -211,7 +213,7 @@ func TestDeleteSyncSet(t *testing.T) {
 			}
 			client := builder.Build()
 
-			err := DeleteSyncSet("test-syncset", testNamespace, client, logr.Discard())
+			err := DeleteSyncSet(context.TODO(), "test-syncset", testNamespace, client, logr.Discard())
 			if test.expectErr {
 				assert.NotNil(t, err)
 			} else {
@@ -256,7 +258,7 @@ func TestDeleteSecret(t *testing.T) {
 			}
 			client := builder.Build()
 
-			err := DeleteSecret("test-secret", testNamespace, client, logr.Discard())
+			err := DeleteSecret(context.TODO(), "test-secret", testNamespace, client, logr.Discard())
 			if test.expectErr {
 				assert.NotNil(t, err)
 			} else {

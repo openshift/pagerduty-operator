@@ -808,7 +808,7 @@ func TestParseIncidentNumbers(t *testing.T) {
 		{
 			name:      "Empty slice",
 			incidents: []pdApi.Incident{},
-			expected:  nil,
+			expected:  []uint{},
 		},
 		{
 			name: "Single incident",
