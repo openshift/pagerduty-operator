@@ -268,18 +268,19 @@ func (m *mockApi) setupDefaultServiceHandlers() {
 	}
 }
 
-// setupDefaultListIncidentsHandler sets up a handler to respond to listing incidents
+// setupDefaultListIncidentsHandler sets up a handler to respond to listing incidents.
+// Reads from m.State.Incidents at request time so tests can modify state dynamically.
 func (m *mockApi) setupDefaultListIncidentsHandler() {
-	var incidents []pd.Incident
-	for _, inc := range m.State.Incidents {
-		incidents = append(incidents, *inc)
-	}
-
-	incidentsData := map[string][]pd.Incident{
-		"incidents": incidents,
-	}
-
 	m.mux.HandleFunc("/incidents", func(w http.ResponseWriter, r *http.Request) {
+		var incidents []pd.Incident
+		for _, inc := range m.State.Incidents {
+			incidents = append(incidents, *inc)
+		}
+
+		incidentsData := map[string][]pd.Incident{
+			"incidents": incidents,
+		}
+
 		filteredIncidentsData := processListIncidentsQueryParams(r.URL.Query(), incidentsData)
 
 		resp, err := json.Marshal(filteredIncidentsData)
@@ -531,7 +532,21 @@ func (m *mockApi) setupV2EventsHandler() {
 			return
 		}
 
-		// TODO: Actually resolve the alerts
+		if eventReq.Action == "resolve" {
+			var remaining []*pd.Incident
+			for _, inc := range m.State.Incidents {
+				if inc.Status != "triggered" {
+					remaining = append(remaining, inc)
+				} else {
+					inc.Status = "resolved"
+					inc.AlertCounts.Triggered = 0
+					inc.AlertCounts.Resolved = inc.AlertCounts.All
+					remaining = append(remaining, inc)
+				}
+			}
+			m.State.Incidents = remaining
+		}
+
 		success.DedupKey = eventReq.DedupKey
 		resp, err := json.Marshal(success)
 		if err != nil {

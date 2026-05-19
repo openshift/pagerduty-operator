@@ -594,37 +594,31 @@ func (c *SvcClient) getUnresolvedAlerts(incidentId string) ([]pdApi.IncidentAler
 	return alerts.Alerts, err
 }
 
-// waitForIncidentsToResolve checks if all incidents have been resolved every 2 seconds,
-// waiting for a maximum of maxWait
+// waitForIncidentsToResolve polls for unresolved incidents every waitStep,
+// returning nil when all are resolved or an error if maxWait is exceeded.
 func (c *SvcClient) waitForIncidentsToResolve(data *Data, maxWait time.Duration) error {
 	waitStep := 2 * time.Second
-	incidents, err := c.getUnresolvedIncidents(data)
-	if err != nil {
-		return fmt.Errorf("unable to get unresolved incidents: %w", err)
-	}
-
-	totalIncidents := len(incidents)
-
 	start := time.Now()
-	for _, incident := range incidents {
+
+	for {
+		incidents, err := c.getUnresolvedIncidents(data)
+		if err != nil {
+			return fmt.Errorf("unable to get unresolved incidents: %w", err)
+		}
+
+		if len(incidents) == 0 {
+			return nil
+		}
+
 		if time.Since(start) > maxWait {
-			return fmt.Errorf("timed out waiting for %d incidents to resolve, %d left: %v",
-				totalIncidents,
+			return fmt.Errorf("timed out waiting for %d incidents to resolve: %v",
 				len(incidents),
 				parseIncidentNumbers(incidents),
 			)
 		}
 
-		if incident.AlertCounts.Triggered > 0 {
-			c.Delay(waitStep)
-			incidents, err = c.getUnresolvedIncidents(data)
-			if err != nil {
-				return fmt.Errorf("unable to get unresolved incidents: %w", err)
-			}
-		}
+		c.Delay(waitStep)
 	}
-
-	return nil
 }
 
 // parseIncidentNumbers returns a slice of PagerDuty incident numbers

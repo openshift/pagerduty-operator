@@ -742,7 +742,7 @@ func TestSvcClient_ApplyServiceOrchestrationRule(t *testing.T) {
 }
 
 func TestSvcClient_WaitForIncidentsToResolve(t *testing.T) {
-	t.Run("No incidents for unknown service", func(t *testing.T) {
+	t.Run("0 incidents returns nil immediately", func(t *testing.T) {
 		mock := defaultMockApi()
 		defer mock.cleanup()
 
@@ -750,12 +750,66 @@ func TestSvcClient_WaitForIncidentsToResolve(t *testing.T) {
 		assert.Nil(t, err)
 	})
 
-	t.Run("Completes with default mock state", func(t *testing.T) {
+	t.Run("1 unresolved incident times out", func(t *testing.T) {
 		mock := defaultMockApi()
 		defer mock.cleanup()
 
+		mock.Client.Delay = func(d time.Duration) {
+			time.Sleep(10 * time.Millisecond)
+		}
+
+		err := mock.Client.waitForIncidentsToResolve(&Data{ServiceID: mockServiceId}, 30*time.Millisecond)
+		assert.NotNil(t, err)
+		assert.Contains(t, err.Error(), "timed out waiting for")
+	})
+
+	t.Run("3 unresolved incidents times out", func(t *testing.T) {
+		mock := defaultMockApi()
+		defer mock.cleanup()
+
+		mock.State.Incidents = append(mock.State.Incidents,
+			&pdApi.Incident{
+				APIObject: pdApi.APIObject{ID: "INC3"},
+				Service:   pdApi.APIObject{ID: mockServiceId},
+				Status:    "triggered",
+				AlertCounts: pdApi.AlertCounts{
+					Triggered: 1,
+				},
+			},
+			&pdApi.Incident{
+				APIObject: pdApi.APIObject{ID: "INC4"},
+				Service:   pdApi.APIObject{ID: mockServiceId},
+				Status:    "triggered",
+				AlertCounts: pdApi.AlertCounts{
+					Triggered: 1,
+				},
+			},
+		)
+
+		mock.Client.Delay = func(d time.Duration) {
+			time.Sleep(10 * time.Millisecond)
+		}
+
+		err := mock.Client.waitForIncidentsToResolve(&Data{ServiceID: mockServiceId}, 30*time.Millisecond)
+		assert.NotNil(t, err)
+		assert.Contains(t, err.Error(), "timed out waiting for")
+	})
+
+	t.Run("Incidents resolve during wait", func(t *testing.T) {
+		mock := defaultMockApi()
+		defer mock.cleanup()
+
+		callCount := 0
+		mock.Client.Delay = func(d time.Duration) {
+			callCount++
+			if callCount >= 2 {
+				mock.State.Incidents = nil
+			}
+		}
+
 		err := mock.Client.waitForIncidentsToResolve(&Data{ServiceID: mockServiceId}, 5*time.Second)
 		assert.Nil(t, err)
+		assert.GreaterOrEqual(t, callCount, 2)
 	})
 }
 
