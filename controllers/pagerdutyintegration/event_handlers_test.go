@@ -17,6 +17,8 @@ limitations under the License.
 package pagerdutyintegration
 
 import (
+	"context"
+
 	hivev1 "github.com/openshift/hive/apis/hive/v1"
 	pagerdutyv1alpha1 "github.com/openshift/pagerduty-operator/api/v1alpha1"
 	"github.com/openshift/pagerduty-operator/config"
@@ -24,8 +26,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"testing"
 )
 
@@ -337,6 +343,293 @@ func Test_enqueueRequestForConfigmap_toRequests(t *testing.T) {
 			}
 			reqs := e.toRequests(test.obj)
 			assert.Equal(t, test.expectedRequests, len(reqs))
+		})
+	}
+}
+
+func newTestScheme() *runtime.Scheme {
+	scheme := runtime.NewScheme()
+	s := runtime.SchemeBuilder{
+		corev1.AddToScheme,
+		hivev1.AddToScheme,
+		pagerdutyv1alpha1.AddToScheme,
+	}
+	if err := s.AddToScheme(scheme); err != nil {
+		panic(err)
+	}
+	return scheme
+}
+
+func Test_enqueueRequestForClusterDeployment_QueueMethods(t *testing.T) {
+	scheme := newTestScheme()
+	ctx := context.TODO()
+
+	cd := &hivev1.ClusterDeployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "cd1",
+			Namespace: "ns1",
+			Labels:    map[string]string{"pdiWatching": "cd1"},
+		},
+	}
+
+	pdi := mockPagerDutyIntegration("pdi1", map[string]string{"pdiWatching": "cd1"})
+
+	tests := []struct {
+		name           string
+		fire           func(handler *enqueueRequestForClusterDeployment, q workqueue.RateLimitingInterface)
+		expectedCount  int
+		expectedName   string
+	}{
+		{
+			name: "Create enqueues matching PDI",
+			fire: func(h *enqueueRequestForClusterDeployment, q workqueue.RateLimitingInterface) {
+				h.Create(ctx, event.CreateEvent{Object: cd}, q)
+			},
+			expectedCount: 1,
+			expectedName:  "pdi1",
+		},
+		{
+			name: "Delete enqueues matching PDI",
+			fire: func(h *enqueueRequestForClusterDeployment, q workqueue.RateLimitingInterface) {
+				h.Delete(ctx, event.DeleteEvent{Object: cd}, q)
+			},
+			expectedCount: 1,
+			expectedName:  "pdi1",
+		},
+		{
+			name: "Generic enqueues matching PDI",
+			fire: func(h *enqueueRequestForClusterDeployment, q workqueue.RateLimitingInterface) {
+				h.Generic(ctx, event.GenericEvent{Object: cd}, q)
+			},
+			expectedCount: 1,
+			expectedName:  "pdi1",
+		},
+		{
+			name: "Create with no matching PDI enqueues nothing",
+			fire: func(h *enqueueRequestForClusterDeployment, q workqueue.RateLimitingInterface) {
+				noMatchCD := &hivev1.ClusterDeployment{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "cd-nomatch",
+						Namespace: "ns1",
+						Labels:    map[string]string{"other": "label"},
+					},
+				}
+				h.Create(ctx, event.CreateEvent{Object: noMatchCD}, q)
+			},
+			expectedCount: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fakeClient := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(cd).
+				WithRuntimeObjects(pdi).
+				Build()
+
+			handler := &enqueueRequestForClusterDeployment{Client: fakeClient}
+			q := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
+			defer q.ShutDown()
+
+			tt.fire(handler, q)
+
+			assert.Equal(t, tt.expectedCount, q.Len())
+			if tt.expectedCount > 0 {
+				item, _ := q.Get()
+				req := item.(reconcile.Request)
+				assert.Equal(t, tt.expectedName, req.Name)
+				q.Done(item)
+			}
+		})
+	}
+}
+
+func Test_enqueueRequestForClusterDeployment_Update_Deduplication(t *testing.T) {
+	scheme := newTestScheme()
+	ctx := context.TODO()
+
+	cd := &hivev1.ClusterDeployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "cd1",
+			Namespace: "ns1",
+			Labels:    map[string]string{"pdiWatching": "cd1"},
+		},
+	}
+
+	pdi := mockPagerDutyIntegration("pdi1", map[string]string{"pdiWatching": "cd1"})
+
+	fakeClient := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(cd).
+		WithRuntimeObjects(pdi).
+		Build()
+
+	handler := &enqueueRequestForClusterDeployment{Client: fakeClient}
+	q := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
+	defer q.ShutDown()
+
+	handler.Update(ctx, event.UpdateEvent{ObjectOld: cd, ObjectNew: cd}, q)
+
+	assert.Equal(t, 1, q.Len(), "same PDI from ObjectOld and ObjectNew should be de-duplicated")
+}
+
+func Test_enqueueRequestForClusterDeploymentOwner_QueueMethods(t *testing.T) {
+	scheme := newTestScheme()
+	ctx := context.TODO()
+
+	cd := &hivev1.ClusterDeployment{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ClusterDeployment",
+			APIVersion: "hive.openshift.io/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "cd1",
+			Namespace: "ns1",
+			Labels:    map[string]string{"pdiWatching": "cd1"},
+		},
+	}
+
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "secret1",
+			Namespace: "ns1",
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: "hive.openshift.io/v1",
+					Kind:       "ClusterDeployment",
+					Name:       "cd1",
+				},
+			},
+		},
+	}
+
+	secretNoOwner := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "secret-no-owner",
+			Namespace: "ns1",
+		},
+	}
+
+	pdi := mockPagerDutyIntegration("pdi1", map[string]string{"pdiWatching": "cd1"})
+
+	tests := []struct {
+		name          string
+		obj           client.Object
+		expectedCount int
+	}{
+		{
+			name:          "Create with owned secret enqueues matching PDI",
+			obj:           secret,
+			expectedCount: 1,
+		},
+		{
+			name:          "Create with unowned secret enqueues nothing",
+			obj:           secretNoOwner,
+			expectedCount: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fakeClient := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(tt.obj, cd).
+				WithRuntimeObjects(pdi).
+				Build()
+
+			handler := &enqueueRequestForClusterDeploymentOwner{
+				Client: fakeClient,
+				Scheme: scheme,
+			}
+			q := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
+			defer q.ShutDown()
+
+			handler.Create(ctx, event.CreateEvent{Object: tt.obj}, q)
+
+			assert.Equal(t, tt.expectedCount, q.Len())
+		})
+	}
+}
+
+func Test_enqueueRequestForConfigMap_QueueMethods(t *testing.T) {
+	scheme := newTestScheme()
+	ctx := context.TODO()
+
+	cmInOperatorNS := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "orchestration-cm",
+			Namespace: config.OperatorNamespace,
+			Labels:    map[string]string{"pdiWatching": "cd1"},
+		},
+	}
+
+	cmWrongNS := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "orchestration-cm-wrong",
+			Namespace: "other-namespace",
+			Labels:    map[string]string{"pdiWatching": "cd1"},
+		},
+	}
+
+	pdi := mockPagerDutyIntegration("pdi1", map[string]string{"pdiWatching": "cd1"})
+
+	tests := []struct {
+		name          string
+		obj           client.Object
+		fire          func(handler *enqueueRequestForConfigMap, q workqueue.RateLimitingInterface)
+		expectedCount int
+		expectedName  string
+	}{
+		{
+			name: "Create in operator namespace enqueues matching PDI",
+			obj:  cmInOperatorNS,
+			fire: func(h *enqueueRequestForConfigMap, q workqueue.RateLimitingInterface) {
+				h.Create(ctx, event.CreateEvent{Object: cmInOperatorNS}, q)
+			},
+			expectedCount: 1,
+			expectedName:  "pdi1",
+		},
+		{
+			name: "Create in wrong namespace enqueues nothing",
+			obj:  cmWrongNS,
+			fire: func(h *enqueueRequestForConfigMap, q workqueue.RateLimitingInterface) {
+				h.Create(ctx, event.CreateEvent{Object: cmWrongNS}, q)
+			},
+			expectedCount: 0,
+		},
+		{
+			name: "Delete in operator namespace enqueues matching PDI",
+			obj:  cmInOperatorNS,
+			fire: func(h *enqueueRequestForConfigMap, q workqueue.RateLimitingInterface) {
+				h.Delete(ctx, event.DeleteEvent{Object: cmInOperatorNS}, q)
+			},
+			expectedCount: 1,
+			expectedName:  "pdi1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fakeClient := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(tt.obj).
+				WithRuntimeObjects(pdi).
+				Build()
+
+			handler := &enqueueRequestForConfigMap{Client: fakeClient}
+			q := workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter())
+			defer q.ShutDown()
+
+			tt.fire(handler, q)
+
+			assert.Equal(t, tt.expectedCount, q.Len())
+			if tt.expectedCount > 0 && tt.expectedName != "" {
+				item, _ := q.Get()
+				req := item.(reconcile.Request)
+				assert.Equal(t, types.NamespacedName{Name: tt.expectedName, Namespace: "test"}, req.NamespacedName)
+				q.Done(item)
+			}
 		})
 	}
 }
