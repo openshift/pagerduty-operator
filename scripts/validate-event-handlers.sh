@@ -79,7 +79,7 @@ verbose() {
 
 show_help() {
     grep '^#' "${0}" | grep --invert-match '#!/bin/bash' | sed 's/^# //' | sed 's/^#//'
-    exit 0
+    exit "${1:-0}"
 }
 
 elevated_oc() {
@@ -90,10 +90,12 @@ elevated_oc() {
 while [[ $# -gt 0 ]]; do
     case ${1} in
         -n|--namespace)
+            [[ $# -lt 2 ]] && { echo "Error: --namespace requires a value" >&2; show_help 2; }
             NAMESPACE="${2}"
             shift 2
             ;;
         -t|--ticket)
+            [[ $# -lt 2 ]] && { echo "Error: --ticket requires a value" >&2; show_help 2; }
             TICKET="${2}"
             shift 2
             ;;
@@ -109,8 +111,8 @@ while [[ $# -gt 0 ]]; do
             show_help
             ;;
         *)
-            echo "Unknown option: ${1}"
-            show_help
+            echo "Unknown option: ${1}" >&2
+            show_help 2
             ;;
     esac
 done
@@ -118,7 +120,7 @@ done
 if [[ -z "${TICKET}" ]]; then
     echo "Error: SREP ticket URL is required (-t|--ticket)" >&2
     echo "" >&2
-    show_help
+    show_help 2
 fi
 
 print_results() {
@@ -173,7 +175,7 @@ main() {
 
     # Check 2: Watch registration
     log_info "[2/7] Checking watch registration..."
-    WATCH_COUNT=$(echo "${LOGS}" | grep --count "Starting EventSource" 2>/dev/null || echo "0")
+    WATCH_COUNT=$(echo "${LOGS}" | grep --count "Starting EventSource" 2>/dev/null || true)
     verbose "Found ${WATCH_COUNT} EventSource registrations"
     if [[ "${WATCH_COUNT}" -ge 5 ]]; then
         log_success "All watches registered (${WATCH_COUNT} EventSource entries)" "watch_registration"
@@ -185,7 +187,7 @@ main() {
 
     # Check 3: Reconciliation activity
     log_info "[3/7] Checking reconciliation activity..."
-    RECONCILE_COUNT=$(echo "${LOGS}" | grep --count "Reconciling PagerDutyIntegration" 2>/dev/null || echo "0")
+    RECONCILE_COUNT=$(echo "${LOGS}" | grep --count "Reconciling PagerDutyIntegration" 2>/dev/null || true)
     verbose "Found ${RECONCILE_COUNT} reconciliation entries"
     if [[ "${RECONCILE_COUNT}" -gt 0 ]]; then
         log_success "Event handlers firing — ${RECONCILE_COUNT} reconciliation(s) logged" "reconciliation_activity"
@@ -195,7 +197,7 @@ main() {
 
     # Check 4: Reconcile completion
     log_info "[4/7] Checking reconcile completions..."
-    COMPLETE_COUNT=$(echo "${LOGS}" | grep --count "Reconcile complete" 2>/dev/null || echo "0")
+    COMPLETE_COUNT=$(echo "${LOGS}" | grep --count "Reconcile complete" 2>/dev/null || true)
     verbose "Found ${COMPLETE_COUNT} completed reconciliations"
     if [[ "${COMPLETE_COUNT}" -gt 0 ]]; then
         LAST_DURATION=$(echo "${LOGS}" | grep "Reconcile complete" | tail -1 | grep --only-matching '"Duration":"[^"]*"' || echo "unknown")
@@ -207,7 +209,7 @@ main() {
 
     # Check 5: Error-free handler operation
     log_info "[5/7] Checking for handler errors..."
-    PANIC_COUNT=$(echo "${LOGS}" | grep --count --ignore-case "panic\|runtime error" 2>/dev/null || echo "0")
+    PANIC_COUNT=$(echo "${LOGS}" | grep --count --ignore-case "panic\|runtime error" 2>/dev/null || true)
     RESTART_COUNT=$(elevated_oc get pod -n "${NAMESPACE}" "${POD_NAME}" \
         -o jsonpath='{.status.containerStatuses[0].restartCount}' 2>/dev/null || echo "unknown")
     verbose "Panics in logs: ${PANIC_COUNT}"
@@ -222,7 +224,7 @@ main() {
 
     # Check 6: Heartbeat activity
     log_info "[6/7] Checking PD API heartbeat..."
-    HEARTBEAT_COUNT=$(echo "${LOGS}" | grep --count "Metrics for PD API" 2>/dev/null || echo "0")
+    HEARTBEAT_COUNT=$(echo "${LOGS}" | grep --count "Metrics for PD API" 2>/dev/null || true)
     verbose "Found ${HEARTBEAT_COUNT} heartbeat entries"
     if [[ "${HEARTBEAT_COUNT}" -gt 0 ]]; then
         log_success "PD API heartbeat active (${HEARTBEAT_COUNT} entries)" "heartbeat_activity"
