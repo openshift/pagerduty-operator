@@ -36,7 +36,7 @@ import (
 var _ handler.EventHandler = &enqueueRequestForClusterDeployment{}
 
 // enqueueRequestForClusterDeployment implements the handler.EventHandler interface.
-// Heavily inspired by https://github.com/kubernetes-sigs/controller-runtime/blob/v0.24.1/pkg/handler/enqueue_mapped.go
+// Heavily inspired by https://github.com/kubernetes-sigs/controller-runtime/blob/v0.22.5/pkg/handler/enqueue_mapped.go
 type enqueueRequestForClusterDeployment struct {
 	Client client.Client
 }
@@ -108,7 +108,7 @@ func (e *enqueueRequestForClusterDeployment) mapAndEnqueue(q workqueue.TypedRate
 var _ handler.EventHandler = &enqueueRequestForClusterDeploymentOwner{}
 
 // enqueueRequestForClusterDeploymentOwner implements the handler.EventHandler interface.
-// Heavily inspired by https://github.com/kubernetes-sigs/controller-runtime/blob/v0.24.1/pkg/handler/enqueue_mapped.go
+// Heavily inspired by https://github.com/kubernetes-sigs/controller-runtime/blob/v0.22.5/pkg/handler/enqueue_mapped.go
 type enqueueRequestForClusterDeploymentOwner struct {
 	Client    client.Client
 	Scheme    *runtime.Scheme
@@ -209,7 +209,7 @@ func (e *enqueueRequestForClusterDeploymentOwner) mapAndEnqueue(q workqueue.Type
 var _ handler.EventHandler = &enqueueRequestForConfigMap{}
 
 // enqueueRequestForConfigMap implements the handler.EventHandler interface.
-// Heavily inspired by https://github.com/kubernetes-sigs/controller-runtime/blob/v0.24.1/pkg/handler/enqueue_mapped.go
+// Heavily inspired by https://github.com/kubernetes-sigs/controller-runtime/blob/v0.22.5/pkg/handler/enqueue_mapped.go
 type enqueueRequestForConfigMap struct {
 	Client client.Client
 }

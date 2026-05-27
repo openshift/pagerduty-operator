@@ -2,6 +2,7 @@ package utils
 
 import (
 	"context"
+	"slices"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -16,22 +17,25 @@ import (
 
 // HasFinalizer returns true if the given object has the given finalizer
 func HasFinalizer(object metav1.Object, finalizer string) bool {
-	finalizers := sets.NewString(object.GetFinalizers()...)
-	return finalizers.Has(finalizer)
+	return sets.New[string](object.GetFinalizers()...).Has(finalizer)
 }
 
 // AddFinalizer adds a finalizer to the given object
 func AddFinalizer(object metav1.Object, finalizer string) {
-	finalizers := sets.NewString(object.GetFinalizers()...)
+	finalizers := sets.New[string](object.GetFinalizers()...)
 	finalizers.Insert(finalizer)
-	object.SetFinalizers(finalizers.List())
+	sorted := finalizers.UnsortedList()
+	slices.Sort(sorted)
+	object.SetFinalizers(sorted)
 }
 
 // DeleteFinalizer removes a finalizer from the given object
 func DeleteFinalizer(object metav1.Object, finalizer string) {
-	finalizers := sets.NewString(object.GetFinalizers()...)
+	finalizers := sets.New[string](object.GetFinalizers()...)
 	finalizers.Delete(finalizer)
-	object.SetFinalizers(finalizers.List())
+	sorted := finalizers.UnsortedList()
+	slices.Sort(sorted)
+	object.SetFinalizers(sorted)
 }
 
 // DeleteConfigMap deletes a ConfigMap
