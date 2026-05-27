@@ -140,7 +140,6 @@ func (r *PagerDutyIntegrationReconciler) Reconcile(ctx context.Context, req ctrl
 	if pdi.DeletionTimestamp != nil {
 		if utils.HasFinalizer(pdi, config.PagerDutyIntegrationFinalizer) {
 			for _, clusterdeployment := range allClusterDeployments.Items {
-				clusterdeployment := clusterdeployment
 				if utils.HasFinalizer(&clusterdeployment, clusterDeploymentFinalizerName) {
 					err = r.handleDelete(pdClient, pdi, &clusterdeployment)
 					if err != nil {
@@ -173,7 +172,6 @@ func (r *PagerDutyIntegrationReconciler) Reconcile(ctx context.Context, req ctrl
 	var reconcileErrors pdiReconcileErrors
 	// Process all ClusterDeployments with the PDI finalizer for PD service deletion
 	for _, cd := range allClusterDeployments.Items {
-		cd := cd
 		if utils.HasFinalizer(&cd, clusterDeploymentFinalizerName) {
 			if cd.DeletionTimestamp != nil {
 				// The ClusterDeployment is being deleted, so delete the PD service
@@ -205,7 +203,6 @@ func (r *PagerDutyIntegrationReconciler) Reconcile(ctx context.Context, req ctrl
 
 	// and finally, any Matching CD not being deleted
 	for _, cd := range matchingClusterDeployments.Items {
-		cd := cd
 		if cd.DeletionTimestamp == nil {
 			if err := r.handleCreate(pdClient, pdi, &cd); err != nil {
 				reconcileErrors = append(reconcileErrors, err)
