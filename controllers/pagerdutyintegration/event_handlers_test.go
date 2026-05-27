@@ -19,6 +19,8 @@ package pagerdutyintegration
 import (
 	"context"
 
+	"testing"
+
 	hivev1 "github.com/openshift/hive/apis/hive/v1"
 	pagerdutyv1alpha1 "github.com/openshift/pagerduty-operator/api/v1alpha1"
 	"github.com/openshift/pagerduty-operator/config"
@@ -32,7 +34,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"testing"
 )
 
 func Test_enqueueRequestForClusterDeployment_toRequests(t *testing.T) {
@@ -375,10 +376,10 @@ func Test_enqueueRequestForClusterDeployment_QueueMethods(t *testing.T) {
 	pdi := mockPagerDutyIntegration("pdi1", map[string]string{"pdiWatching": "cd1"})
 
 	tests := []struct {
-		name           string
-		fire           func(handler *enqueueRequestForClusterDeployment, q workqueue.TypedRateLimitingInterface[reconcile.Request])
-		expectedCount  int
-		expectedName   string
+		name          string
+		fire          func(handler *enqueueRequestForClusterDeployment, q workqueue.TypedRateLimitingInterface[reconcile.Request])
+		expectedCount int
+		expectedName  string
 	}{
 		{
 			name: "Create enqueues matching PDI",
