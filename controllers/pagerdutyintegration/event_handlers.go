@@ -36,28 +36,28 @@ import (
 var _ handler.EventHandler = &enqueueRequestForClusterDeployment{}
 
 // enqueueRequestForClusterDeployment implements the handler.EventHandler interface.
-// Heavily inspired by https://github.com/kubernetes-sigs/controller-runtime/blob/v0.12.1/pkg/handler/enqueue_mapped.go
+// Heavily inspired by https://github.com/kubernetes-sigs/controller-runtime/blob/v0.22.5/pkg/handler/enqueue_mapped.go
 type enqueueRequestForClusterDeployment struct {
 	Client client.Client
 }
 
-func (e *enqueueRequestForClusterDeployment) Create(ctx context.Context, evt event.CreateEvent, q workqueue.RateLimitingInterface) {
+func (e *enqueueRequestForClusterDeployment) Create(ctx context.Context, evt event.TypedCreateEvent[client.Object], q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	reqs := map[reconcile.Request]struct{}{}
 	e.mapAndEnqueue(q, evt.Object, reqs)
 }
 
-func (e *enqueueRequestForClusterDeployment) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
+func (e *enqueueRequestForClusterDeployment) Update(ctx context.Context, evt event.TypedUpdateEvent[client.Object], q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	reqs := map[reconcile.Request]struct{}{}
 	e.mapAndEnqueue(q, evt.ObjectOld, reqs)
 	e.mapAndEnqueue(q, evt.ObjectNew, reqs)
 }
 
-func (e *enqueueRequestForClusterDeployment) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
+func (e *enqueueRequestForClusterDeployment) Delete(ctx context.Context, evt event.TypedDeleteEvent[client.Object], q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	reqs := map[reconcile.Request]struct{}{}
 	e.mapAndEnqueue(q, evt.Object, reqs)
 }
 
-func (e *enqueueRequestForClusterDeployment) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
+func (e *enqueueRequestForClusterDeployment) Generic(ctx context.Context, evt event.TypedGenericEvent[client.Object], q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	reqs := map[reconcile.Request]struct{}{}
 	e.mapAndEnqueue(q, evt.Object, reqs)
 }
@@ -73,7 +73,7 @@ func (e *enqueueRequestForClusterDeployment) toRequests(obj client.Object) []rec
 	}
 
 	for _, pdi := range pdiList.Items {
-		pdi := pdi // gosec G601 compliance - avoid memory aliasing in for-loops
+
 		sanitized, matchesNothing := sanitizeLabelSelector(&pdi.Spec.ClusterDeploymentSelector, log)
 		if matchesNothing {
 			continue
@@ -94,7 +94,7 @@ func (e *enqueueRequestForClusterDeployment) toRequests(obj client.Object) []rec
 	return reqs
 }
 
-func (e *enqueueRequestForClusterDeployment) mapAndEnqueue(q workqueue.RateLimitingInterface, obj client.Object, reqs map[reconcile.Request]struct{}) {
+func (e *enqueueRequestForClusterDeployment) mapAndEnqueue(q workqueue.TypedRateLimitingInterface[reconcile.Request], obj client.Object, reqs map[reconcile.Request]struct{}) {
 	for _, req := range e.toRequests(obj) {
 		_, ok := reqs[req]
 		if !ok {
@@ -108,27 +108,27 @@ func (e *enqueueRequestForClusterDeployment) mapAndEnqueue(q workqueue.RateLimit
 var _ handler.EventHandler = &enqueueRequestForClusterDeploymentOwner{}
 
 // enqueueRequestForClusterDeploymentOwner implements the handler.EventHandler interface.
-// Heavily inspired by https://github.com/kubernetes-sigs/controller-runtime/blob/v0.12.1/pkg/handler/enqueue_mapped.go
+// Heavily inspired by https://github.com/kubernetes-sigs/controller-runtime/blob/v0.22.5/pkg/handler/enqueue_mapped.go
 type enqueueRequestForClusterDeploymentOwner struct {
 	Client    client.Client
 	Scheme    *runtime.Scheme
 	groupKind schema.GroupKind
 }
 
-func (e *enqueueRequestForClusterDeploymentOwner) Create(ctx context.Context, evt event.CreateEvent, q workqueue.RateLimitingInterface) {
+func (e *enqueueRequestForClusterDeploymentOwner) Create(ctx context.Context, evt event.TypedCreateEvent[client.Object], q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	e.mapAndEnqueue(q, evt.Object)
 }
 
-func (e *enqueueRequestForClusterDeploymentOwner) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
+func (e *enqueueRequestForClusterDeploymentOwner) Update(ctx context.Context, evt event.TypedUpdateEvent[client.Object], q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	e.mapAndEnqueue(q, evt.ObjectOld)
 	e.mapAndEnqueue(q, evt.ObjectNew)
 }
 
-func (e *enqueueRequestForClusterDeploymentOwner) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
+func (e *enqueueRequestForClusterDeploymentOwner) Delete(ctx context.Context, evt event.TypedDeleteEvent[client.Object], q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	e.mapAndEnqueue(q, evt.Object)
 }
 
-func (e *enqueueRequestForClusterDeploymentOwner) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
+func (e *enqueueRequestForClusterDeploymentOwner) Generic(ctx context.Context, evt event.TypedGenericEvent[client.Object], q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	e.mapAndEnqueue(q, evt.Object)
 }
 
@@ -174,7 +174,7 @@ func (e *enqueueRequestForClusterDeploymentOwner) getAssociatedPagerDutyIntegrat
 	}
 
 	for _, pdi := range pdiList.Items {
-		pdi := pdi // gosec G601 compliance - avoid memory aliasing in for-loops
+
 		sanitized, matchesNothing := sanitizeLabelSelector(&pdi.Spec.ClusterDeploymentSelector, log)
 		if matchesNothing {
 			continue
@@ -200,7 +200,7 @@ func (e *enqueueRequestForClusterDeploymentOwner) getAssociatedPagerDutyIntegrat
 	return reqs
 }
 
-func (e *enqueueRequestForClusterDeploymentOwner) mapAndEnqueue(q workqueue.RateLimitingInterface, obj client.Object) {
+func (e *enqueueRequestForClusterDeploymentOwner) mapAndEnqueue(q workqueue.TypedRateLimitingInterface[reconcile.Request], obj client.Object) {
 	for req := range e.getAssociatedPagerDutyIntegrations(obj) {
 		q.Add(req)
 	}
@@ -209,28 +209,28 @@ func (e *enqueueRequestForClusterDeploymentOwner) mapAndEnqueue(q workqueue.Rate
 var _ handler.EventHandler = &enqueueRequestForConfigMap{}
 
 // enqueueRequestForConfigMap implements the handler.EventHandler interface.
-// Heavily inspired by https://github.com/kubernetes-sigs/controller-runtime/blob/v0.12.1/pkg/handler/enqueue_mapped.go
+// Heavily inspired by https://github.com/kubernetes-sigs/controller-runtime/blob/v0.22.5/pkg/handler/enqueue_mapped.go
 type enqueueRequestForConfigMap struct {
 	Client client.Client
 }
 
-func (e *enqueueRequestForConfigMap) Create(ctx context.Context, evt event.CreateEvent, q workqueue.RateLimitingInterface) {
+func (e *enqueueRequestForConfigMap) Create(ctx context.Context, evt event.TypedCreateEvent[client.Object], q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	reqs := map[reconcile.Request]struct{}{}
 	e.mapAndEnqueue(q, evt.Object, reqs)
 }
 
-func (e *enqueueRequestForConfigMap) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
+func (e *enqueueRequestForConfigMap) Update(ctx context.Context, evt event.TypedUpdateEvent[client.Object], q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	reqs := map[reconcile.Request]struct{}{}
 	e.mapAndEnqueue(q, evt.ObjectOld, reqs)
 	e.mapAndEnqueue(q, evt.ObjectNew, reqs)
 }
 
-func (e *enqueueRequestForConfigMap) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
+func (e *enqueueRequestForConfigMap) Delete(ctx context.Context, evt event.TypedDeleteEvent[client.Object], q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	reqs := map[reconcile.Request]struct{}{}
 	e.mapAndEnqueue(q, evt.Object, reqs)
 }
 
-func (e *enqueueRequestForConfigMap) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
+func (e *enqueueRequestForConfigMap) Generic(ctx context.Context, evt event.TypedGenericEvent[client.Object], q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 	reqs := map[reconcile.Request]struct{}{}
 	e.mapAndEnqueue(q, evt.Object, reqs)
 }
@@ -252,7 +252,7 @@ func (e *enqueueRequestForConfigMap) toRequests(obj client.Object) []reconcile.R
 	}
 
 	for _, pdi := range pdiList.Items {
-		pdi := pdi // gosec G601 compliance - avoid memory aliasing in for-loops
+
 		sanitized, matchesNothing := sanitizeLabelSelector(&pdi.Spec.ClusterDeploymentSelector, log)
 		if matchesNothing {
 			continue
@@ -273,7 +273,7 @@ func (e *enqueueRequestForConfigMap) toRequests(obj client.Object) []reconcile.R
 	return reqs
 }
 
-func (e *enqueueRequestForConfigMap) mapAndEnqueue(q workqueue.RateLimitingInterface, obj client.Object, reqs map[reconcile.Request]struct{}) {
+func (e *enqueueRequestForConfigMap) mapAndEnqueue(q workqueue.TypedRateLimitingInterface[reconcile.Request], obj client.Object, reqs map[reconcile.Request]struct{}) {
 	for _, req := range e.toRequests(obj) {
 		_, ok := reqs[req]
 		if !ok {
