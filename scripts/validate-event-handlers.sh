@@ -139,6 +139,14 @@ print_results() {
 }
 
 main() {
+    for cmd in oc ocm; do
+        if ! command -v "${cmd}" >/dev/null 2>&1; then
+            log_fail "Missing required CLI: ${cmd}" "prerequisites"
+            print_results
+            exit 1
+        fi
+    done
+
     log_info "Starting event handler validation"
     log_info "Namespace: ${NAMESPACE}"
     echo ""
