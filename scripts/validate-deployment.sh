@@ -153,10 +153,10 @@ main() {
         CP_OPERATOR_IMAGE=$(echo "$CP_JSON" | jq -r '.spec.config.image // "unknown"')
         CP_OPERATOR_TAG=$(echo "$CP_OPERATOR_IMAGE" | sed 's/.*://')
         CP_GENERATION=$(echo "$CP_JSON" | jq -r '.metadata.generation')
-        CP_OBSERVED=$(echo "$CP_JSON" | jq -r '.status.conditions[] | select(.type == "Available") | .observedGeneration // 0')
-        CP_AVAILABLE=$(echo "$CP_JSON" | jq -r '.status.conditions[] | select(.type == "Available") | .status')
-        CP_PROGRESSING=$(echo "$CP_JSON" | jq -r '.status.conditions[] | select(.type == "Progressing") | .status')
-        CP_UNPACKED=$(echo "$CP_JSON" | jq -r '.status.conditions[] | select(.type == "Unpacked") | .status')
+        CP_OBSERVED=$(echo "$CP_JSON" | jq -r '[(.status.conditions // [])[] | select(.type == "Available")] | first | .observedGeneration // 0')
+        CP_AVAILABLE=$(echo "$CP_JSON" | jq -r '[(.status.conditions // [])[] | select(.type == "Available")] | first | .status // "Unknown"')
+        CP_PROGRESSING=$(echo "$CP_JSON" | jq -r '[(.status.conditions // [])[] | select(.type == "Progressing")] | first | .status // "Unknown"')
+        CP_UNPACKED=$(echo "$CP_JSON" | jq -r '[(.status.conditions // [])[] | select(.type == "Unpacked")] | first | .status // "Unknown"')
         CP_UPDATE_TIME=$(echo "$CP_JSON" | jq -r '.metadata.annotations["qontract.update"] // "unknown"')
 
         verbose "PKO image: $CP_PKO_IMAGE"

@@ -27,7 +27,7 @@ help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-25s %s\n", $$1, $$2}'
 
 check-reason:
-ifndef REASON
+ifeq ($(strip $(REASON)),)
 	$(error REASON is required. Set REASON to a Jira ticket URL, e.g. REASON=https://redhat.atlassian.net/browse/SREP-XXXX)
 endif
 
@@ -70,13 +70,13 @@ validate: check-reason check-cluster ## Run all three validations (deployment, f
 	@echo "========================================="
 	@echo ""
 	@echo "--- Deployment Validation ---"
-	@bash $(SCRIPTS_DIR)/validate-deployment.sh -t "$(REASON)" $(VERBOSE) || true
+	@bash $(SCRIPTS_DIR)/validate-deployment.sh -t "$(REASON)" $(VERBOSE)
 	@echo ""
 	@echo "--- Functional Validation ---"
-	@bash $(SCRIPTS_DIR)/validate-functional.sh -t "$(REASON)" $(VERBOSE) || true
+	@bash $(SCRIPTS_DIR)/validate-functional.sh -t "$(REASON)" $(VERBOSE)
 	@echo ""
 	@echo "--- Metrics Validation ---"
-	@bash $(SCRIPTS_DIR)/check-metrics.sh -t "$(REASON)" $(VERBOSE) || true
+	@bash $(SCRIPTS_DIR)/check-metrics.sh -t "$(REASON)" $(VERBOSE)
 	@echo ""
 	@echo "========================================="
 	@echo "Validation complete."

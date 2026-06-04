@@ -185,11 +185,17 @@ main() {
         log_header "1. Deployment Health Check"
 
         if [[ "$JSON_OUTPUT" == "true" ]]; then
-            DEPLOYMENT_RESULT=$("$SCRIPT_DIR/validate-deployment.sh" $COMMON_ARGS -j 2>&1)
-            DEPLOYMENT_EXIT=$?
+            if DEPLOYMENT_RESULT=$("$SCRIPT_DIR/validate-deployment.sh" $COMMON_ARGS -j 2>&1); then
+                DEPLOYMENT_EXIT=0
+            else
+                DEPLOYMENT_EXIT=$?
+            fi
         else
-            "$SCRIPT_DIR/validate-deployment.sh" $COMMON_ARGS
-            DEPLOYMENT_EXIT=$?
+            if "$SCRIPT_DIR/validate-deployment.sh" $COMMON_ARGS; then
+                DEPLOYMENT_EXIT=0
+            else
+                DEPLOYMENT_EXIT=$?
+            fi
         fi
 
         if [[ $DEPLOYMENT_EXIT -eq 0 ]]; then
@@ -210,11 +216,17 @@ main() {
         log_header "2. Metrics Validation"
 
         if [[ "$JSON_OUTPUT" == "true" ]]; then
-            METRICS_RESULT=$("$SCRIPT_DIR/check-metrics.sh" $COMMON_ARGS -j 2>&1)
-            METRICS_EXIT=$?
+            if METRICS_RESULT=$("$SCRIPT_DIR/check-metrics.sh" $COMMON_ARGS -j 2>&1); then
+                METRICS_EXIT=0
+            else
+                METRICS_EXIT=$?
+            fi
         else
-            "$SCRIPT_DIR/check-metrics.sh" $COMMON_ARGS
-            METRICS_EXIT=$?
+            if "$SCRIPT_DIR/check-metrics.sh" $COMMON_ARGS; then
+                METRICS_EXIT=0
+            else
+                METRICS_EXIT=$?
+            fi
         fi
 
         if [[ $METRICS_EXIT -eq 0 ]]; then
@@ -229,7 +241,9 @@ main() {
         if [[ -n "$BASELINE_FILE" && -f "$BASELINE_FILE" ]]; then
             log_info ""
             log_info "Running metrics comparison against baseline..."
-            "$SCRIPT_DIR/compare-metrics.sh" $COMMON_ARGS -c "$BASELINE_FILE" > /dev/null
+            if ! "$SCRIPT_DIR/compare-metrics.sh" $COMMON_ARGS -c "$BASELINE_FILE" > /dev/null; then
+                log_warning "Metrics comparison detected regressions"
+            fi
         fi
 
         log_info ""
@@ -243,11 +257,17 @@ main() {
         log_header "3. Functional Validation"
 
         if [[ "$JSON_OUTPUT" == "true" ]]; then
-            FUNCTIONAL_RESULT=$("$SCRIPT_DIR/validate-functional.sh" $COMMON_ARGS -j 2>&1)
-            FUNCTIONAL_EXIT=$?
+            if FUNCTIONAL_RESULT=$("$SCRIPT_DIR/validate-functional.sh" $COMMON_ARGS -j 2>&1); then
+                FUNCTIONAL_EXIT=0
+            else
+                FUNCTIONAL_EXIT=$?
+            fi
         else
-            "$SCRIPT_DIR/validate-functional.sh" $COMMON_ARGS
-            FUNCTIONAL_EXIT=$?
+            if "$SCRIPT_DIR/validate-functional.sh" $COMMON_ARGS; then
+                FUNCTIONAL_EXIT=0
+            else
+                FUNCTIONAL_EXIT=$?
+            fi
         fi
 
         if [[ $FUNCTIONAL_EXIT -eq 0 ]]; then

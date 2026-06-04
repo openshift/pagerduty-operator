@@ -174,11 +174,11 @@ main() {
 
     # Check 2: Find Prometheus pod
     log_info "[2/8] Finding Prometheus pod..."
-    PROMETHEUS_POD=$(oc get pods -n "$PROMETHEUS_NAMESPACE" -l app.kubernetes.io/name=prometheus -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+    PROMETHEUS_POD=$(ocm backplane elevate "$TICKET" -- get pods -n "$PROMETHEUS_NAMESPACE" -l app.kubernetes.io/name=prometheus -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
 
     # If not found, might be named prometheus-app-sre
     if [[ -z "$PROMETHEUS_POD" ]]; then
-        PROMETHEUS_POD=$(oc get pods -n "$PROMETHEUS_NAMESPACE" -l prometheus=app-sre -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+        PROMETHEUS_POD=$(ocm backplane elevate "$TICKET" -- get pods -n "$PROMETHEUS_NAMESPACE" -l prometheus=app-sre -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
     fi
 
     if [[ -z "$PROMETHEUS_POD" ]]; then

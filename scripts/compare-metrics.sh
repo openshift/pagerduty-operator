@@ -40,6 +40,10 @@ VERBOSE=false
 PROMETHEUS_NAMESPACE="openshift-customer-monitoring"
 PROMETHEUS_POD=""
 
+# Comparison result tracking
+COMPARE_FAILED=0
+COMPARE_WARNINGS=0
+
 # Helper functions
 log_info() {
     echo -e "${NC}$1${NC}" >&2
@@ -51,10 +55,12 @@ log_success() {
 
 log_fail() {
     echo -e "${RED}❌ $1${NC}" >&2
+    COMPARE_FAILED=$((COMPARE_FAILED + 1))
 }
 
 log_warning() {
     echo -e "${YELLOW}⚠️  $1${NC}" >&2
+    COMPARE_WARNINGS=$((COMPARE_WARNINGS + 1))
 }
 
 verbose() {
@@ -171,11 +177,11 @@ capture_metrics() {
     log_info "Capturing metrics snapshot..." >&2
 
     # Find Prometheus pod
-    PROMETHEUS_POD=$(oc get pods -n "$PROMETHEUS_NAMESPACE" -l app.kubernetes.io/name=prometheus -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+    PROMETHEUS_POD=$(ocm backplane elevate "$TICKET" -- get pods -n "$PROMETHEUS_NAMESPACE" -l app.kubernetes.io/name=prometheus -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
 
     # If not found, might be named prometheus-app-sre
     if [[ -z "$PROMETHEUS_POD" ]]; then
-        PROMETHEUS_POD=$(oc get pods -n "$PROMETHEUS_NAMESPACE" -l prometheus=app-sre -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+        PROMETHEUS_POD=$(ocm backplane elevate "$TICKET" -- get pods -n "$PROMETHEUS_NAMESPACE" -l prometheus=app-sre -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
     fi
 
     if [[ -z "$PROMETHEUS_POD" ]]; then
@@ -314,8 +320,8 @@ compare_metrics() {
     fi
 
     # Reconcile latency
-    RECONCILE_P95_CHANGE=$(awk -v c="$C_RECONCILE_P95" -v b="$B_RECONCILE_P95" 'BEGIN { printf "%.2f", (c - b) / b * 100 }')
-    RECONCILE_P99_CHANGE=$(awk -v c="$C_RECONCILE_P99" -v b="$B_RECONCILE_P99" 'BEGIN { printf "%.2f", (c - b) / b * 100 }')
+    RECONCILE_P95_CHANGE=$(awk -v c="$C_RECONCILE_P95" -v b="$B_RECONCILE_P95" 'BEGIN { if (b > 0) printf "%.2f", (c - b) / b * 100; else print "0" }')
+    RECONCILE_P99_CHANGE=$(awk -v c="$C_RECONCILE_P99" -v b="$B_RECONCILE_P99" 'BEGIN { if (b > 0) printf "%.2f", (c - b) / b * 100; else print "0" }')
 
     log_info "" >&2
     log_info "Reconciliation Latency:" >&2
@@ -356,6 +362,13 @@ compare_metrics() {
 
     # Return current snapshot to stdout for chaining
     echo "$CURRENT"
+
+    if [[ "$COMPARE_FAILED" -gt 0 ]]; then
+        return 2
+    elif [[ "$COMPARE_WARNINGS" -gt 0 ]]; then
+        return 1
+    fi
+    return 0
 }
 
 # Main

@@ -52,6 +52,9 @@ CHECKS_PASSED=0
 CHECKS_FAILED=0
 CHECKS_WARNING=0
 RESULTS=()
+PD_CM_TOTAL=0
+PD_SECRET_TOTAL=0
+PD_SS_TOTAL=0
 
 # Helper functions
 log_info() {
@@ -199,8 +202,8 @@ main() {
         exit 1
     fi
 
-    # Use the oldest running pod's start time as rollout timestamp
-    POD_START=$(echo "$POD_JSON" | jq -r '[.items[] | select(.status.phase == "Running") | .status.startTime] | sort | first // "unknown"')
+    # Use the newest running pod's start time as rollout timestamp
+    POD_START=$(echo "$POD_JSON" | jq -r '[.items[] | select(.status.phase == "Running") | .status.startTime] | sort | last // "unknown"')
     POD_NAME=$(echo "$POD_JSON" | jq -r '.items[0].metadata.name')
     POD_IMAGE=$(echo "$POD_JSON" | jq -r '.items[0].status.containerStatuses[0].image // "unknown"' | sed 's|.*/||')
 
@@ -321,6 +324,7 @@ main() {
                 fi
 
                 CM_FOUND=true
+                PD_CM_TOTAL=$((PD_CM_TOTAL + 1))
                 verbose "  Matched PDI prefix: $PREFIX"
                 SVC_ID=$(echo "$CM_DATA" | jq -r '.data.SERVICE_ID // ""')
                 INT_ID=$(echo "$CM_DATA" | jq -r '.data.INTEGRATION_ID // ""')
@@ -337,6 +341,7 @@ main() {
                 SECRET_EXISTS=$(echo "$NS_RESOURCES" | jq -r --arg name "$SECRET_NAME_CHECK" '.items[] | select(.kind == "Secret" and .metadata.name == $name) | .metadata.name // empty')
                 if [[ -n "$SECRET_EXISTS" ]]; then
                     SECRET_FOUND=true
+                    PD_SECRET_TOTAL=$((PD_SECRET_TOTAL + 1))
                     verbose "  Secret $SECRET_NAME_CHECK: exists"
                 fi
 
@@ -344,6 +349,7 @@ main() {
                 SS_DATA=$(echo "$NS_RESOURCES" | jq -r --arg name "$SECRET_NAME_CHECK" '.items[] | select(.kind == "SyncSet" and .metadata.name == $name) // empty')
                 if [[ -n "$SS_DATA" ]]; then
                     SS_FOUND=true
+                    PD_SS_TOTAL=$((PD_SS_TOTAL + 1))
                     SS_CD_REF=$(echo "$SS_DATA" | jq -r '.spec.clusterDeploymentRefs[0].name // ""')
                     SS_APPLY_MODE=$(echo "$SS_DATA" | jq -r '.spec.resourceApplyMode // ""')
                     SS_MAPPING_COUNT=$(echo "$SS_DATA" | jq -r '.spec.secretMappings | length // 0')
