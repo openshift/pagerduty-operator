@@ -946,4 +946,3 @@ func TestParseIncidentNumbers(t *testing.T) {
 		})
 	}
 }
-
