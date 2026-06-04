@@ -561,6 +561,9 @@ main() {
         echo "    $(IFS=,; echo "${RESULTS[*]}")"
         echo "  ]"
         echo "}"
+        if [[ $CHECKS_FAILED -gt 0 ]]; then
+            exit 1
+        fi
     else
         log_info "Passed:   $CHECKS_PASSED"
         log_info "Failed:   $CHECKS_FAILED"

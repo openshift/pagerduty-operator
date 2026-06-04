@@ -241,8 +241,9 @@ main() {
         if [[ -n "$BASELINE_FILE" && -f "$BASELINE_FILE" ]]; then
             log_info ""
             log_info "Running metrics comparison against baseline..."
-            if ! "$SCRIPT_DIR/compare-metrics.sh" $COMMON_ARGS -c "$BASELINE_FILE" > /dev/null; then
-                log_warning "Metrics comparison detected regressions"
+            if ! "$SCRIPT_DIR/compare-metrics.sh" $COMMON_ARGS -c "$BASELINE_FILE"; then
+                METRICS_STATUS="WARN"
+                log_warning "Metrics comparison detected regressions (see above)"
             fi
         fi
 
@@ -325,6 +326,9 @@ main() {
   }
 }
 EOF
+        if [[ "$OVERALL_STATUS" == "FAIL" ]]; then
+            exit 1
+        fi
     else
         log_info "Deployment Health:      $DEPLOYMENT_STATUS"
         log_info "Metrics Validation:     $METRICS_STATUS"
