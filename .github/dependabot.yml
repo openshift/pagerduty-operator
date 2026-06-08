@@ -12,26 +12,3 @@ updates:
         # don't upgrade boilerplate via these means
       - dependency-name: "openshift4/ose-operator-registry"
         # don't upgrade ose-operator-registry via these means
-  - package-ecosystem: gomod
-    directory: "/"
-    labels:
-      - "area/dependency"
-      - "ok-to-test"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 10
-    groups:
-      kubernetes:
-        patterns:
-          - "k8s.io/*"
-          - "sigs.k8s.io/*"
-      openshift:
-        patterns:
-          - "github.com/openshift/*"
-      golang-x:
-        patterns:
-          - "golang.org/x/*"
-      prometheus:
-        patterns:
-          - "github.com/prometheus/*"
-          - "github.com/prometheus-operator/*"
