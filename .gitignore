@@ -91,5 +91,5 @@ saas-pagerduty-operator-bundle/
 # IntelliJ
 .idea/
 
-# Claude
-.claude/
+# Claude Code runtime artifacts (committed files are tracked via .claude/.gitignore)
+.work/
