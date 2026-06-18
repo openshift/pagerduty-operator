@@ -94,3 +94,6 @@ saas-pagerduty-operator-bundle/
 # Claude
 .claude/
 CLAUDE.md
+
+# Test logs
+*.log
