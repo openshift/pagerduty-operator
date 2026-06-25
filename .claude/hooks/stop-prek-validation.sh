@@ -59,7 +59,7 @@ FORCE_LINT="${CLAUDE_LINT_ON_STOP:-false}"
 
 if [[ "$FORCE_LINT" != "true" ]]; then
   # Check for uncommitted changes (staged, unstaged, or untracked)
-  if git diff-index --quiet HEAD -- 2>/dev/null && [[ -z "$(git ls-files --others --exclude-standard)" ]]; then
+  if git diff --quiet 2>/dev/null && git diff-index --quiet HEAD -- 2>/dev/null && [[ -z "$(git ls-files --others --exclude-standard)" ]]; then
     # No changes and not forced - skip validation
     exit 0
   fi
@@ -100,9 +100,12 @@ if [[ $PREK_EXIT -eq 0 ]]; then
   exit 0
 fi
 
+# Sanitize prek output — strip absolute paths to avoid leaking env details
+SANITIZED_OUTPUT=$(echo "$PREK_OUTPUT" | sed 's|/[^ ]*||g' | head -50 | tr -d '')
+
 # Block stop and tell Claude what to fix
 jq -n \
   --arg reason "prek validation failed. Fix the issues below, then try again:
 
-$PREK_OUTPUT" \
-  '{"decision": "block", "reason": $reason}'
+$SANITIZED_OUTPUT" \
+  '{"decision": "block", "reason": $reason}' 

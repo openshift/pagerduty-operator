@@ -157,7 +157,7 @@ Escalate to human when:
 find . -name "*.md" -not -path "./vendor/*" -not -path "./.git/*"
 
 # Verify make targets exist
-grep -h 'make ' *.md | grep '```' -A 5 | grep '^make ' | sed 's/make \([a-z-]*\).*/\1/' | sort -u | while read t; do make -n "$t" 2>/dev/null || echo "MISSING: $t"; done
+grep -hE '^make [a-z]' *.md | sed 's/make \([a-z_-]*\).*/\1/' | sort -u | while read t; do make -n "$t" 2>/dev/null || echo "MISSING: $t"; done
 
 # Check for dead links (manual review)
 grep -r '\[.*\](' *.md

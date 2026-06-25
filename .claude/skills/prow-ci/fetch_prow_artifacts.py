@@ -66,10 +66,16 @@ def download_from_gcs(gcs_path, local_path):
             local_path,
             '--no-user-output-enabled'
         ]
-        subprocess.run(cmd, check=True, capture_output=True)
+        subprocess.run(cmd, check=True, capture_output=True, timeout=300)
         return True
+    except subprocess.TimeoutExpired:
+        print(f"Warning: Download timed out for {gcs_path}", file=sys.stderr)
+        return False
     except subprocess.CalledProcessError as e:
-        print(f"Warning: Could not download {gcs_path}: {e.stderr.decode()}", file=sys.stderr)
+        # Sanitize stderr to avoid leaking internal paths or env details
+        stderr_lines = e.stderr.decode(errors='replace').splitlines()
+        safe_msg = next((l for l in stderr_lines if l.strip()), 'unknown error')
+        print(f"Warning: Could not download {gcs_path}: {safe_msg}", file=sys.stderr)
         return False
 
 
@@ -82,7 +88,7 @@ def fetch_prowjob_json(gcs_base_path, output_dir):
         try:
             with open(local_path, 'r') as f:
                 return json.load(f)
-        except json.JSONDecodeError as e:
+        except (json.JSONDecodeError, OSError) as e:
             print(f"Error: Could not parse JSON from {local_path}: {e}", file=sys.stderr)
             return None
     return None

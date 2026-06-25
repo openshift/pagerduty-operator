@@ -23,8 +23,7 @@ def analyze_build_log(log_file):
     }
 
     with open(log_file, 'r', encoding='utf-8', errors='replace') as f:
-        content = f.read()
-        lines = content.splitlines()
+        lines = f.readlines()
 
     # Common failure patterns
     patterns = [
@@ -144,6 +143,10 @@ def main():
 
     job_info = analyze_prowjob(prowjob_file)
     log_analysis = analyze_build_log(log_file)
+
+    if job_info is None and log_analysis is None:
+        print("Error: No artifacts could be parsed. Check that the artifact directory contains prowjob.json or build-log.txt.", file=sys.stderr)
+        return 1
 
     if args.format == 'markdown':
         print(format_markdown(job_info, log_analysis))
