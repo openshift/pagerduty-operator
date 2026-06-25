@@ -22,11 +22,7 @@ def analyze_build_log(log_file):
         'summary': ''
     }
 
-    with open(log_file, 'r', encoding='utf-8', errors='replace') as f:
-        lines = f.readlines()
-
-    # Common failure patterns
-    patterns = [
+    failure_patterns = [
         (r'FAIL\s+github\.com/', 'test_failure', 'Test package failure'),
         (r'--- FAIL:', 'test_failure', 'Individual test failure'),
         (r'Error: exit status \d+', 'exit_error', 'Command exit error'),
@@ -40,27 +36,25 @@ def analyze_build_log(log_file):
         (r'panic:', 'panic', 'Go panic'),
     ]
 
-    for pattern, key, description in patterns:
-        matches = re.findall(pattern, content, re.IGNORECASE)
-        if matches:
-            analysis['patterns'].append({
-                'type': key,
-                'description': description,
-                'count': len(matches)
-            })
+    pattern_counts = {}
+    error_count = 0
 
-    # Extract error lines
-    for i, line in enumerate(lines):
-        if re.search(r'\bERROR\b|FAIL|panic:', line, re.IGNORECASE):
-            context_start = max(0, i - 2)
-            context_end = min(len(lines), i + 3)
-            analysis['errors'].append({
-                'line': i + 1,
-                'content': line.strip(),
-                'context': lines[context_start:context_end]
-            })
-            if len(analysis['errors']) >= 20:
-                break
+    # Stream line-by-line to avoid loading entire log into memory
+    with open(log_file, 'r', encoding='utf-8', errors='replace') as f:
+        for i, line in enumerate(f):
+            for pattern, key, description in failure_patterns:
+                if re.search(pattern, line, re.IGNORECASE):
+                    pattern_counts[key] = pattern_counts.get(key, {'description': description, 'count': 0})
+                    pattern_counts[key]['count'] += 1
+            if re.search(r'\bERROR\b|FAIL|panic:', line, re.IGNORECASE):
+                # Store only line number — not raw content — to avoid PII/secret leakage
+                analysis['errors'].append({'line': i + 1})
+                error_count += 1
+                if error_count >= 20:
+                    break
+
+    for key, data in pattern_counts.items():
+        analysis['patterns'].append({'type': key, 'description': data['description'], 'count': data['count']})
 
     # Generate summary
     if analysis['patterns']:
@@ -120,7 +114,7 @@ def format_markdown(job_info, log_analysis):
         if log_analysis['errors']:
             lines.append(f"### Top Errors (showing {min(5, len(log_analysis['errors']))} of {len(log_analysis['errors'])})")
             for error in log_analysis['errors'][:5]:
-                lines.append(f"\n**Line {error['line']}**: `{error['content']}`")
+                lines.append(f"- Line {error['line']}")
             lines.append('')
 
     return '\n'.join(lines)
