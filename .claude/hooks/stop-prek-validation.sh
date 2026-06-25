@@ -101,7 +101,8 @@ if [[ $PREK_EXIT -eq 0 ]]; then
 fi
 
 # Sanitize prek output — strip absolute paths to avoid leaking env details
-SANITIZED_OUTPUT=$(echo "$PREK_OUTPUT" | sed 's|/[^ ]*||g' | head -50 | tr -d '')
+SANITIZED_OUTPUT=$(echo "$PREK_OUTPUT" | sed 's|/[^ ]*||g' | head -50 | tr -d '
+')
 
 # Block stop and tell Claude what to fix
 jq -n \
