@@ -4,7 +4,7 @@ Thank you for your interest in contributing to the PagerDuty Operator project.
 
 ## Quick Start
 
-1. **Setup**: Install Go 1.23+
+1. **Setup**: Install Go 1.26+
 2. **Install prek**: `uv tool install prek && prek install`
 3. **Build**: `make go-build`
 4. **Test**: `make go-test`
