@@ -4,7 +4,7 @@ Quick reference for developing the PagerDuty Operator.
 
 ## Prerequisites
 
-- **Go**: 1.23 or later
+- **Go**: 1.26 or later
 - **kubectl**: For cluster interaction
 - **prek**: `uv tool install prek`
 
