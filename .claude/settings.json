@@ -20,9 +20,10 @@
       "Bash(git log*)",
       "Bash(git branch*)",
       "Bash(grep *)",
-      "Bash(find *)",
+      "Bash(find . *)",
+      "Bash(find ./* *)",
       "Bash(ls *)",
-      "Bash(cat ./*)"
+      "Read(./**)"
     ],
     "ask": [
       "Bash(git commit *)",
@@ -49,7 +50,11 @@
       "Bash(git push * -f)",
       "Bash(git push * -f *)",
       "Bash(rm -rf /)",
-      "Bash(chmod 777 *)"
+      "Bash(chmod 777 *)",
+      "Read(~/.kube/**)",
+      "Read(~/.aws/**)",
+      "Read(~/.ssh/**)",
+      "Read(~/.config/**)"
     ]
   },
   "hooks": {

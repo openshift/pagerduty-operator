@@ -156,8 +156,18 @@ Escalate to human when:
 # Check all markdown files
 find . -name "*.md" -not -path "./vendor/*" -not -path "./.git/*"
 
-# Verify make targets exist
-grep -hE '^make [a-z]' *.md | sed 's/make \([a-z_-]*\).*/\1/' | sort -u | while read t; do make -n "$t" 2>/dev/null || echo "MISSING: $t"; done
+# Verify make targets exist (extract from bash fenced blocks first)
+awk '
+  /^```bash/ {in_fence=1; next}
+  /^```/ && in_fence {in_fence=0; next}
+  in_fence
+' *.md \
+| grep -E '^make [a-zA-Z0-9_-]+' \
+| sed -E 's/^make ([a-zA-Z0-9_-]+).*/\1/' \
+| sort -u \
+| while read -r t; do
+    make -n "$t" >/dev/null 2>&1 || echo "MISSING: $t"
+  done
 
 # Check for dead links (manual review)
 grep -r '\[.*\](' *.md
