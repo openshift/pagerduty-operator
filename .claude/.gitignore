@@ -1,0 +1,5 @@
+# Claude Code runtime artifacts - not committed
+worktrees/
+todos.json
+projects/
+*.log
