@@ -1,6 +1,9 @@
 package pagerduty
 
 import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -632,6 +635,94 @@ func TestSvcClient_ResolvePendingIncidents(t *testing.T) {
 				assert.Nil(t, err)
 			}
 		})
+	}
+}
+
+func TestSvcClient_ResolvePendingIncidents_ForeignIntegration(t *testing.T) {
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	foreignIntegrationId := "FOREIGN_INT"
+	foreignAlertId := "FOREIGN_ALT"
+	localAlertKey := "local-dedup-key"
+	foreignAlertKey := "foreign-dedup-key"
+
+	state := &mockState{
+		Alerts: map[string][]*pdApi.IncidentAlert{
+			mockIncidentId: {
+				{
+					APIObject:   pdApi.APIObject{ID: mockAlertId},
+					AlertKey:    localAlertKey,
+					Status:      "triggered",
+					Service:     pdApi.APIObject{ID: mockServiceId},
+					Incident:    pdApi.APIReference{ID: mockIncidentId},
+					Integration: pdApi.APIObject{ID: mockIntegrationId},
+				},
+				{
+					APIObject:   pdApi.APIObject{ID: foreignAlertId},
+					AlertKey:    foreignAlertKey,
+					Status:      "triggered",
+					Service:     pdApi.APIObject{ID: mockServiceId},
+					Incident:    pdApi.APIReference{ID: mockIncidentId},
+					Integration: pdApi.APIObject{ID: foreignIntegrationId},
+				},
+			},
+		},
+		Incidents: []*pdApi.Incident{
+			{
+				APIObject: pdApi.APIObject{ID: mockIncidentId},
+				Service:   pdApi.APIObject{ID: mockServiceId},
+				Status:    "triggered",
+			},
+		},
+		Services: map[string]*pdApi.Service{
+			mockServiceId: {
+				APIObject: pdApi.APIObject{ID: mockServiceId},
+				Name:      mockServiceName,
+				Integrations: []pdApi.Integration{
+					{
+						APIObject:      pdApi.APIObject{ID: mockIntegrationId},
+						IntegrationKey: mockIntegrationKey,
+						Service:        &pdApi.APIObject{ID: mockServiceId},
+					},
+				},
+			},
+		},
+	}
+
+	mock := &mockApi{
+		Client: newMockClient(server),
+		State:  state,
+		mux:    mux,
+		server: server,
+	}
+	mock.setupDefaultGetIntegrationHandler()
+	mock.setupDefaultListIncidentsHandler()
+	mock.setupDefaultListIncidentAlertsHandler()
+
+	var resolveRequests []pdApi.V2Event
+	mux.HandleFunc("/v2/enqueue", func(w http.ResponseWriter, r *http.Request) {
+		var event pdApi.V2Event
+		if err := json.NewDecoder(r.Body).Decode(&event); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		resolveRequests = append(resolveRequests, event)
+		resp, _ := json.Marshal(pdApi.V2EventResponse{Status: "success", Message: "Event processed"})
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(resp)
+	})
+
+	err := mock.Client.resolvePendingIncidents(&Data{ServiceID: mockServiceId}, "test summary")
+	assert.Nil(t, err)
+
+	assert.Equal(t, 1, len(resolveRequests), "expected exactly one resolve request")
+	assert.Equal(t, mockIntegrationKey, resolveRequests[0].RoutingKey)
+	assert.Equal(t, localAlertKey, resolveRequests[0].DedupKey)
+
+	for _, req := range resolveRequests {
+		assert.NotEqual(t, foreignAlertKey, req.DedupKey, "foreign alert should not be resolved")
 	}
 }
 

@@ -18,6 +18,7 @@ package pagerduty
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -379,10 +380,9 @@ func (c *SvcClient) DeleteService(data *Data) error {
 		return fmt.Errorf("unable to resolve pending incidents for service ID %v: %w", data.ServiceID, err)
 	}
 
-	err = c.waitForIncidentsToResolve(data, 10*time.Second)
-	if err != nil {
-		return fmt.Errorf("error waiting for incidents to resolve for service ID %v: %w", data.ServiceID, err)
-	}
+	// Best-effort wait: incidents with foreign alerts (e.g. merged from another
+	// service) may never fully resolve, so a timeout here must not block deletion.
+	_ = c.waitForIncidentsToResolve(data, 10*time.Second)
 
 	err = c.PdClient.DeleteService(data.ServiceID)
 	if err != nil {
@@ -420,9 +420,9 @@ func (c *SvcClient) DisableService(data *Data) error {
 		return fmt.Errorf("unable to resolve pending incidents for service ID %v: %w", data.ServiceID, err)
 	}
 
-	if err = c.waitForIncidentsToResolve(data, 10*time.Second); err != nil {
-		return fmt.Errorf("error waiting for incidents to resolve for service ID %v: %w", data.ServiceID, err)
-	}
+	// Best-effort wait: incidents with foreign alerts (e.g. merged from another
+	// service) may never fully resolve, so a timeout here must not block disabling.
+	_ = c.waitForIncidentsToResolve(data, 10*time.Second)
 
 	if service.Status != "disabled" {
 		service.Status = "disabled"
@@ -552,6 +552,12 @@ func (c *SvcClient) resolvePendingIncidents(data *Data, summary string) error {
 		for _, alert := range alerts {
 			integration, err := c.PdClient.GetIntegration(data.ServiceID, alert.Integration.ID, pdApi.GetIntegrationOptions{})
 			if err != nil {
+				var apiErr pdApi.APIError
+				if errors.As(err, &apiErr) && apiErr.NotFound() {
+					// Alert's integration belongs to a different PD service (e.g. merged incident).
+					// Skip — we can only resolve alerts via their own service's integration.
+					continue
+				}
 				return fmt.Errorf("unable to get integration %v for incident %v, service %v: %w",
 					alert.Integration.ID, incident.ID, data.ServiceID, err)
 			}
