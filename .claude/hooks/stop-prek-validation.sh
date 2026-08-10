@@ -109,4 +109,4 @@ jq -n \
   --arg reason "prek validation failed. Fix the issues below, then try again:
 
 $SANITIZED_OUTPUT" \
-  '{"decision": "block", "reason": $reason}' 
+  '{"decision": "block", "reason": $reason}'
