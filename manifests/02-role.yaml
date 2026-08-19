@@ -17,15 +17,38 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - pods
-  - services
-  - endpoints
-  - persistentvolumeclaims
-  - events
-  - configmaps
   - secrets
   verbs:
-  - "*"
+  - get
+  - list
+  - watch
+  - create
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - services
+  verbs:
+  - get
+  - create
 - apiGroups:
   - ""
   resources:
@@ -33,29 +56,18 @@ rules:
   verbs:
   - get
 - apiGroups:
-  - apps
-  resources:
-  - deployments
-  - daemonsets
-  - replicasets
-  - statefulsets
-  verbs:
-  - "*"
-- apiGroups:
   - monitoring.coreos.com
   resources:
   - servicemonitors
   verbs:
-  - "get"
-  - "create"
+  - get
+  - create
 - apiGroups:
   - hive.openshift.io
-  attributeRestrictions: null
   resources:
   - clusterdeployments
   - clusterdeployments/finalizers
   - clusterdeployments/status
-  - syncsets
   verbs:
   - get
   - list
@@ -67,6 +79,9 @@ rules:
   resources:
   - syncsets
   verbs:
+  - get
+  - list
+  - watch
   - create
   - delete
 - apiGroups:
@@ -74,4 +89,5 @@ rules:
   resources:
   - routes
   verbs:
-  - '*'
+  - get
+  - create
