@@ -52,6 +52,7 @@ rules:
   verbs:
   - get
   - create
+  - update
 - apiGroups:
   - ''
   resources:
@@ -94,3 +95,4 @@ rules:
   verbs:
   - get
   - create
+  - update
