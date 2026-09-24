@@ -58,9 +58,9 @@ var _ = Describe("Pagerduty Operator", Ordered, Label("Suite: operators"), func(
 
 	BeforeAll(func(ctx context.Context) {
 		log.SetLogger(GinkgoLogr)
-		// The PDO operator is Hive-resident in production but for e2e testing
-		// it's deployed on a leased ROSA cluster via PKO. We use the leased
-		// cluster's kubeconfig from osde2e-common, not the Hive kubeconfig.
+		// PDO is Hive-resident. The rosa-hive-e2e workflow injects the Hive
+		// kubeconfig via backplane login, so openshift.New() automatically
+		// connects to the Hive cluster where PDO is deployed.
 		var err error
 		k8s, err = openshift.New(GinkgoLogr)
 		Expect(err).ShouldNot(HaveOccurred(), "unable to setup k8s client")
