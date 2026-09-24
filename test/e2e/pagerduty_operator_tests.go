@@ -152,9 +152,11 @@ var _ = Describe("Pagerduty Operator", Ordered, Label("Suite: operators"), func(
 		Expect(created.Spec.ServicePrefix).To(Equal("e2e-test"))
 
 		By("verifying the operator remains stable after CR creation (no crash-loops)")
-		Eventually(func(g Gomega) {
+		Consistently(func(g Gomega) {
+			pollCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+			defer cancel()
 			deployment := &appsv1.Deployment{}
-			err := k8s.Get(ctx, deploymentName, namespace, deployment)
+			err := k8s.Get(pollCtx, deploymentName, namespace, deployment)
 			g.Expect(err).ShouldNot(HaveOccurred(), "operator deployment not found after CR creation")
 			g.Expect(deployment.Status.AvailableReplicas).To(BeNumerically(">=", 1),
 				"operator should remain available after CR creation")
