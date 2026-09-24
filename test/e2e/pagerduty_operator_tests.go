@@ -5,6 +5,8 @@ package osde2etests
 
 import (
 	"context"
+	"fmt"
+	"math/rand/v2"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -23,6 +25,24 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
+// randString returns a random lowercase alphanumeric string of length n.
+func randString(n int) string {
+	const letters = "abcdefghijklmnopqrstuvwxyz0123456789"
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = letters[rand.IntN(len(letters))]
+	}
+	return string(b)
+}
+
+// testCRName is a unique per-run name for the PagerDutyIntegration CR to
+// prevent collisions across parallel test runs or leftover resources.
+var testCRName = fmt.Sprintf("pdi-e2e-%s", randString(6))
+
+// crCreated tracks whether this test run successfully created the CR,
+// so AfterAll only attempts cleanup for CRs this run owns.
+var crCreated bool
+
 var _ = Describe("Pagerduty Operator", Ordered, Label("Suite: operators"), func() {
 	var (
 		k8s       *openshift.Client
@@ -33,12 +53,14 @@ var _ = Describe("Pagerduty Operator", Ordered, Label("Suite: operators"), func(
 		deploymentName = "pagerduty-operator"
 		operatorName   = "pagerduty-operator"
 		crdName        = "pagerdutyintegrations.pagerduty.openshift.io"
-		testCRName     = "pdi-e2e-test"
 		pollingTimeout = 3 * time.Minute
 	)
 
 	BeforeAll(func(ctx context.Context) {
 		log.SetLogger(GinkgoLogr)
+		// The PDO operator is Hive-resident in production but for e2e testing
+		// it's deployed on a leased ROSA cluster via PKO. We use the leased
+		// cluster's kubeconfig from osde2e-common, not the Hive kubeconfig.
 		var err error
 		k8s, err = openshift.New(GinkgoLogr)
 		Expect(err).ShouldNot(HaveOccurred(), "unable to setup k8s client")
@@ -120,6 +142,7 @@ var _ = Describe("Pagerduty Operator", Ordered, Label("Suite: operators"), func(
 
 		err := k8s.Create(ctx, pdi)
 		Expect(err).ShouldNot(HaveOccurred(), "failed to create PagerDutyIntegration CR")
+		crCreated = true
 
 		By("verifying the CR was accepted and can be retrieved")
 		created := &pdiv1alpha1.PagerDutyIntegration{}
@@ -128,12 +151,23 @@ var _ = Describe("Pagerduty Operator", Ordered, Label("Suite: operators"), func(
 		Expect(created.Spec.EscalationPolicy).To(Equal("PXXXXXX"))
 		Expect(created.Spec.ServicePrefix).To(Equal("e2e-test"))
 
-		By("verifying the operator deployment remains healthy after CR creation")
-		deployment := &appsv1.Deployment{}
-		err = k8s.Get(ctx, deploymentName, namespace, deployment)
-		Expect(err).ShouldNot(HaveOccurred(), "operator deployment not found after CR creation")
-		Expect(deployment.Status.AvailableReplicas).To(BeNumerically(">=", 1),
-			"operator should remain available after CR creation")
+		By("verifying the operator remains stable after CR creation (no crash-loops)")
+		Eventually(func(g Gomega) {
+			deployment := &appsv1.Deployment{}
+			err := k8s.Get(ctx, deploymentName, namespace, deployment)
+			g.Expect(err).ShouldNot(HaveOccurred(), "operator deployment not found after CR creation")
+			g.Expect(deployment.Status.AvailableReplicas).To(BeNumerically(">=", 1),
+				"operator should remain available after CR creation")
+
+			// Verify no containers have restarted (crash-looped) since CR creation.
+			for _, cond := range deployment.Status.Conditions {
+				if cond.Type == appsv1.DeploymentAvailable {
+					g.Expect(cond.Status).To(Equal(corev1.ConditionTrue),
+						"operator deployment should stay Available")
+				}
+			}
+		}).WithTimeout(30 * time.Second).WithPolling(5 * time.Second).Should(Succeed(),
+			"operator became unstable after PagerDutyIntegration CR was created")
 	})
 
 	It("cleans up the test CR", func(ctx context.Context) {
@@ -160,6 +194,9 @@ var _ = Describe("Pagerduty Operator", Ordered, Label("Suite: operators"), func(
 	})
 
 	AfterAll(func(ctx context.Context) {
+		if !crCreated {
+			return
+		}
 		By("ensuring test CR cleanup in AfterAll")
 		pdi := &pdiv1alpha1.PagerDutyIntegration{
 			ObjectMeta: metav1.ObjectMeta{
