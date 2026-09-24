@@ -43,7 +43,7 @@ spec:
       - name: url
         value: https://github.com/openshift/boilerplate
       - name: revision
-        value: d0a07945463759cf0e3489cb46737dae08d66713
+        value: 99f398b21736cd96328f49aa77849d01b26f8227
       - name: pathInRepo
         value: pipelines/agentic-sdlc-check/pipeline.yaml
 status: {}
