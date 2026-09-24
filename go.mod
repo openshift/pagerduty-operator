@@ -4,7 +4,7 @@ go 1.26.0
 
 require (
 	github.com/PagerDuty/go-pagerduty v1.8.0
-	github.com/go-logr/logr v1.4.3
+	github.com/go-logr/logr v1.4.4
 	// go get -u github.com/openshift/api@release-4.15
 	github.com/openshift/api v0.0.0-20240228005710-4511c790cc60
 	github.com/openshift/hive/apis v0.0.0-20220525143918-dc755f3f28f2
