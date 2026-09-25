@@ -1,30 +1,27 @@
 module github.com/openshift/pagerduty-operator
 
-go 1.26.0
+go 1.27
 
 require (
 	github.com/PagerDuty/go-pagerduty v1.8.0
 	github.com/go-logr/logr v1.4.4
+	github.com/onsi/ginkgo/v2 v2.32.0
+	github.com/onsi/gomega v1.42.1
 	// go get -u github.com/openshift/api@release-4.15
 	github.com/openshift/api v0.0.0-20260924141611-e4a04a95d6cf
 	github.com/openshift/hive/apis v0.0.0-20220525143918-dc755f3f28f2
 	github.com/openshift/operator-custom-metrics v0.5.1
+	github.com/openshift/osde2e-common v0.0.0-20260902185639-d3668b5bf74c
 	github.com/prometheus/client_golang v1.24.0
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/mock v0.6.0
 	go.uber.org/zap v1.28.0
+	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.36.2
 	k8s.io/apimachinery v0.36.2
 	k8s.io/client-go v0.36.2
 	k8s.io/kube-openapi v0.0.0-20260603220949-865597e52e25
 	sigs.k8s.io/controller-runtime v0.24.1
-)
-
-require (
-	github.com/onsi/ginkgo/v2 v2.32.0
-	github.com/onsi/gomega v1.42.1
-	github.com/openshift/osde2e-common v0.0.0-20260902185639-d3668b5bf74c
-	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
